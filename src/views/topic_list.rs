@@ -11,7 +11,7 @@ use crossterm::event::{Event, KeyCode};
 use crate::{
     common::style::{HEADER_STYLE, SELECTED_STYLE},
     connections::{Connection, ConnectionType},
-    widgets::{raw_message::RawMessageState, topic_publisher::TopicPublisherState, TuiView, Views},
+    views::{raw_message::RawMessageState, topic_publisher::TopicPublisherState, TuiView, Views},
 };
 
 // TODO(@TonyWelte): Remove dependency on rclrs in widgets module

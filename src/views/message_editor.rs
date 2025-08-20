@@ -1,100 +1,70 @@
-use std::{
-    cell::RefCell,
-    rc::Rc,
-    sync::{Arc, Mutex},
-};
-
 use ratatui::{
     prelude::{Buffer, Rect, Style},
-    text::Line,
-    widgets::{Block, Paragraph, Widget},
+    widgets::StatefulWidget,
 };
 use rclrs::*;
 
 use crate::{
-    common::{
-        dynamic_message_selection::next_field,
-        generic_message::{
-            ArrayField, BoundedSequenceField, GenericField, GenericMessage, MessageMetadata,
-            SequenceField, SimpleField,
-        },
-        style::{HEADER_STYLE, SELECTED_STYLE},
-    },
-    connections::{Connection, ConnectionType},
+    common::{generic_message_selection::next_field, style::SELECTED_STYLE},
+    connections::Connection,
     // generic_message::{GenericField, GenericMessage},
-    widgets::{live_plot::LivePlotState, TuiView, Views},
+    views::{TuiView, Views},
 };
 
 use crossterm::event::{Event, KeyCode};
 
-pub struct RawMessageWidget;
+pub struct MessageEditorWidget;
 
-pub struct RawMessageState {
-    pub topic: String,
-    pub message: Arc<Mutex<Option<GenericMessage>>>,
-    raw_messages: Vec<Vec<u8>>, // TODO(@TonyWelte): Find a way to avoid copying the messages
-    index: usize,
-    connection: Rc<RefCell<ConnectionType>>,
-    selected_fields: Vec<usize>,
+impl MessageEditorWidget {
+    pub fn new() -> Self {
+        MessageEditorWidget {}
+    }
 }
 
-impl RawMessageState {
-    pub fn new(topic: String, connection: Rc<RefCell<ConnectionType>>) -> Self {
-        let message_type = connection
-            .borrow()
-            .get_topic_type(&topic)
-            .expect("Failed to get topic type");
-        let message = Arc::new(Mutex::new(None));
-        let message_copy = message.clone();
-        connection
-            .borrow_mut()
-            .subscribe(
-                &topic,
-                move |msg: GenericMessage, _msg_info: MessageMetadata| {
-                    let mut mut_message = message_copy.lock().unwrap();
-                    *mut_message = Some(msg);
-                },
-            )
-            .expect("Failed to subscribe to topic");
-        let object = Self {
-            topic: topic.clone(),
+pub struct MessageEditorState {
+    pub message: DynamicMessage,
+    selected_fields: Vec<usize>,
+    is_editing: bool,
+    field_content: String,
+}
+
+impl MessageEditorState {
+    pub fn new(message: DynamicMessage) -> Self {
+        Self {
             message,
-            raw_messages: Vec::new(),
-            index: 0,
-            connection,
             selected_fields: Vec::new(),
-        };
-        object
+            is_editing: false,
+            field_content: String::new(),
+        }
     }
 
     pub fn select_next_field(&mut self) {
-        if let Some(message) = self.message.lock().unwrap().as_ref() {
-            self.selected_fields = next_field(&message, &self.selected_fields).unwrap_or_default();
-        }
+        // self.selected_fields =
+        //     next_field(&self.message.view(), &self.selected_fields).unwrap_or_default();
     }
 
     pub fn select_previous_field(&mut self) {
-        if let Some(message) = self.message.lock().unwrap().as_ref() {
-            // self.selected_fields = prev_field(&message, &self.selected_fields).unwrap_or_default();
-        }
+        // self.selected_fields =
+        //     prev_field(&self.message.view(), &self.selected_fields).unwrap_or_default();
     }
 }
 
-impl TuiView for RawMessageState {
+impl TuiView for MessageEditorState {
     fn handle_event(&mut self, event: Event) -> Option<Views> {
         match event {
             Event::Key(key) => match key.code {
-                KeyCode::Down => self.select_next_field(),
-                KeyCode::Up => self.select_previous_field(),
-                KeyCode::Char('l') | KeyCode::Right => {
-                    if !self.selected_fields.is_empty() {
-                        let live_plot_state = LivePlotState::new(
-                            self.topic.clone(),
-                            self.selected_fields.clone(),
-                            self.connection.clone(),
-                        );
-                        return Some(Views::LivePlot(live_plot_state));
+                KeyCode::Down => {
+                    if !self.is_editing {
+                        self.select_next_field()
                     }
+                }
+                KeyCode::Up => {
+                    if !self.is_editing {
+                        self.select_previous_field()
+                    }
+                }
+                KeyCode::Enter => {
+                    self.is_editing = !self.is_editing;
                 }
                 _ => {}
             },
@@ -104,43 +74,114 @@ impl TuiView for RawMessageState {
     }
 
     fn name(&self) -> String {
-        format!("Raw Message - {}", self.topic)
+        "Message Editor".to_string()
     }
 }
 
-impl RawMessageWidget {
-    pub fn render(area: Rect, buf: &mut Buffer, state: &mut RawMessageState) {
-        let block = Block::bordered()
-            .title(
-                Line::raw(format!(
-                    "Raw Message ({}/{}) {:?}",
-                    state.index + 1,
-                    state.raw_messages.len(),
-                    state.selected_fields
-                ))
-                .centered(),
-            )
-            .border_style(HEADER_STYLE);
+impl StatefulWidget for MessageEditorWidget {
+    type State = MessageEditorState;
 
-        if let Some(message) = &*state.message.lock().unwrap() {
-            // Clear the area before rendering
-            for x in area.left()..area.right() {
-                for y in area.top()..area.bottom() {
-                    buf.cell_mut((x, y)).unwrap().reset();
-                }
+    fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
+        // Clear the area before rendering
+        for x in area.left()..area.right() {
+            for y in area.top()..area.bottom() {
+                buf.cell_mut((x, y)).unwrap().reset();
             }
-
-            Widget::render(block, area, buf);
-            render_message(&message, &state.selected_fields, area, buf, 1, 0);
-        } else {
-            let paragraph = Paragraph::new("No message available").block(block);
-            Widget::render(paragraph, area, buf);
         }
+
+        render_message(
+            &state.message.view(),
+            &state.selected_fields,
+            area,
+            buf,
+            1,
+            0,
+        );
     }
 }
+
+// struct ValueWidget<'a> {
+//     value: Value<'a>,
+//     is_selected: bool,
+// }
+
+// impl ValueWidget<'_> {
+//     pub fn new(value: Value, is_selected: bool) -> Self {
+//         ValueWidget { value, is_selected }
+//     }
+// }
+
+// impl Widget for ValueWidget<'_> {
+//     fn render(self, area: Rect, buf: &mut Buffer) {
+//         let style = if self.is_selected {
+//             SELECTED_STYLE
+//         } else {
+//             Style::default()
+//         };
+//         Text::from(format!("{:?}", self.value))
+//             .style(style)
+//             .render(area, buf);
+//     }
+// }
+
+// struct MessageWidget<'a> {
+//     message_view: DynamicMessageView<'a>,
+// }
+
+// impl MessageWidget<'_> {
+//     pub fn new(message_view: DynamicMessageView) -> Self {
+//         MessageWidget { message_view }
+//     }
+
+//     pub fn size(&self) -> usize {
+//         self.message_view
+//             .fields
+//             .iter()
+//             .map(|field_info| {
+//                 self.message_view
+//                     .get(&field_info.name)
+//                     .map_or(0, |value| match value {
+//                         Value::Simple(inner_value) => match inner_value {
+//                             SimpleValue::Message(inner_message_view) => 1,
+//                             _ => 1,
+//                         },
+//                         Value::Array(inner_value) => match inner_value {
+//                             ArrayValue::MessageArray(inner_message_view) => 1,
+//                             _ => 1,
+//                         },
+//                         Value::Sequence(inner_value) => match inner_value {
+//                             SequenceValue::MessageSequence(inner_message_view) => 1,
+//                             _ => 1,
+//                         },
+//                         Value::BoundedSequence(inner_value) => match inner_value {
+//                             BoundedSequenceValue::MessageBoundedSequence(inner_message_view) => 1,
+//                             _ => 1,
+//                         },
+//                     })
+//             })
+//             .sum()
+//     }
+// }
+
+// impl Widget for MessageWidget<'_> {
+//     fn render(self, area: Rect, buf: &mut Buffer) {
+//         self.message_view.fields.iter().map(|field_info| {
+//             let name = &field_info.name;
+//             let value = self.message_view.get(&name).unwrap();
+//             let field_name_widget = Text::from(format!("{}: ", name)).style(Style::default());
+//             let value_widget = ValueWidget::new(value, false);
+
+//             let [name_area, field_area] =
+//                 Layout::horizontal([Constraint::Min(1), Constraint::Fill(1)]).areas(area);
+
+//             field_name_widget.render(name_area, buf);
+//             value_widget.render(field_area, buf);
+//         });
+//     }
+// }
 
 fn render_message(
-    msg: &GenericMessage,
+    msg: &DynamicMessageView,
     selected_item: &[usize],
     area: Rect,
     buf: &mut Buffer,
@@ -149,7 +190,9 @@ fn render_message(
 ) -> u16 {
     let mut new_line_index = line_index;
 
-    for (index, (name, value)) in msg.iter().enumerate() {
+    for (index, field_info) in msg.fields.iter().enumerate() {
+        let name = &field_info.name;
+        let value = msg.get(&name).unwrap();
         buf.set_string(
             area.x + column_index,
             area.y + new_line_index,
@@ -189,7 +232,7 @@ trait ValueDisplay {
     ) -> u16;
 }
 
-impl ValueDisplay for GenericField {
+impl ValueDisplay for Value<'_> {
     fn display(
         &self,
         selected_item: &[usize],
@@ -201,7 +244,7 @@ impl ValueDisplay for GenericField {
         name: &str,
     ) -> u16 {
         match self {
-            GenericField::Simple(simple_value) => simple_value.display(
+            Value::Simple(simple_value) => simple_value.display(
                 selected_item,
                 is_selected,
                 area,
@@ -210,7 +253,7 @@ impl ValueDisplay for GenericField {
                 column_index,
                 name,
             ),
-            GenericField::Array(array_value) => array_value.display(
+            Value::Array(array_value) => array_value.display(
                 selected_item,
                 is_selected,
                 area,
@@ -219,7 +262,7 @@ impl ValueDisplay for GenericField {
                 column_index,
                 name,
             ),
-            GenericField::Sequence(sequence_value) => sequence_value.display(
+            Value::Sequence(sequence_value) => sequence_value.display(
                 selected_item,
                 is_selected,
                 area,
@@ -228,21 +271,20 @@ impl ValueDisplay for GenericField {
                 column_index,
                 name,
             ),
-            GenericField::BoundedSequence(bounded_sequence_value) => bounded_sequence_value
-                .display(
-                    selected_item,
-                    is_selected,
-                    area,
-                    buf,
-                    line_index,
-                    column_index,
-                    name,
-                ),
+            Value::BoundedSequence(bounded_sequence_value) => bounded_sequence_value.display(
+                selected_item,
+                is_selected,
+                area,
+                buf,
+                line_index,
+                column_index,
+                name,
+            ),
         }
     }
 }
 
-impl ValueDisplay for SimpleField {
+impl ValueDisplay for SimpleValue<'_> {
     fn display(
         &self,
         selected_item: &[usize],
@@ -265,7 +307,7 @@ impl ValueDisplay for SimpleField {
             Style::default()
         };
         match self {
-            SimpleField::Float(value) => {
+            SimpleValue::Float(value) => {
                 buf.set_string(
                     area.x + column_index + name.len() as u16 + 2,
                     area.y + line_index,
@@ -273,7 +315,7 @@ impl ValueDisplay for SimpleField {
                     style,
                 );
             }
-            SimpleField::Double(value) => {
+            SimpleValue::Double(value) => {
                 buf.set_string(
                     area.x + column_index + name.len() as u16 + 2,
                     area.y + line_index,
@@ -281,7 +323,7 @@ impl ValueDisplay for SimpleField {
                     style,
                 );
             }
-            SimpleField::LongDouble(value) => {
+            SimpleValue::LongDouble(value) => {
                 buf.set_string(
                     area.x + column_index + name.len() as u16 + 2,
                     area.y + line_index,
@@ -289,7 +331,7 @@ impl ValueDisplay for SimpleField {
                     style,
                 );
             }
-            SimpleField::Char(value) => {
+            SimpleValue::Char(value) => {
                 buf.set_string(
                     area.x + column_index + name.len() as u16 + 2,
                     area.y + line_index,
@@ -297,7 +339,7 @@ impl ValueDisplay for SimpleField {
                     style,
                 );
             }
-            SimpleField::WChar(value) => {
+            SimpleValue::WChar(value) => {
                 buf.set_string(
                     area.x + column_index + name.len() as u16 + 2,
                     area.y + line_index,
@@ -305,7 +347,7 @@ impl ValueDisplay for SimpleField {
                     style,
                 );
             }
-            SimpleField::Boolean(value) => {
+            SimpleValue::Boolean(value) => {
                 buf.set_string(
                     area.x + column_index + name.len() as u16 + 2,
                     area.y + line_index,
@@ -313,7 +355,7 @@ impl ValueDisplay for SimpleField {
                     style,
                 );
             }
-            SimpleField::Octet(value) => {
+            SimpleValue::Octet(value) => {
                 buf.set_string(
                     area.x + column_index + name.len() as u16 + 2,
                     area.y + line_index,
@@ -321,7 +363,7 @@ impl ValueDisplay for SimpleField {
                     style,
                 );
             }
-            SimpleField::Uint8(value) => {
+            SimpleValue::Uint8(value) => {
                 buf.set_string(
                     area.x + column_index + name.len() as u16 + 2,
                     area.y + line_index,
@@ -329,7 +371,7 @@ impl ValueDisplay for SimpleField {
                     style,
                 );
             }
-            SimpleField::Int8(value) => {
+            SimpleValue::Int8(value) => {
                 buf.set_string(
                     area.x + column_index + name.len() as u16 + 2,
                     area.y + line_index,
@@ -337,7 +379,7 @@ impl ValueDisplay for SimpleField {
                     style,
                 );
             }
-            SimpleField::Uint16(value) => {
+            SimpleValue::Uint16(value) => {
                 buf.set_string(
                     area.x + column_index + name.len() as u16 + 2,
                     area.y + line_index,
@@ -345,7 +387,7 @@ impl ValueDisplay for SimpleField {
                     style,
                 );
             }
-            SimpleField::Int16(value) => {
+            SimpleValue::Int16(value) => {
                 buf.set_string(
                     area.x + column_index + name.len() as u16 + 2,
                     area.y + line_index,
@@ -353,7 +395,7 @@ impl ValueDisplay for SimpleField {
                     style,
                 );
             }
-            SimpleField::Uint32(value) => {
+            SimpleValue::Uint32(value) => {
                 buf.set_string(
                     area.x + column_index + name.len() as u16 + 2,
                     area.y + line_index,
@@ -361,7 +403,7 @@ impl ValueDisplay for SimpleField {
                     style,
                 );
             }
-            SimpleField::Int32(value) => {
+            SimpleValue::Int32(value) => {
                 buf.set_string(
                     area.x + column_index + name.len() as u16 + 2,
                     area.y + line_index,
@@ -369,7 +411,7 @@ impl ValueDisplay for SimpleField {
                     style,
                 );
             }
-            SimpleField::Uint64(value) => {
+            SimpleValue::Uint64(value) => {
                 buf.set_string(
                     area.x + column_index + name.len() as u16 + 2,
                     area.y + line_index,
@@ -377,7 +419,7 @@ impl ValueDisplay for SimpleField {
                     style,
                 );
             }
-            SimpleField::Int64(value) => {
+            SimpleValue::Int64(value) => {
                 buf.set_string(
                     area.x + column_index + name.len() as u16 + 2,
                     area.y + line_index,
@@ -385,7 +427,7 @@ impl ValueDisplay for SimpleField {
                     style,
                 );
             }
-            SimpleField::String(value) => {
+            SimpleValue::String(value) => {
                 buf.set_string(
                     area.x + column_index + name.len() as u16 + 2,
                     area.y + line_index,
@@ -393,7 +435,7 @@ impl ValueDisplay for SimpleField {
                     style,
                 );
             }
-            SimpleField::BoundedString(value) => {
+            SimpleValue::BoundedString(value) => {
                 buf.set_string(
                     area.x + column_index + name.len() as u16 + 2,
                     area.y + line_index,
@@ -401,7 +443,7 @@ impl ValueDisplay for SimpleField {
                     style,
                 );
             }
-            SimpleField::WString(value) => {
+            SimpleValue::WString(value) => {
                 buf.set_string(
                     area.x + column_index + name.len() as u16 + 2,
                     area.y + line_index,
@@ -409,7 +451,7 @@ impl ValueDisplay for SimpleField {
                     style,
                 );
             }
-            SimpleField::BoundedWString(value) => {
+            SimpleValue::BoundedWString(value) => {
                 buf.set_string(
                     area.x + column_index + name.len() as u16 + 2,
                     area.y + line_index,
@@ -417,7 +459,7 @@ impl ValueDisplay for SimpleField {
                     style,
                 );
             }
-            SimpleField::Message(value) => {
+            SimpleValue::Message(value) => {
                 // If the field is a message, we can render its fields
                 let new_line_index = render_message(
                     value,
@@ -434,7 +476,7 @@ impl ValueDisplay for SimpleField {
     }
 }
 
-impl ValueDisplay for ArrayField {
+impl ValueDisplay for ArrayValue<'_> {
     fn display(
         &self,
         selected_item: &[usize],
@@ -451,10 +493,10 @@ impl ValueDisplay for ArrayField {
             Style::default()
         };
         match self {
-            ArrayField::Message(inner_msgs) => {
+            ArrayValue::MessageArray(inner_msgs) => {
                 // Render each message in the array
                 let mut new_line_index = line_index;
-                for inner_msg in inner_msgs.iter() {
+                for inner_msg in inner_msgs.as_ref().iter() {
                     new_line_index = render_message(
                         inner_msg,
                         selected_item,
@@ -479,7 +521,7 @@ impl ValueDisplay for ArrayField {
     }
 }
 
-impl ValueDisplay for SequenceField {
+impl ValueDisplay for SequenceValue<'_> {
     fn display(
         &self,
         selected_item: &[usize],
@@ -496,10 +538,10 @@ impl ValueDisplay for SequenceField {
             Style::default()
         };
         match self {
-            SequenceField::Message(inner_msgs) => {
+            SequenceValue::MessageSequence(inner_msgs) => {
                 // Render each message in the sequence
                 let mut new_line_index = line_index;
-                for inner_msg in inner_msgs.iter() {
+                for inner_msg in inner_msgs.as_ref().iter() {
                     new_line_index = render_message(
                         inner_msg,
                         &Vec::new(), // No selection in sequence context
@@ -524,7 +566,7 @@ impl ValueDisplay for SequenceField {
     }
 }
 
-impl ValueDisplay for BoundedSequenceField {
+impl ValueDisplay for BoundedSequenceValue<'_> {
     fn display(
         &self,
         selected_item: &[usize],
@@ -541,10 +583,10 @@ impl ValueDisplay for BoundedSequenceField {
             Style::default()
         };
         match self {
-            BoundedSequenceField::Message(inner_msgs) => {
+            BoundedSequenceValue::MessageBoundedSequence(inner_msgs) => {
                 // Render each message in the bounded sequence
                 let mut new_line_index = line_index;
-                for inner_msg in inner_msgs.iter() {
+                for inner_msg in inner_msgs.as_ref().iter() {
                     new_line_index = render_message(
                         inner_msg,
                         &Vec::new(), // No selection in bounded sequence context

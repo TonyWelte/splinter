@@ -20,7 +20,7 @@ use crate::{
     },
     connections::{Connection, ConnectionType},
     // generic_message::{GenericField, GenericMessage},
-    widgets::{TuiView, Views},
+    views::{TuiView, Views},
 };
 
 use crossterm::event::{Event, KeyCode, MouseEventKind};

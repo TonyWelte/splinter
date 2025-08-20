@@ -1,8 +1,4 @@
-use std::{
-    cell::RefCell,
-    rc::Rc,
-    sync::Arc,
-};
+use std::{cell::RefCell, rc::Rc, sync::Arc};
 
 use ratatui::{
     prelude::{Buffer, Rect},
@@ -15,7 +11,7 @@ use crate::{
     common::style::HEADER_STYLE,
     connections::{Connection, ConnectionType},
     // generic_message::{GenericField, GenericMessage},
-    widgets::{
+    views::{
         message_editor::{MessageEditorState, MessageEditorWidget},
         TuiView, Views,
     },

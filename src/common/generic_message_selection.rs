@@ -9,12 +9,12 @@ use crate::common::generic_message::{
     ArrayField, BoundedSequenceField, GenericField, GenericMessage, SequenceField, SimpleField,
 };
 
-struct DynamicMessageSelection {
+struct GenericMessageSelection {
     message: GenericMessage,
     current_field_path: Vec<usize>,
 }
 
-impl DynamicMessageSelection {
+impl GenericMessageSelection {
     pub fn new(message: GenericMessage) -> Self {
         Self {
             message: message,
@@ -601,7 +601,7 @@ mod test {
         };
         let mut msg = DynamicMessage::new(message_type).unwrap();
         let generic_message = GenericMessage::from(msg.view());
-        let mut msg_selection = DynamicMessageSelection::new(generic_message);
+        let mut msg_selection = GenericMessageSelection::new(generic_message);
 
         assert_eq!(msg_selection.get_selected_field_path(), vec![]);
         msg_selection.next();
@@ -626,7 +626,7 @@ mod test {
         };
         let mut msg = DynamicMessage::new(message_type).unwrap();
         let generic_message = GenericMessage::from(msg.view());
-        let mut msg_selection = DynamicMessageSelection::new(generic_message);
+        let mut msg_selection = GenericMessageSelection::new(generic_message);
 
         assert_eq!(msg_selection.get_selected_field_path(), vec![]);
         msg_selection.next();
@@ -667,7 +667,7 @@ mod test {
         };
         let mut msg = DynamicMessage::new(message_type).unwrap();
         let generic_message = GenericMessage::from(msg.view());
-        let mut msg_selection = DynamicMessageSelection::new(generic_message);
+        let mut msg_selection = GenericMessageSelection::new(generic_message);
 
         assert_eq!(msg_selection.get_selected_field_path(), vec![]);
         msg_selection.next();
@@ -705,7 +705,7 @@ mod test {
         let msg = DynamicMessage::new(message_type).unwrap();
         let generic_message = GenericMessage::from(msg.view());
 
-        let mut msg_selection = DynamicMessageSelection::new(generic_message);
+        let mut msg_selection = GenericMessageSelection::new(generic_message);
         assert_eq!(msg_selection.get_selected_field_path(), vec![]);
 
         for i in (0..36).rev() {

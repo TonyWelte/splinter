@@ -7,7 +7,7 @@ use ratatui::widgets::Tabs;
 use crate::common::style::SELECTED_STYLE;
 use crate::connections::ros2::ConnectionROS2;
 use crate::connections::{Connection, ConnectionType};
-use crate::widgets::{
+use crate::views::{
     live_plot::LivePlotWidget,
     node_list::{NodeListState, NodeListWidget},
     raw_message::RawMessageWidget,

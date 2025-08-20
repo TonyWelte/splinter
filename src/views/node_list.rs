@@ -15,7 +15,7 @@ use rclrs::NodeNameInfo;
 use crate::{
     common::style::{HEADER_STYLE, SELECTED_STYLE},
     connections::{Connection, ConnectionType},
-    widgets::{TuiView, Views},
+    views::{TuiView, Views},
 };
 
 struct NodeDetails {
