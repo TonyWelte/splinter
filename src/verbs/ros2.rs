@@ -1,12 +1,17 @@
 use std::cell::RefCell;
+use std::os::linux::raw;
 use std::rc::Rc;
 use std::time::Duration;
 
 use ratatui::widgets::Tabs;
 
+use crate::common::event::Event;
 use crate::common::style::SELECTED_STYLE;
 use crate::connections::ros2::ConnectionROS2;
 use crate::connections::{Connection, ConnectionType};
+use crate::views::live_plot::LivePlotState;
+use crate::views::raw_message::RawMessageState;
+use crate::views::topic_publisher::TopicPublisherState;
 use crate::views::{
     live_plot::LivePlotWidget,
     node_list::{NodeListState, NodeListWidget},
@@ -19,7 +24,7 @@ use crate::views::{
 use color_eyre::eyre::Result;
 use ratatui::{
     buffer::Buffer,
-    crossterm::event::{self, Event, KeyCode, KeyEventKind},
+    crossterm::event::{self, Event as CrosstermEvent, KeyCode, KeyEventKind},
     layout::{Constraint, Layout, Rect},
     style::Stylize,
     widgets::{Paragraph, Widget},
@@ -39,10 +44,15 @@ impl App {
         let connection = Rc::new(RefCell::new(ConnectionType::ROS2(ConnectionROS2::new())));
         let topic_list = TopicListState::new(connection.clone());
         let node_list = NodeListState::new(connection.clone());
+        let topic_publisher = TopicPublisherState::new("chatter".to_string(), connection.clone());
         Self {
             should_exit,
             connection,
-            widgets: vec![Views::TopicList(topic_list), Views::NodeList(node_list)],
+            widgets: vec![
+                Views::TopicList(topic_list),
+                Views::NodeList(node_list),
+                Views::TopicPublisher(topic_publisher),
+            ],
             active_widget_index: 0,
         }
     }
@@ -53,7 +63,7 @@ impl App {
             if let Ok(is_event_available) = event::poll(Duration::from_millis(100)) {
                 if is_event_available {
                     let event = event::read()?;
-                    self.handle_event(event);
+                    self.handle_event(Event::Key(event));
                 }
             }
         }
@@ -61,12 +71,14 @@ impl App {
     }
 
     fn handle_event(&mut self, event: Event) {
+        let event = self.widgets[self.active_widget_index].handle_event(event);
+
         match event {
-            Event::Key(key) => {
-                if key.kind != KeyEventKind::Press {
+            Event::Key(CrosstermEvent::Key(key_event)) => {
+                if key_event.kind != KeyEventKind::Press {
                     return;
                 }
-                match key.code {
+                match key_event.code {
                     KeyCode::Char('q') | KeyCode::Esc => {
                         self.should_exit = true;
                         return;
@@ -96,11 +108,24 @@ impl App {
                     _ => {}
                 }
             }
+            Event::NewPlot(new_plot_event) => {
+                let topic = new_plot_event.topic;
+                let field = new_plot_event.field;
+                let connection = self.connection.clone();
+                let live_plot_state = LivePlotState::new(topic, field, connection);
+                let widget = Views::LivePlot(live_plot_state);
+                self.widgets.push(widget);
+                self.active_widget_index = self.widgets.len() - 1;
+            }
+            Event::NewTopic(new_topic_event) => {
+                let topic = new_topic_event.topic;
+                let connection = self.connection.clone();
+                let raw_message_state = RawMessageState::new(topic, connection);
+                let widget = Views::RawMessage(raw_message_state);
+                self.widgets.push(widget);
+                self.active_widget_index = self.widgets.len() - 1;
+            }
             _ => {}
-        }
-        if let Some(widget) = self.widgets[self.active_widget_index].handle_event(event) {
-            self.widgets.push(widget);
-            self.active_widget_index = self.widgets.len() - 1;
         }
     }
 }

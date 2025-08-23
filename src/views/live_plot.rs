@@ -15,6 +15,7 @@ use rclrs::*;
 
 use crate::{
     common::{
+        event::Event,
         generic_message::{GenericField, GenericMessage, MessageMetadata, SimpleField},
         style::HEADER_STYLE,
     },
@@ -23,7 +24,7 @@ use crate::{
     views::{TuiView, Views},
 };
 
-use crossterm::event::{Event, KeyCode, MouseEventKind};
+use crossterm::event::{Event as CrosstermEvent, KeyCode, KeyEventKind, MouseEventKind};
 
 pub struct LivePlotWidget;
 
@@ -101,37 +102,26 @@ fn get_field(message: &GenericMessage, field_index_path: &[usize]) -> Option<f64
 }
 
 impl TuiView for LivePlotState {
-    fn handle_event(&mut self, event: Event) -> Option<Views> {
-        match event {
-            Event::Key(key) => {
-                match key.code {
-                    KeyCode::Char('h') | KeyCode::Left => {
-                        self.max_duration += 1.0; // Increase the maximum duration
-                    }
-                    KeyCode::Char('l') | KeyCode::Right => {
-                        if self.max_duration > 1.0 {
-                            self.max_duration -= 1.0; // Decrease the maximum duration
-                        }
-                    }
-                    _ => {}
-                }
-                None
+    fn handle_event(&mut self, event: Event) -> Event {
+        if let Event::Key(CrosstermEvent::Key(key_event)) = event {
+            if key_event.kind != KeyEventKind::Press {
+                return event;
             }
-            Event::Mouse(mouse) => {
-                match mouse.kind {
-                    MouseEventKind::ScrollUp => {
-                        self.max_duration += 1.0; // Increase the maximum duration
-                    }
-                    MouseEventKind::ScrollDown => {
-                        if self.max_duration > 1.0 {
-                            self.max_duration -= 1.0; // Decrease the maximum duration
-                        }
-                    }
-                    _ => {}
+            match key_event.code {
+                KeyCode::Char('h') | KeyCode::Left => {
+                    self.max_duration += 1.0; // Increase the maximum duration
+                    Event::None
                 }
-                None
+                KeyCode::Char('l') | KeyCode::Right => {
+                    if self.max_duration > 1.0 {
+                        self.max_duration -= 1.0; // Decrease the maximum duration
+                    }
+                    Event::None
+                }
+                _ => event,
             }
-            _ => None,
+        } else {
+            event
         }
     }
 

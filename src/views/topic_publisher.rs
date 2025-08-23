@@ -8,25 +8,30 @@ use ratatui::{
 use rclrs::*;
 
 use crate::{
-    common::style::HEADER_STYLE,
+    common::{
+        event::Event,
+        generic_message::{AnyTypeMutableRef, GenericMessage},
+        generic_message_selection::next_field,
+        style::HEADER_STYLE,
+    },
     connections::{Connection, ConnectionType},
     // generic_message::{GenericField, GenericMessage},
-    views::{
-        message_editor::{MessageEditorState, MessageEditorWidget},
-        TuiView, Views,
-    },
+    views::{TuiView, Views},
+    widgets::message_widget::MessageWidget,
 };
 
-use crossterm::event::{Event, KeyCode, KeyEventKind};
+use crossterm::event::{Event as CrosstermEvent, KeyCode, KeyEventKind};
 
 pub struct TopicPublisherWidget;
 
 pub struct TopicPublisherState {
-    pub topic: String,
+    topic: String,
     connection: Rc<RefCell<ConnectionType>>,
     publisher: Arc<DynamicPublisherState>,
-    message_editor: MessageEditorState,
-    message_type: MessageTypeName,
+    message: GenericMessage,
+    selected_fields: Vec<usize>,
+    is_editing: bool,
+    field_content: String,
 }
 
 impl TopicPublisherState {
@@ -36,7 +41,7 @@ impl TopicPublisherState {
             type_name: "Odometry".to_string(),
         };
         let message = DynamicMessage::new(message_type.clone()).expect("Failed to create message");
-        let message_editor = MessageEditorState::new(message);
+        let generic_message = GenericMessage::from(message.view());
         let publisher = connection
             .borrow_mut()
             .create_publisher(&topic, &message_type.clone())
@@ -45,33 +50,176 @@ impl TopicPublisherState {
             topic,
             connection,
             publisher,
-            message_editor,
-            message_type,
+            message: generic_message,
+            selected_fields: Vec::new(),
+            is_editing: false,
+            field_content: String::new(),
+        }
+    }
+
+    pub fn select_next_field(&mut self) {
+        self.selected_fields = next_field(&self.message, &self.selected_fields).unwrap_or_default();
+    }
+
+    pub fn select_previous_field(&mut self) {
+        // self.selected_fields = prev_field(&message, &self.selected_fields).unwrap_or_default();
+    }
+
+    pub fn commit_edit(&mut self) -> Result<(), String> {
+        // Update the message with the new field content
+        let value = self
+            .message
+            .get_mut_deep_index(&self.selected_fields)
+            .or_else(|e| Err(e))?;
+        match value {
+            AnyTypeMutableRef::Float(v) => {
+                *v = self
+                    .field_content
+                    .parse::<f32>()
+                    .map_err(|e| format!("Failed to parse float: {}", e))?;
+                Ok(())
+            }
+            AnyTypeMutableRef::Double(v) => {
+                *v = self
+                    .field_content
+                    .parse::<f64>()
+                    .map_err(|e| format!("Failed to parse double: {}", e))?;
+                Ok(())
+            }
+            AnyTypeMutableRef::Uint8(v) => {
+                *v = self
+                    .field_content
+                    .parse::<u8>()
+                    .map_err(|e| format!("Failed to parse uint8: {}", e))?;
+                Ok(())
+            }
+            AnyTypeMutableRef::Int8(v) => {
+                *v = self
+                    .field_content
+                    .parse::<i8>()
+                    .map_err(|e| format!("Failed to parse int8: {}", e))?;
+                Ok(())
+            }
+            AnyTypeMutableRef::Uint16(v) => {
+                *v = self
+                    .field_content
+                    .parse::<u16>()
+                    .map_err(|e| format!("Failed to parse uint16: {}", e))?;
+                Ok(())
+            }
+            AnyTypeMutableRef::Int16(v) => {
+                *v = self
+                    .field_content
+                    .parse::<i16>()
+                    .map_err(|e| format!("Failed to parse int16: {}", e))?;
+                Ok(())
+            }
+            AnyTypeMutableRef::Uint32(v) => {
+                *v = self
+                    .field_content
+                    .parse::<u32>()
+                    .map_err(|e| format!("Failed to parse uint32: {}", e))?;
+                Ok(())
+            }
+            AnyTypeMutableRef::Int32(v) => {
+                *v = self
+                    .field_content
+                    .parse::<i32>()
+                    .map_err(|e| format!("Failed to parse int32: {}", e))?;
+                Ok(())
+            }
+            AnyTypeMutableRef::Uint64(v) => {
+                *v = self
+                    .field_content
+                    .parse::<u64>()
+                    .map_err(|e| format!("Failed to parse uint64: {}", e))?;
+                Ok(())
+            }
+            AnyTypeMutableRef::Int64(v) => {
+                *v = self
+                    .field_content
+                    .parse::<i64>()
+                    .map_err(|e| format!("Failed to parse int64: {}", e))?;
+                Ok(())
+            }
+            AnyTypeMutableRef::String(v) => {
+                *v = self.field_content.clone();
+                Ok(())
+            }
         }
     }
 }
 
 impl TuiView for TopicPublisherState {
-    fn handle_event(&mut self, event: Event) -> Option<Views> {
-        match event {
-            Event::Key(key) => {
-                if key.kind != KeyEventKind::Press {
-                    return None;
-                }
-                match key.code {
-                    KeyCode::Char('p') => {
-                        let new_message = DynamicMessage::new(self.message_type.clone())
-                            .expect("Failed to create new message");
-                        if let Err(e) = self.publisher.publish(new_message) {
-                            eprintln!("Failed to publish message: {}", e);
-                        }
-                    }
-                    _ => return None,
-                }
+    fn handle_event(&mut self, event: Event) -> Event {
+        if let Event::Key(CrosstermEvent::Key(key_event)) = event {
+            if key_event.kind != crossterm::event::KeyEventKind::Press {
+                return event;
             }
-            _ => return None,
+
+            match key_event.code {
+                KeyCode::Char('p') => {
+                    if self.is_editing {
+                        self.field_content.push('p');
+                        Event::None
+                    } else {
+                        todo!("Publish the message");
+                    }
+                }
+                KeyCode::Char('j') | KeyCode::Down => {
+                    if self.is_editing {
+                        self.field_content.push('j');
+                        Event::None
+                    } else {
+                        self.select_next_field();
+                        Event::None
+                    }
+                }
+                KeyCode::Char('k') | KeyCode::Up => {
+                    if self.is_editing {
+                        self.field_content.push('k');
+                        Event::None
+                    } else {
+                        self.select_previous_field();
+                        Event::None
+                    }
+                }
+                KeyCode::Backspace => {
+                    if self.is_editing {
+                        self.field_content.pop();
+                        Event::None
+                    } else {
+                        event
+                    }
+                }
+                KeyCode::Enter => {
+                    if self.is_editing {
+                        // Update the message with the new field content
+                        self.is_editing = false;
+                        self.commit_edit().unwrap_or_else(|e| {
+                            eprintln!("Failed to commit edit: {}", e);
+                        });
+                        self.field_content.clear();
+                        Event::None
+                    } else {
+                        self.is_editing = true;
+                        self.field_content.clear();
+                        Event::None
+                    }
+                }
+                KeyCode::Char(c) => {
+                    if self.is_editing {
+                        self.field_content.push(c);
+                        Event::None
+                    } else {
+                        event
+                    }
+                }
+                _ => event,
+            }
+        } else {
+            event
         }
-        self.message_editor.handle_event(event)
     }
 
     fn name(&self) -> String {
@@ -82,11 +230,23 @@ impl TuiView for TopicPublisherState {
 impl TopicPublisherWidget {
     pub fn render(area: Rect, buf: &mut Buffer, state: &mut TopicPublisherState) {
         let block = Block::bordered()
-            .title(Line::from(format!("Topic Publisher - {}", state.topic)).centered())
+            .title(
+                Line::from(format!(
+                    "Topic Publisher - {} {}",
+                    state.topic, state.is_editing
+                ))
+                .centered(),
+            )
             .border_style(HEADER_STYLE);
 
-        let message_editor_widget = MessageEditorWidget::new();
+        let mut message_widget = MessageWidget::new(&state.message).block(block);
+        if !state.selected_fields.is_empty() {
+            message_widget = message_widget.with_selection(&state.selected_fields);
+            if state.is_editing {
+                message_widget = message_widget.with_edit(&state.field_content);
+            }
+        }
 
-        message_editor_widget.render(area, buf, &mut state.message_editor);
+        message_widget.render(area, buf);
     }
 }

@@ -103,12 +103,210 @@ pub enum BoundedSequenceField {
     Message(Vec<GenericMessage>),
 }
 
+pub enum AnyTypeMutableRef<'a> {
+    Float(&'a mut f32),
+    Double(&'a mut f64),
+    Uint8(&'a mut u8),
+    Int8(&'a mut i8),
+    Uint16(&'a mut u16),
+    Int16(&'a mut i16),
+    Uint32(&'a mut u32),
+    Int32(&'a mut i32),
+    Uint64(&'a mut u64),
+    Int64(&'a mut i64),
+    String(&'a mut String),
+}
+
+pub trait Length {
+    fn len(&self) -> usize;
+}
+
+impl Length for ArrayField {
+    fn len(&self) -> usize {
+        match self {
+            ArrayField::Float(v) => v.len(),
+            ArrayField::Double(v) => v.len(),
+            ArrayField::LongDouble(v) => v.len(),
+            ArrayField::Char(v) => v.len(),
+            ArrayField::WChar(v) => v.len(),
+            ArrayField::Boolean(v) => v.len(),
+            ArrayField::Octet(v) => v.len(),
+            ArrayField::Uint8(v) => v.len(),
+            ArrayField::Int8(v) => v.len(),
+            ArrayField::Uint16(v) => v.len(),
+            ArrayField::Int16(v) => v.len(),
+            ArrayField::Uint32(v) => v.len(),
+            ArrayField::Int32(v) => v.len(),
+            ArrayField::Uint64(v) => v.len(),
+            ArrayField::Int64(v) => v.len(),
+            ArrayField::String(v) => v.len(),
+            ArrayField::BoundedString(v) => v.len(),
+            ArrayField::WString(v) => v.len(),
+            ArrayField::BoundedWString(v) => v.len(),
+            ArrayField::Message(v) => v.len(),
+        }
+    }
+}
+
+impl Length for SequenceField {
+    fn len(&self) -> usize {
+        match self {
+            SequenceField::Float(v) => v.len(),
+            SequenceField::Double(v) => v.len(),
+            SequenceField::LongDouble(v) => v.len(),
+            SequenceField::Char(v) => v.len(),
+            SequenceField::WChar(v) => v.len(),
+            SequenceField::Boolean(v) => v.len(),
+            SequenceField::Octet(v) => v.len(),
+            SequenceField::Uint8(v) => v.len(),
+            SequenceField::Int8(v) => v.len(),
+            SequenceField::Uint16(v) => v.len(),
+            SequenceField::Int16(v) => v.len(),
+            SequenceField::Uint32(v) => v.len(),
+            SequenceField::Int32(v) => v.len(),
+            SequenceField::Uint64(v) => v.len(),
+            SequenceField::Int64(v) => v.len(),
+            SequenceField::String(v) => v.len(),
+            SequenceField::BoundedString(v) => v.len(),
+            SequenceField::WString(v) => v.len(),
+            SequenceField::BoundedWString(v) => v.len(),
+            SequenceField::Message(v) => v.len(),
+        }
+    }
+}
+
+impl Length for BoundedSequenceField {
+    fn len(&self) -> usize {
+        match self {
+            BoundedSequenceField::Float(v) => v.len(),
+            BoundedSequenceField::Double(v) => v.len(),
+            BoundedSequenceField::LongDouble(v) => v.len(),
+            BoundedSequenceField::Char(v) => v.len(),
+            BoundedSequenceField::WChar(v) => v.len(),
+            BoundedSequenceField::Boolean(v) => v.len(),
+            BoundedSequenceField::Octet(v) => v.len(),
+            BoundedSequenceField::Uint8(v) => v.len(),
+            BoundedSequenceField::Int8(v) => v.len(),
+            BoundedSequenceField::Uint16(v) => v.len(),
+            BoundedSequenceField::Int16(v) => v.len(),
+            BoundedSequenceField::Uint32(v) => v.len(),
+            BoundedSequenceField::Int32(v) => v.len(),
+            BoundedSequenceField::Uint64(v) => v.len(),
+            BoundedSequenceField::Int64(v) => v.len(),
+            BoundedSequenceField::String(v) => v.len(),
+            BoundedSequenceField::BoundedString(v) => v.len(),
+            BoundedSequenceField::WString(v) => v.len(),
+            BoundedSequenceField::BoundedWString(v) => v.len(),
+            BoundedSequenceField::Message(v) => v.len(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum GenericField {
     Simple(SimpleField),
     Array(ArrayField),
     Sequence(SequenceField),
     BoundedSequence(BoundedSequenceField),
+}
+
+impl GenericField {
+    pub fn get_mut_deep_index(
+        &mut self,
+        field_index_path: &[usize],
+    ) -> Result<AnyTypeMutableRef, String> {
+        match self {
+            GenericField::Simple(SimpleField::Message(inner_message)) => {
+                if field_index_path.is_empty() {
+                    return Err("Field index path is empty".to_string());
+                }
+                return inner_message.get_mut_deep_index(&field_index_path);
+            }
+            GenericField::Simple(simple_field) => {
+                if !field_index_path.is_empty() {
+                    return Err("Field index path out of bounds".to_string());
+                }
+                match simple_field {
+                    SimpleField::Float(v) => Ok(AnyTypeMutableRef::Float(v)),
+                    SimpleField::Double(v) => Ok(AnyTypeMutableRef::Double(v)),
+                    SimpleField::Uint8(v) => Ok(AnyTypeMutableRef::Uint8(v)),
+                    SimpleField::Int8(v) => Ok(AnyTypeMutableRef::Int8(v)),
+                    SimpleField::Uint16(v) => Ok(AnyTypeMutableRef::Uint16(v)),
+                    SimpleField::Int16(v) => Ok(AnyTypeMutableRef::Int16(v)),
+                    SimpleField::Uint32(v) => Ok(AnyTypeMutableRef::Uint32(v)),
+                    SimpleField::Int32(v) => Ok(AnyTypeMutableRef::Int32(v)),
+                    SimpleField::Uint64(v) => Ok(AnyTypeMutableRef::Uint64(v)),
+                    SimpleField::Int64(v) => Ok(AnyTypeMutableRef::Int64(v)),
+                    SimpleField::String(v) => Ok(AnyTypeMutableRef::String(v)),
+                    _ => Err("Unsupported simple field type for mutable reference".to_string()),
+                }
+            }
+            GenericField::Array(ArrayField::Message(msgs)) => {
+                if field_index_path.is_empty() {
+                    return Err("Field index path is empty".to_string());
+                }
+                let index = field_index_path[0];
+                if index >= msgs.len() {
+                    return Err("Index out of bounds".to_string());
+                }
+                return msgs[index].get_mut_deep_index(&field_index_path[1..]);
+            }
+            GenericField::Array(array_field) => {
+                if field_index_path.is_empty() {
+                    return Err("Field index path is empty".to_string());
+                }
+                let index = field_index_path[0];
+                match array_field {
+                    ArrayField::Float(v) => v
+                        .get_mut(index)
+                        .map(|val| AnyTypeMutableRef::Float(val))
+                        .ok_or_else(|| "Index out of bounds".to_string()),
+                    ArrayField::Double(v) => v
+                        .get_mut(index)
+                        .map(|val| AnyTypeMutableRef::Double(val))
+                        .ok_or_else(|| "Index out of bounds".to_string()),
+                    ArrayField::Uint8(v) => v
+                        .get_mut(index)
+                        .map(|val| AnyTypeMutableRef::Uint8(val))
+                        .ok_or_else(|| "Index out of bounds".to_string()),
+                    ArrayField::Int8(v) => v
+                        .get_mut(index)
+                        .map(|val| AnyTypeMutableRef::Int8(val))
+                        .ok_or_else(|| "Index out of bounds".to_string()),
+                    ArrayField::Uint16(v) => v
+                        .get_mut(index)
+                        .map(|val| AnyTypeMutableRef::Uint16(val))
+                        .ok_or_else(|| "Index out of bounds".to_string()),
+                    ArrayField::Int16(v) => v
+                        .get_mut(index)
+                        .map(|val| AnyTypeMutableRef::Int16(val))
+                        .ok_or_else(|| "Index out of bounds".to_string()),
+                    ArrayField::Uint32(v) => v
+                        .get_mut(index)
+                        .map(|val| AnyTypeMutableRef::Uint32(val))
+                        .ok_or_else(|| "Index out of bounds".to_string()),
+                    ArrayField::Int32(v) => v
+                        .get_mut(index)
+                        .map(|val| AnyTypeMutableRef::Int32(val))
+                        .ok_or_else(|| "Index out of bounds".to_string()),
+                    ArrayField::Uint64(v) => v
+                        .get_mut(index)
+                        .map(|val| AnyTypeMutableRef::Uint64(val))
+                        .ok_or_else(|| "Index out of bounds".to_string()),
+                    ArrayField::Int64(v) => v
+                        .get_mut(index)
+                        .map(|val| AnyTypeMutableRef::Int64(val))
+                        .ok_or_else(|| "Index out of bounds".to_string()),
+                    ArrayField::String(v) => v
+                        .get_mut(index)
+                        .map(|val| AnyTypeMutableRef::String(val))
+                        .ok_or_else(|| "Index out of bounds".to_string()),
+                    _ => Err("Unsupported array field type for mutable reference".to_string()),
+                }
+            }
+            _ => Err("Unsupported field type for mutable reference".to_string()),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -374,6 +572,22 @@ impl GenericMessage {
 
     pub fn get_index(&self, index: usize) -> Option<&GenericField> {
         self.fields.get_index(index).map(|(_, field)| field)
+    }
+
+    pub fn get_mut_deep_index(
+        &mut self,
+        field_index_path: &[usize],
+    ) -> Result<AnyTypeMutableRef, String> {
+        if field_index_path.is_empty() {
+            return Err("Field index path is empty".to_string());
+        }
+        let index = field_index_path[0];
+        let field = self
+            .fields
+            .get_index_mut(index)
+            .map(|(_, field)| field)
+            .ok_or_else(|| "Index out of bounds".to_string())?;
+        field.get_mut_deep_index(&field_index_path[1..])
     }
 
     pub fn field_count(&self) -> usize {

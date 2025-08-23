@@ -13,6 +13,7 @@ use rclrs::*;
 
 use crate::{
     common::{
+        event::{Event, NewPlotEvent},
         generic_message::{
             ArrayField, BoundedSequenceField, GenericField, GenericMessage, MessageMetadata,
             SequenceField, SimpleField,
@@ -26,7 +27,7 @@ use crate::{
     widgets::message_widget::MessageWidget,
 };
 
-use crossterm::event::{Event, KeyCode};
+use crossterm::event::{Event as CrosstermEvent, KeyCode, KeyEventKind};
 
 pub struct RawMessageWidget;
 
@@ -82,26 +83,29 @@ impl RawMessageState {
 }
 
 impl TuiView for RawMessageState {
-    fn handle_event(&mut self, event: Event) -> Option<Views> {
-        match event {
-            Event::Key(key) => match key.code {
-                KeyCode::Down => self.select_next_field(),
-                KeyCode::Up => self.select_previous_field(),
-                KeyCode::Char('l') | KeyCode::Right => {
-                    if !self.selected_fields.is_empty() {
-                        let live_plot_state = LivePlotState::new(
-                            self.topic.clone(),
-                            self.selected_fields.clone(),
-                            self.connection.clone(),
-                        );
-                        return Some(Views::LivePlot(live_plot_state));
-                    }
+    fn handle_event(&mut self, event: Event) -> Event {
+        if let Event::Key(CrosstermEvent::Key(key_event)) = event {
+            if key_event.kind != KeyEventKind::Press {
+                return event;
+            }
+            match key_event.code {
+                KeyCode::Char('j') | KeyCode::Down => {
+                    self.select_next_field();
+                    Event::None
                 }
-                _ => {}
-            },
-            _ => {}
+                KeyCode::Char('k') | KeyCode::Up => {
+                    self.select_previous_field();
+                    Event::None
+                }
+                KeyCode::Char('l') | KeyCode::Enter => Event::NewPlot(NewPlotEvent {
+                    topic: self.topic.clone(),
+                    field: self.selected_fields.clone(),
+                }),
+                _ => event,
+            }
+        } else {
+            event
         }
-        None
     }
 
     fn name(&self) -> String {

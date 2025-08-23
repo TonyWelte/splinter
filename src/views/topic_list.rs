@@ -6,10 +6,13 @@ use ratatui::{
     widgets::{Block, List, ListItem, Widget},
 };
 
-use crossterm::event::{Event, KeyCode};
+use crossterm::event::{Event as CrosstermEvent, KeyCode, KeyEventKind};
 
 use crate::{
-    common::style::{HEADER_STYLE, SELECTED_STYLE},
+    common::{
+        event::{Event, NewTopicEvent},
+        style::{HEADER_STYLE, SELECTED_STYLE},
+    },
     connections::{Connection, ConnectionType},
     views::{raw_message::RawMessageState, topic_publisher::TopicPublisherState, TuiView, Views},
 };
@@ -66,29 +69,34 @@ impl TopicListState {
 }
 
 impl TuiView for TopicListState {
-    fn handle_event(&mut self, event: Event) -> Option<Views> {
-        match event {
-            Event::Key(key) => {
-                match key.code {
-                    KeyCode::Char('j') | KeyCode::Down => self.next_topic(),
-                    KeyCode::Char('k') | KeyCode::Up => self.previous_topic(),
-                    KeyCode::Char('l') | KeyCode::Right => {
-                        // if let Some(topic) = self.topics.get(self.selected_index) {
-                        //     let topic_publisher_state =
-                        //         TopicPublisherState::new(topic.0.clone(), self.connection.clone());
-                        //     return Some(Views::TopicPublisher(topic_publisher_state));
-                        // }
-                        if let Some(topic) = self.topics.get(self.selected_index) {
-                            let raw_message_state =
-                                RawMessageState::new(topic.0.clone(), self.connection.clone());
-                            return Some(Views::RawMessage(raw_message_state));
-                        }
-                    }
-                    _ => {}
-                }
-                None
+    fn handle_event(&mut self, event: Event) -> Event {
+        if let Event::Key(CrosstermEvent::Key(key_event)) = event {
+            if key_event.kind != KeyEventKind::Press {
+                return event;
             }
-            _ => None,
+            match key_event.code {
+                KeyCode::Char('j') | KeyCode::Down => {
+                    self.next_topic();
+                    Event::None
+                }
+                KeyCode::Char('k') | KeyCode::Up => {
+                    self.previous_topic();
+                    Event::None
+                }
+                KeyCode::Char('l') | KeyCode::Right => {
+                    if let Some((topic, type_name)) = self.topics.get(self.selected_index) {
+                        Event::NewTopic(NewTopicEvent {
+                            topic: topic.clone(),
+                            message_type: type_name.clone(),
+                        })
+                    } else {
+                        event
+                    }
+                }
+                _ => event,
+            }
+        } else {
+            event
         }
     }
 

@@ -1,4 +1,4 @@
-use std::{cell::RefCell, collections::BTreeMap, rc::Rc};
+use std::{cell::RefCell, collections::BTreeMap, f32::consts::E, rc::Rc};
 
 use ratatui::{
     layout::{Constraint, Layout},
@@ -9,11 +9,14 @@ use ratatui::{
     widgets::{Block, Borders, List, ListItem, Widget},
 };
 
-use crossterm::event::{Event, KeyCode};
+use crossterm::event::{Event as CrosstermEvent, KeyCode};
 use rclrs::NodeNameInfo;
 
 use crate::{
-    common::style::{HEADER_STYLE, SELECTED_STYLE},
+    common::{
+        event::Event,
+        style::{HEADER_STYLE, SELECTED_STYLE},
+    },
     connections::{Connection, ConnectionType},
     views::{TuiView, Views},
 };
@@ -179,43 +182,61 @@ impl NodeListState {
 }
 
 impl TuiView for NodeListState {
-    fn handle_event(&mut self, event: Event) -> Option<Views> {
-        match event {
-            Event::Key(key) => {
-                match key.code {
-                    KeyCode::Char('j') | KeyCode::Down => match self.active_section {
-                        NodeListSections::List => self.next_node(),
-                        NodeListSections::Details => self.next_detail(),
-                    },
-                    KeyCode::Char('k') | KeyCode::Up => match self.active_section {
-                        NodeListSections::List => self.previous_node(),
-                        NodeListSections::Details => self.previous_detail(),
-                    },
-                    KeyCode::Char('l') | KeyCode::Right => {
-                        if self.active_section == NodeListSections::List {
-                            self.active_section = NodeListSections::Details;
-                            if let Some(selected_node) = self.nodes.get(self.selected_node) {
-                                if selected_node.count() > 0 {
-                                    self.selected_node_details = Some(0);
-                                } else {
-                                    self.selected_node_details = None;
-                                }
+    fn handle_event(&mut self, event: Event) -> Event {
+        if let Event::Key(CrosstermEvent::Key(key_event)) = event {
+            if key_event.kind != crossterm::event::KeyEventKind::Press {
+                return event;
+            }
+
+            match key_event.code {
+                KeyCode::Char('j') | KeyCode::Down => match self.active_section {
+                    NodeListSections::List => {
+                        self.next_node();
+                        Event::None
+                    }
+                    NodeListSections::Details => {
+                        self.next_detail();
+                        Event::None
+                    }
+                },
+                KeyCode::Char('k') | KeyCode::Up => match self.active_section {
+                    NodeListSections::List => {
+                        self.previous_node();
+                        Event::None
+                    }
+                    NodeListSections::Details => {
+                        self.previous_detail();
+                        Event::None
+                    }
+                },
+                KeyCode::Char('l') | KeyCode::Right => {
+                    if self.active_section == NodeListSections::List {
+                        self.active_section = NodeListSections::Details;
+                        if let Some(selected_node) = self.nodes.get(self.selected_node) {
+                            if selected_node.count() > 0 {
+                                self.selected_node_details = Some(0);
                             } else {
                                 self.selected_node_details = None;
                             }
-                        }
-                    }
-                    KeyCode::Char('h') | KeyCode::Left => {
-                        if self.active_section == NodeListSections::Details {
-                            self.active_section = NodeListSections::List;
+                        } else {
                             self.selected_node_details = None;
                         }
+                        return Event::None;
                     }
-                    _ => {}
+                    event
                 }
-                None
+                KeyCode::Char('h') | KeyCode::Left => {
+                    if self.active_section == NodeListSections::Details {
+                        self.active_section = NodeListSections::List;
+                        self.selected_node_details = None;
+                        return Event::None;
+                    }
+                    event
+                }
+                _ => event,
             }
-            _ => None,
+        } else {
+            event
         }
     }
 
