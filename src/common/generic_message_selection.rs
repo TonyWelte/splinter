@@ -32,8 +32,8 @@ impl GenericMessageSelection {
     }
 
     pub fn previous(&mut self) {
-        // self.current_field_path =
-        //     prev_field(&self.message, &self.current_field_path).unwrap_or_default();
+        self.current_field_path =
+            prev_field(&self.message, &self.current_field_path).unwrap_or_default();
     }
 }
 
@@ -352,241 +352,242 @@ pub fn next_field(msg: &GenericMessage, current_field_path: &[usize]) -> Option<
     None
 }
 
-// pub fn prev_field(msg: &GenericMessage, current_field_path: &[usize]) -> Option<Vec<usize>> {
-//     let skip_fields = skip_length_backward(msg.field_count(), current_field_path);
-//     let mut prev_current_field_path =
-//         current_field_path[1.min(current_field_path.len())..].to_vec();
-//     for (index, (name, value)) in msg.iter().enumerate().rev().skip(skip_fields) {
-//         match value {
-//             Value::Simple(simple_value) => {
-//                 if let SimpleValue::Message(inner_msg) = simple_value {
-//                     if let Some(inner_path) = prev_field(&inner_msg, &prev_current_field_path) {
-//                         let mut path = vec![index];
-//                         path.extend(inner_path);
-//                         return Some(path);
-//                     }
-//                 } else {
-//                     return Some(vec![index]);
-//                 }
-//             }
-//             Value::Array(array_value) => {
-//                 match array_value {
-//                     ArrayValue::MessageArray(inner_msgs) => {
-//                         if let Some(inner_path) =
-//                             prev_messages!(inner_msgs, &prev_current_field_path)
-//                         {
-//                             let mut path = vec![index];
-//                             path.extend(inner_path);
-//                             return Some(path);
-//                         }
-//                     }
-//                     ArrayValue::FloatArray(inner_values) => {
-//                         prev_values!(index, inner_values, &prev_current_field_path)
-//                     }
-//                     ArrayValue::DoubleArray(inner_values) => {
-//                         prev_values!(index, inner_values, &prev_current_field_path)
-//                     }
-//                     ArrayValue::LongDoubleArray(_, _) => {
-//                         todo!("LongDoubleArray is not supported yet")
-//                     }
-//                     ArrayValue::Int8Array(inner_values) => {
-//                         prev_values!(index, inner_values, &prev_current_field_path)
-//                     }
-//                     ArrayValue::Uint8Array(inner_values) => {
-//                         prev_values!(index, inner_values, &prev_current_field_path)
-//                     }
-//                     ArrayValue::Int16Array(inner_values) => {
-//                         prev_values!(index, inner_values, &prev_current_field_path)
-//                     }
-//                     ArrayValue::Uint16Array(inner_values) => {
-//                         prev_values!(index, inner_values, &prev_current_field_path)
-//                     }
-//                     ArrayValue::Int32Array(inner_values) => {
-//                         prev_values!(index, inner_values, &prev_current_field_path)
-//                     }
-//                     ArrayValue::Uint32Array(inner_values) => {
-//                         prev_values!(index, inner_values, &prev_current_field_path)
-//                     }
-//                     ArrayValue::Int64Array(inner_values) => {
-//                         prev_values!(index, inner_values, &prev_current_field_path)
-//                     }
-//                     ArrayValue::Uint64Array(inner_values) => {
-//                         prev_values!(index, inner_values, &prev_current_field_path)
-//                     }
-//                     ArrayValue::CharArray(inner_values) => {
-//                         prev_values!(index, inner_values, &prev_current_field_path)
-//                     }
-//                     ArrayValue::WCharArray(inner_values) => {
-//                         prev_values!(index, inner_values, &prev_current_field_path)
-//                     }
-//                     ArrayValue::OctetArray(inner_values) => {
-//                         prev_values!(index, inner_values, &prev_current_field_path)
-//                     }
-//                     ArrayValue::BooleanArray(inner_values) => {
-//                         prev_values!(index, inner_values, &prev_current_field_path)
-//                     }
-//                     ArrayValue::StringArray(inner_values) => {
-//                         prev_values!(index, inner_values, &prev_current_field_path)
-//                     }
-//                     ArrayValue::WStringArray(inner_values) => {
-//                         prev_values!(index, inner_values, &prev_current_field_path)
-//                     }
-//                     ArrayValue::BoundedStringArray(inner_values) => {
-//                         prev_values!(index, inner_values, &prev_current_field_path)
-//                     }
-//                     ArrayValue::BoundedWStringArray(inner_values) => {
-//                         prev_values!(index, inner_values, &prev_current_field_path)
-//                     }
-//                 }
-//                 prev_current_field_path.clear();
-//             }
-//             Value::Sequence(sequence_value) => {
-//                 match sequence_value {
-//                     SequenceValue::MessageSequence(inner_msgs) => {
-//                         if let Some(inner_path) =
-//                             prev_messages!(inner_msgs, &prev_current_field_path)
-//                         {
-//                             let mut path = vec![index];
-//                             path.extend(inner_path);
-//                             return Some(path);
-//                         }
-//                     }
-//                     SequenceValue::FloatSequence(inner_values) => {
-//                         prev_values!(index, inner_values, &prev_current_field_path)
-//                     }
-//                     SequenceValue::DoubleSequence(inner_values) => {
-//                         prev_values!(index, inner_values, &prev_current_field_path)
-//                     }
-//                     SequenceValue::LongDoubleSequence(_) => {
-//                         todo!("LongDoubleSequence is not supported yet")
-//                     }
-//                     SequenceValue::Int8Sequence(inner_values) => {
-//                         prev_values!(index, inner_values, &prev_current_field_path)
-//                     }
-//                     SequenceValue::Uint8Sequence(inner_values) => {
-//                         prev_values!(index, inner_values, &prev_current_field_path)
-//                     }
-//                     SequenceValue::Int16Sequence(inner_values) => {
-//                         prev_values!(index, inner_values, &prev_current_field_path)
-//                     }
-//                     SequenceValue::Uint16Sequence(inner_values) => {
-//                         prev_values!(index, inner_values, &prev_current_field_path)
-//                     }
-//                     SequenceValue::Int32Sequence(inner_values) => {
-//                         prev_values!(index, inner_values, &prev_current_field_path)
-//                     }
-//                     SequenceValue::Uint32Sequence(inner_values) => {
-//                         prev_values!(index, inner_values, &prev_current_field_path)
-//                     }
-//                     SequenceValue::Int64Sequence(inner_values) => {
-//                         prev_values!(index, inner_values, &prev_current_field_path)
-//                     }
-//                     SequenceValue::Uint64Sequence(inner_values) => {
-//                         prev_values!(index, inner_values, &prev_current_field_path)
-//                     }
-//                     SequenceValue::OctetSequence(inner_values) => {
-//                         prev_values!(index, inner_values, &prev_current_field_path)
-//                     }
-//                     SequenceValue::CharSequence(inner_values) => {
-//                         prev_values!(index, inner_values, &prev_current_field_path)
-//                     }
-//                     SequenceValue::WCharSequence(inner_values) => {
-//                         prev_values!(index, inner_values, &prev_current_field_path)
-//                     }
-//                     SequenceValue::BooleanSequence(inner_values) => {
-//                         prev_values!(index, inner_values, &prev_current_field_path)
-//                     }
-//                     SequenceValue::StringSequence(inner_values) => {
-//                         prev_values!(index, inner_values, &prev_current_field_path)
-//                     }
-//                     SequenceValue::WStringSequence(inner_values) => {
-//                         prev_values!(index, inner_values, &prev_current_field_path)
-//                     }
-//                     SequenceValue::BoundedStringSequence(inner_values) => {
-//                         prev_values!(index, inner_values, &prev_current_field_path)
-//                     }
-//                     SequenceValue::BoundedWStringSequence(inner_values) => {
-//                         prev_values!(index, inner_values, &prev_current_field_path)
-//                     }
-//                 }
-//                 prev_current_field_path.clear();
-//             }
-//             Value::BoundedSequence(bounded_sequence_value) => {
-//                 match bounded_sequence_value {
-//                     BoundedSequenceValue::MessageBoundedSequence(inner_msgs) => {
-//                         if let Some(inner_path) =
-//                             prev_messages!(inner_msgs, &prev_current_field_path)
-//                         {
-//                             let mut path = vec![index];
-//                             path.extend(inner_path);
-//                             return Some(path);
-//                         }
-//                     }
-//                     BoundedSequenceValue::FloatBoundedSequence(inner_values) => {
-//                         prev_values!(index, inner_values, &prev_current_field_path)
-//                     }
-//                     BoundedSequenceValue::DoubleBoundedSequence(inner_values) => {
-//                         prev_values!(index, inner_values, &prev_current_field_path)
-//                     }
-//                     BoundedSequenceValue::LongDoubleBoundedSequence(_, _) => {
-//                         todo!("LongDoubleSequence is not supported yet")
-//                     }
-//                     BoundedSequenceValue::Int8BoundedSequence(inner_values) => {
-//                         prev_values!(index, inner_values, &prev_current_field_path)
-//                     }
-//                     BoundedSequenceValue::Uint8BoundedSequence(inner_values) => {
-//                         prev_values!(index, inner_values, &prev_current_field_path)
-//                     }
-//                     BoundedSequenceValue::Int16BoundedSequence(inner_values) => {
-//                         prev_values!(index, inner_values, &prev_current_field_path)
-//                     }
-//                     BoundedSequenceValue::Uint16BoundedSequence(inner_values) => {
-//                         prev_values!(index, inner_values, &prev_current_field_path)
-//                     }
-//                     BoundedSequenceValue::Int32BoundedSequence(inner_values) => {
-//                         prev_values!(index, inner_values, &prev_current_field_path)
-//                     }
-//                     BoundedSequenceValue::Uint32BoundedSequence(inner_values) => {
-//                         prev_values!(index, inner_values, &prev_current_field_path)
-//                     }
-//                     BoundedSequenceValue::Int64BoundedSequence(inner_values) => {
-//                         prev_values!(index, inner_values, &prev_current_field_path)
-//                     }
-//                     BoundedSequenceValue::Uint64BoundedSequence(inner_values) => {
-//                         prev_values!(index, inner_values, &prev_current_field_path)
-//                     }
-//                     BoundedSequenceValue::OctetBoundedSequence(inner_values) => {
-//                         prev_values!(index, inner_values, &prev_current_field_path)
-//                     }
-//                     BoundedSequenceValue::CharBoundedSequence(inner_values) => {
-//                         prev_values!(index, inner_values, &prev_current_field_path)
-//                     }
-//                     BoundedSequenceValue::WCharBoundedSequence(inner_values) => {
-//                         prev_values!(index, inner_values, &prev_current_field_path)
-//                     }
-//                     BoundedSequenceValue::BooleanBoundedSequence(inner_values) => {
-//                         prev_values!(index, inner_values, &prev_current_field_path)
-//                     }
-//                     BoundedSequenceValue::StringBoundedSequence(inner_values) => {
-//                         prev_values!(index, inner_values, &prev_current_field_path)
-//                     }
-//                     BoundedSequenceValue::WStringBoundedSequence(inner_values) => {
-//                         prev_values!(index, inner_values, &prev_current_field_path)
-//                     }
-//                     BoundedSequenceValue::BoundedStringBoundedSequence(inner_values) => {
-//                         prev_values!(index, inner_values, &prev_current_field_path)
-//                     }
-//                     BoundedSequenceValue::BoundedWStringBoundedSequence(inner_values) => {
-//                         prev_values!(index, inner_values, &prev_current_field_path)
-//                     }
-//                 }
-//                 prev_current_field_path.clear();
-//             }
-//         }
-//         prev_current_field_path.clear();
-//     }
-//     None
-// }
+pub fn prev_field(msg: &GenericMessage, current_field_path: &[usize]) -> Option<Vec<usize>> {
+    let skip_fields = skip_length_backward(msg.field_count(), current_field_path);
+    let mut prev_current_field_path =
+        current_field_path[1.min(current_field_path.len())..].to_vec();
+    for index in (0..msg.len()).rev().skip(skip_fields) {
+        let value = msg.get_index(index).unwrap();
+        match value {
+            GenericField::Simple(simple_value) => {
+                if let SimpleField::Message(inner_msg) = simple_value {
+                    if let Some(inner_path) = prev_field(&inner_msg, &prev_current_field_path) {
+                        let mut path = vec![index];
+                        path.extend(inner_path);
+                        return Some(path);
+                    }
+                } else {
+                    return Some(vec![index]);
+                }
+            }
+            GenericField::Array(array_value) => {
+                match array_value {
+                    ArrayField::Message(inner_msgs) => {
+                        if let Some(inner_path) =
+                            prev_messages!(inner_msgs, &prev_current_field_path)
+                        {
+                            let mut path = vec![index];
+                            path.extend(inner_path);
+                            return Some(path);
+                        }
+                    }
+                    ArrayField::Float(inner_values) => {
+                        prev_values!(index, inner_values, &prev_current_field_path)
+                    }
+                    ArrayField::Double(inner_values) => {
+                        prev_values!(index, inner_values, &prev_current_field_path)
+                    }
+                    ArrayField::LongDouble(_) => {
+                        todo!("LongDoubleArray is not supported yet")
+                    }
+                    ArrayField::Int8(inner_values) => {
+                        prev_values!(index, inner_values, &prev_current_field_path)
+                    }
+                    ArrayField::Uint8(inner_values) => {
+                        prev_values!(index, inner_values, &prev_current_field_path)
+                    }
+                    ArrayField::Int16(inner_values) => {
+                        prev_values!(index, inner_values, &prev_current_field_path)
+                    }
+                    ArrayField::Uint16(inner_values) => {
+                        prev_values!(index, inner_values, &prev_current_field_path)
+                    }
+                    ArrayField::Int32(inner_values) => {
+                        prev_values!(index, inner_values, &prev_current_field_path)
+                    }
+                    ArrayField::Uint32(inner_values) => {
+                        prev_values!(index, inner_values, &prev_current_field_path)
+                    }
+                    ArrayField::Int64(inner_values) => {
+                        prev_values!(index, inner_values, &prev_current_field_path)
+                    }
+                    ArrayField::Uint64(inner_values) => {
+                        prev_values!(index, inner_values, &prev_current_field_path)
+                    }
+                    ArrayField::Char(inner_values) => {
+                        prev_values!(index, inner_values, &prev_current_field_path)
+                    }
+                    ArrayField::WChar(inner_values) => {
+                        prev_values!(index, inner_values, &prev_current_field_path)
+                    }
+                    ArrayField::Octet(inner_values) => {
+                        prev_values!(index, inner_values, &prev_current_field_path)
+                    }
+                    ArrayField::Boolean(inner_values) => {
+                        prev_values!(index, inner_values, &prev_current_field_path)
+                    }
+                    ArrayField::String(inner_values) => {
+                        prev_values!(index, inner_values, &prev_current_field_path)
+                    }
+                    ArrayField::WString(inner_values) => {
+                        prev_values!(index, inner_values, &prev_current_field_path)
+                    }
+                    ArrayField::BoundedString(inner_values) => {
+                        prev_values!(index, inner_values, &prev_current_field_path)
+                    }
+                    ArrayField::BoundedWString(inner_values) => {
+                        prev_values!(index, inner_values, &prev_current_field_path)
+                    }
+                }
+                prev_current_field_path.clear();
+            }
+            GenericField::Sequence(sequence_value) => {
+                match sequence_value {
+                    SequenceField::Message(inner_msgs) => {
+                        if let Some(inner_path) =
+                            prev_messages!(inner_msgs, &prev_current_field_path)
+                        {
+                            let mut path = vec![index];
+                            path.extend(inner_path);
+                            return Some(path);
+                        }
+                    }
+                    SequenceField::Float(inner_values) => {
+                        prev_values!(index, inner_values, &prev_current_field_path)
+                    }
+                    SequenceField::Double(inner_values) => {
+                        prev_values!(index, inner_values, &prev_current_field_path)
+                    }
+                    SequenceField::LongDouble(_) => {
+                        todo!("LongDoubleSequence is not supported yet")
+                    }
+                    SequenceField::Int8(inner_values) => {
+                        prev_values!(index, inner_values, &prev_current_field_path)
+                    }
+                    SequenceField::Uint8(inner_values) => {
+                        prev_values!(index, inner_values, &prev_current_field_path)
+                    }
+                    SequenceField::Int16(inner_values) => {
+                        prev_values!(index, inner_values, &prev_current_field_path)
+                    }
+                    SequenceField::Uint16(inner_values) => {
+                        prev_values!(index, inner_values, &prev_current_field_path)
+                    }
+                    SequenceField::Int32(inner_values) => {
+                        prev_values!(index, inner_values, &prev_current_field_path)
+                    }
+                    SequenceField::Uint32(inner_values) => {
+                        prev_values!(index, inner_values, &prev_current_field_path)
+                    }
+                    SequenceField::Int64(inner_values) => {
+                        prev_values!(index, inner_values, &prev_current_field_path)
+                    }
+                    SequenceField::Uint64(inner_values) => {
+                        prev_values!(index, inner_values, &prev_current_field_path)
+                    }
+                    SequenceField::Octet(inner_values) => {
+                        prev_values!(index, inner_values, &prev_current_field_path)
+                    }
+                    SequenceField::Char(inner_values) => {
+                        prev_values!(index, inner_values, &prev_current_field_path)
+                    }
+                    SequenceField::WChar(inner_values) => {
+                        prev_values!(index, inner_values, &prev_current_field_path)
+                    }
+                    SequenceField::Boolean(inner_values) => {
+                        prev_values!(index, inner_values, &prev_current_field_path)
+                    }
+                    SequenceField::String(inner_values) => {
+                        prev_values!(index, inner_values, &prev_current_field_path)
+                    }
+                    SequenceField::WString(inner_values) => {
+                        prev_values!(index, inner_values, &prev_current_field_path)
+                    }
+                    SequenceField::BoundedString(inner_values) => {
+                        prev_values!(index, inner_values, &prev_current_field_path)
+                    }
+                    SequenceField::BoundedWString(inner_values) => {
+                        prev_values!(index, inner_values, &prev_current_field_path)
+                    }
+                }
+                prev_current_field_path.clear();
+            }
+            GenericField::BoundedSequence(bounded_sequence_value) => {
+                match bounded_sequence_value {
+                    BoundedSequenceField::Message(inner_msgs) => {
+                        if let Some(inner_path) =
+                            prev_messages!(inner_msgs, &prev_current_field_path)
+                        {
+                            let mut path = vec![index];
+                            path.extend(inner_path);
+                            return Some(path);
+                        }
+                    }
+                    BoundedSequenceField::Float(inner_values) => {
+                        prev_values!(index, inner_values, &prev_current_field_path)
+                    }
+                    BoundedSequenceField::Double(inner_values) => {
+                        prev_values!(index, inner_values, &prev_current_field_path)
+                    }
+                    BoundedSequenceField::LongDouble(_) => {
+                        todo!("LongDoubleSequence is not supported yet")
+                    }
+                    BoundedSequenceField::Int8(inner_values) => {
+                        prev_values!(index, inner_values, &prev_current_field_path)
+                    }
+                    BoundedSequenceField::Uint8(inner_values) => {
+                        prev_values!(index, inner_values, &prev_current_field_path)
+                    }
+                    BoundedSequenceField::Int16(inner_values) => {
+                        prev_values!(index, inner_values, &prev_current_field_path)
+                    }
+                    BoundedSequenceField::Uint16(inner_values) => {
+                        prev_values!(index, inner_values, &prev_current_field_path)
+                    }
+                    BoundedSequenceField::Int32(inner_values) => {
+                        prev_values!(index, inner_values, &prev_current_field_path)
+                    }
+                    BoundedSequenceField::Uint32(inner_values) => {
+                        prev_values!(index, inner_values, &prev_current_field_path)
+                    }
+                    BoundedSequenceField::Int64(inner_values) => {
+                        prev_values!(index, inner_values, &prev_current_field_path)
+                    }
+                    BoundedSequenceField::Uint64(inner_values) => {
+                        prev_values!(index, inner_values, &prev_current_field_path)
+                    }
+                    BoundedSequenceField::Octet(inner_values) => {
+                        prev_values!(index, inner_values, &prev_current_field_path)
+                    }
+                    BoundedSequenceField::Char(inner_values) => {
+                        prev_values!(index, inner_values, &prev_current_field_path)
+                    }
+                    BoundedSequenceField::WChar(inner_values) => {
+                        prev_values!(index, inner_values, &prev_current_field_path)
+                    }
+                    BoundedSequenceField::Boolean(inner_values) => {
+                        prev_values!(index, inner_values, &prev_current_field_path)
+                    }
+                    BoundedSequenceField::String(inner_values) => {
+                        prev_values!(index, inner_values, &prev_current_field_path)
+                    }
+                    BoundedSequenceField::WString(inner_values) => {
+                        prev_values!(index, inner_values, &prev_current_field_path)
+                    }
+                    BoundedSequenceField::BoundedString(inner_values) => {
+                        prev_values!(index, inner_values, &prev_current_field_path)
+                    }
+                    BoundedSequenceField::BoundedWString(inner_values) => {
+                        prev_values!(index, inner_values, &prev_current_field_path)
+                    }
+                }
+                prev_current_field_path.clear();
+            }
+        }
+        prev_current_field_path.clear();
+    }
+    None
+}
 
 mod test {
     use crate::common::generic_message;

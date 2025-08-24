@@ -27,7 +27,7 @@ pub struct TopicPublisherWidget;
 pub struct TopicPublisherState {
     topic: String,
     connection: Rc<RefCell<ConnectionType>>,
-    publisher: Arc<DynamicPublisherState>,
+    publisher: Box<dyn Fn(&GenericMessage)>,
     message: GenericMessage,
     selected_fields: Vec<usize>,
     is_editing: bool,
@@ -163,7 +163,8 @@ impl TuiView for TopicPublisherState {
                         self.field_content.push('p');
                         Event::None
                     } else {
-                        todo!("Publish the message");
+                        self.publisher.as_ref()(&self.message);
+                        Event::None
                     }
                 }
                 KeyCode::Char('j') | KeyCode::Down => {

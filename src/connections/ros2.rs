@@ -37,6 +37,19 @@ impl ConnectionROS2 {
     }
 }
 
+impl Into<DynamicMessage> for GenericMessage {
+    fn into(self) -> DynamicMessage {
+        let message_type = MessageTypeName {
+            package_name: "nav_msgs".to_string(),
+            type_name: "Odometry".to_string(),
+        };
+        let mut dynamic_message = DynamicMessage::new(message_type).unwrap();
+        // todo!(" Implement conversion from GenericMessage");
+
+        dynamic_message
+    }
+}
+
 impl Connection for ConnectionROS2 {
     /// Get the name of the connection.
     fn name(&self) -> &str {
@@ -160,11 +173,16 @@ impl Connection for ConnectionROS2 {
         &mut self,
         topic: &str,
         message_type: &MessageTypeName,
-    ) -> Result<Arc<DynamicPublisherState>, String> {
+    ) -> Result<Box<dyn Fn(&GenericMessage)>, String> {
         let publisher = self
             .node
             .create_dynamic_publisher(message_type.clone(), topic)
             .map_err(|e| format!("Failed to create publisher: {}", e))?;
-        Ok(publisher)
+
+        let publish_fn = move |msg: &GenericMessage| {
+            let dynamic_msg: DynamicMessage = msg.clone().into();
+            publisher.publish(dynamic_msg).unwrap();
+        };
+        Ok(Box::new(publish_fn))
     }
 }

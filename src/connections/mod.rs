@@ -36,7 +36,7 @@ pub trait Connection {
         &mut self,
         topic: &str,
         message_type: &MessageTypeName,
-    ) -> Result<Arc<DynamicPublisherState>, String>;
+    ) -> Result<Box<dyn Fn(&GenericMessage)>, String>;
 
     fn get_publisher_names_and_types_by_node(
         &self,

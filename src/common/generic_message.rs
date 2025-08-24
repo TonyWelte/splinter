@@ -6,6 +6,13 @@ use rclrs::{
 use std::{ops::Index, time::SystemTime};
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct InterfaceType {
+    pub package_name: String,
+    pub catergory: String,
+    pub type_name: String,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum SimpleField {
     Float(f32),
     Double(f64),
@@ -312,7 +319,7 @@ impl GenericField {
 #[derive(Debug, Clone, PartialEq)]
 pub struct GenericMessage {
     fields: IndexMap<String, GenericField>,
-    type_name: String,
+    type_name: InterfaceType,
 }
 
 pub struct MessageMetadata {
@@ -516,14 +523,21 @@ impl From<&DynamicMessageView<'_>> for GenericMessage {
         }
         Self {
             fields,
-            type_name: message
-                .namespace
-                .split("__")
-                .map(|s| s.to_string())
-                .collect::<Vec<String>>()
-                .join("/")
-                + "/"
-                + &message.type_name,
+            type_name: InterfaceType {
+                package_name: message
+                    .namespace
+                    .split("__")
+                    .next()
+                    .unwrap_or("")
+                    .to_string(),
+                catergory: message
+                    .namespace
+                    .split("__")
+                    .nth(1)
+                    .unwrap_or("")
+                    .to_string(),
+                type_name: message.type_name.clone(),
+            },
         }
     }
 }
@@ -554,12 +568,16 @@ impl Index<usize> for GenericMessage {
 }
 
 impl GenericMessage {
-    pub fn type_name(&self) -> &str {
+    pub fn type_name(&self) -> &InterfaceType {
         &self.type_name
     }
 
     pub fn fields(&self) -> &IndexMap<String, GenericField> {
         &self.fields
+    }
+
+    pub fn len(&self) -> usize {
+        self.fields.len()
     }
 
     pub fn iter(&self) -> impl Iterator<Item = (&String, &GenericField)> {
@@ -608,7 +626,14 @@ mod test {
             *data = rosidl_runtime_rs::String::from("Hello, ROS2!");
         }
         let generic_message = GenericMessage::from(message.view());
-        assert_eq!(generic_message.type_name, "std_msgs/msg/String");
+        assert_eq!(
+            generic_message.type_name,
+            InterfaceType {
+                package_name: "std_msgs".to_string(),
+                catergory: "msg".to_string(),
+                type_name: "String".to_string(),
+            }
+        );
         assert_eq!(generic_message.fields.len(), 1);
         assert_eq!(
             generic_message["data"],
