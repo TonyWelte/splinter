@@ -1,4 +1,4 @@
-use std::{cell::RefCell, collections::BTreeMap, f32::consts::E, rc::Rc};
+use std::{cell::RefCell, collections::BTreeMap, rc::Rc};
 
 use ratatui::{
     layout::{Constraint, Layout},
@@ -18,7 +18,7 @@ use crate::{
         style::{HEADER_STYLE, SELECTED_STYLE},
     },
     connections::{Connection, ConnectionType},
-    views::{TuiView, Views},
+    views::TuiView,
 };
 
 struct NodeDetails {

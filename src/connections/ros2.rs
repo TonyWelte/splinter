@@ -1,9 +1,11 @@
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::thread::{spawn, JoinHandle};
 use std::time::SystemTime;
 
-use crate::common::generic_message::{GenericMessage, MessageMetadata};
+use crate::common::generic_message::{
+    ArrayField, GenericField, GenericMessage, MessageMetadata, SimpleField,
+};
 use crate::connections::Connection;
 
 use rclrs::MessageTypeName;
@@ -13,6 +15,8 @@ pub struct ConnectionROS2 {
     // Fields for the ROS2 connection
     node: Node,
     subscriptions: Vec<Arc<DynamicSubscriptionState<Arc<NodeState>>>>,
+
+    #[allow(unused)]
     thread: JoinHandle<()>,
 }
 
@@ -37,14 +41,183 @@ impl ConnectionROS2 {
     }
 }
 
-impl Into<DynamicMessage> for GenericMessage {
+fn populate_message(dynamic_message: DynamicMessageViewMut, generic_message: &GenericMessage) {
+    for (name, value) in dynamic_message.iter_mut() {
+        if let Some(field) = generic_message.get(name) {
+            match (value, field) {
+                (
+                    ValueMut::Simple(SimpleValueMut::Boolean(v)),
+                    GenericField::Simple(SimpleField::Boolean(f)),
+                ) => {
+                    *v = *f;
+                }
+                (
+                    ValueMut::Simple(SimpleValueMut::Float(v)),
+                    GenericField::Simple(SimpleField::Float(f)),
+                ) => {
+                    *v = *f;
+                }
+                (
+                    ValueMut::Simple(SimpleValueMut::Double(v)),
+                    GenericField::Simple(SimpleField::Double(f)),
+                ) => {
+                    *v = *f;
+                }
+                (
+                    ValueMut::Simple(SimpleValueMut::Int64(v)),
+                    GenericField::Simple(SimpleField::Int64(f)),
+                ) => {
+                    *v = *f;
+                }
+                (
+                    ValueMut::Simple(SimpleValueMut::Uint64(v)),
+                    GenericField::Simple(SimpleField::Uint64(f)),
+                ) => {
+                    *v = *f;
+                }
+                (
+                    ValueMut::Simple(SimpleValueMut::Int32(v)),
+                    GenericField::Simple(SimpleField::Int32(f)),
+                ) => {
+                    *v = *f;
+                }
+                (
+                    ValueMut::Simple(SimpleValueMut::Uint32(v)),
+                    GenericField::Simple(SimpleField::Uint32(f)),
+                ) => {
+                    *v = *f;
+                }
+                (
+                    ValueMut::Simple(SimpleValueMut::Int16(v)),
+                    GenericField::Simple(SimpleField::Int16(f)),
+                ) => {
+                    *v = *f;
+                }
+                (
+                    ValueMut::Simple(SimpleValueMut::Uint16(v)),
+                    GenericField::Simple(SimpleField::Uint16(f)),
+                ) => {
+                    *v = *f;
+                }
+                (
+                    ValueMut::Simple(SimpleValueMut::Int8(v)),
+                    GenericField::Simple(SimpleField::Int8(f)),
+                ) => {
+                    *v = *f;
+                }
+                (
+                    ValueMut::Simple(SimpleValueMut::Uint8(v)),
+                    GenericField::Simple(SimpleField::Uint8(f)),
+                ) => {
+                    *v = *f;
+                }
+                (
+                    ValueMut::Simple(SimpleValueMut::String(v)),
+                    GenericField::Simple(SimpleField::String(f)),
+                ) => {
+                    *v = rosidl_runtime_rs::String::from(f.clone());
+                }
+                (
+                    ValueMut::Simple(SimpleValueMut::Message(v)),
+                    GenericField::Simple(SimpleField::Message(f)),
+                ) => {
+                    populate_message(v, f);
+                }
+                // Arrays
+                (
+                    ValueMut::Array(ArrayValueMut::BooleanArray(v)),
+                    GenericField::Array(ArrayField::Boolean(f)),
+                ) => {
+                    v.copy_from_slice(&f);
+                }
+                (
+                    ValueMut::Array(ArrayValueMut::FloatArray(v)),
+                    GenericField::Array(ArrayField::Float(f)),
+                ) => {
+                    v.copy_from_slice(&f);
+                }
+                (
+                    ValueMut::Array(ArrayValueMut::DoubleArray(v)),
+                    GenericField::Array(ArrayField::Double(f)),
+                ) => {
+                    v.copy_from_slice(&f);
+                }
+                (
+                    ValueMut::Array(ArrayValueMut::Int64Array(v)),
+                    GenericField::Array(ArrayField::Int64(f)),
+                ) => {
+                    v.copy_from_slice(&f);
+                }
+                (
+                    ValueMut::Array(ArrayValueMut::Uint64Array(v)),
+                    GenericField::Array(ArrayField::Uint64(f)),
+                ) => {
+                    v.copy_from_slice(&f);
+                }
+                (
+                    ValueMut::Array(ArrayValueMut::Int32Array(v)),
+                    GenericField::Array(ArrayField::Int32(f)),
+                ) => {
+                    v.copy_from_slice(&f);
+                }
+                (
+                    ValueMut::Array(ArrayValueMut::Uint32Array(v)),
+                    GenericField::Array(ArrayField::Uint32(f)),
+                ) => {
+                    v.copy_from_slice(&f);
+                }
+                (
+                    ValueMut::Array(ArrayValueMut::Int16Array(v)),
+                    GenericField::Array(ArrayField::Int16(f)),
+                ) => {
+                    v.copy_from_slice(&f);
+                }
+                (
+                    ValueMut::Array(ArrayValueMut::Uint16Array(v)),
+                    GenericField::Array(ArrayField::Uint16(f)),
+                ) => {
+                    v.copy_from_slice(&f);
+                }
+                (
+                    ValueMut::Array(ArrayValueMut::Int8Array(v)),
+                    GenericField::Array(ArrayField::Int8(f)),
+                ) => {
+                    v.copy_from_slice(&f);
+                }
+                (
+                    ValueMut::Array(ArrayValueMut::Uint8Array(v)),
+                    GenericField::Array(ArrayField::Uint8(f)),
+                ) => {
+                    v.copy_from_slice(&f);
+                }
+                (
+                    ValueMut::Array(ArrayValueMut::StringArray(v)),
+                    GenericField::Array(ArrayField::String(f)),
+                ) => {
+                    for (i, item) in f.iter().enumerate() {
+                        if let Some(elem) = v.get_mut(i) {
+                            *elem = rosidl_runtime_rs::String::from(item.clone());
+                        }
+                    }
+                }
+                _ => {
+                    eprintln!("Type mismatch for field: {}", name);
+                    // TODO(@TonyWelte): Handle other types
+                }
+            }
+        }
+    }
+}
+
+impl Into<DynamicMessage> for &GenericMessage {
     fn into(self) -> DynamicMessage {
         let message_type = MessageTypeName {
-            package_name: "nav_msgs".to_string(),
-            type_name: "Odometry".to_string(),
+            package_name: self.type_name().package_name.clone(),
+            type_name: self.type_name().type_name.clone(),
         };
         let mut dynamic_message = DynamicMessage::new(message_type).unwrap();
-        // todo!(" Implement conversion from GenericMessage");
+
+        populate_message(dynamic_message.view_mut(), &self);
 
         dynamic_message
     }
@@ -148,8 +321,6 @@ impl Connection for ConnectionROS2 {
         callback: impl Fn(GenericMessage, MessageMetadata) + Send + Sync + 'static,
     ) -> Result<(), String> {
         let topic_type = self.get_topic_type(topic).unwrap();
-        let message = Arc::new(Mutex::new(DynamicMessage::new(topic_type.clone()).unwrap()));
-        let message_copy = message.clone();
         let subscription = self
             .node
             .create_dynamic_subscription(
@@ -180,8 +351,7 @@ impl Connection for ConnectionROS2 {
             .map_err(|e| format!("Failed to create publisher: {}", e))?;
 
         let publish_fn = move |msg: &GenericMessage| {
-            let dynamic_msg: DynamicMessage = msg.clone().into();
-            publisher.publish(dynamic_msg).unwrap();
+            publisher.publish(msg.into()).unwrap();
         };
         Ok(Box::new(publish_fn))
     }

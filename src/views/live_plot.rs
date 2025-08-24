@@ -21,10 +21,10 @@ use crate::{
     },
     connections::{Connection, ConnectionType},
     // generic_message::{GenericField, GenericMessage},
-    views::{TuiView, Views},
+    views::TuiView,
 };
 
-use crossterm::event::{Event as CrosstermEvent, KeyCode, KeyEventKind, MouseEventKind};
+use crossterm::event::{Event as CrosstermEvent, KeyCode, KeyEventKind};
 
 pub struct LivePlotWidget;
 

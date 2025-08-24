@@ -1,9 +1,9 @@
-use std::{cell::RefCell, rc::Rc, sync::Arc};
+use std::{cell::RefCell, rc::Rc};
 
 use ratatui::{
     prelude::{Buffer, Rect},
     text::Line,
-    widgets::{Block, StatefulWidget, Widget},
+    widgets::{Block, Widget},
 };
 use rclrs::*;
 
@@ -11,16 +11,16 @@ use crate::{
     common::{
         event::Event,
         generic_message::{AnyTypeMutableRef, GenericMessage},
-        generic_message_selection::next_field,
+        generic_message_selection::{next_field, prev_field},
         style::HEADER_STYLE,
     },
     connections::{Connection, ConnectionType},
     // generic_message::{GenericField, GenericMessage},
-    views::{TuiView, Views},
+    views::TuiView,
     widgets::message_widget::MessageWidget,
 };
 
-use crossterm::event::{Event as CrosstermEvent, KeyCode, KeyEventKind};
+use crossterm::event::{Event as CrosstermEvent, KeyCode};
 
 pub struct TopicPublisherWidget;
 
@@ -62,7 +62,7 @@ impl TopicPublisherState {
     }
 
     pub fn select_previous_field(&mut self) {
-        // self.selected_fields = prev_field(&message, &self.selected_fields).unwrap_or_default();
+        self.selected_fields = prev_field(&self.message, &self.selected_fields).unwrap_or_default();
     }
 
     pub fn commit_edit(&mut self) -> Result<(), String> {

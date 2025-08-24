@@ -39,7 +39,8 @@ impl<T> Selectable<T> {
     }
 }
 
-mod test {
+#[cfg(test)]
+mod tests {
     use super::*;
 
     #[test]

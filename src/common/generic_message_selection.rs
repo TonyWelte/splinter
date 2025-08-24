@@ -1,10 +1,5 @@
 use std::usize;
 
-use rclrs::{
-    ArrayValue, BoundedSequenceValue, DynamicMessage, DynamicMessageView, MessageTypeName,
-    SequenceValue, SimpleValue, Value,
-};
-
 use crate::common::generic_message::{
     ArrayField, BoundedSequenceField, GenericField, GenericMessage, SequenceField, SimpleField,
 };
@@ -589,10 +584,11 @@ pub fn prev_field(msg: &GenericMessage, current_field_path: &[usize]) -> Option<
     None
 }
 
-mod test {
-    use crate::common::generic_message;
-
+#[cfg(test)]
+mod tests {
     use super::*;
+    use rclrs::DynamicMessage;
+    use rclrs::MessageTypeName;
 
     #[test]
     fn test_next_field_basic_types() {
@@ -600,7 +596,7 @@ mod test {
             package_name: "test_msgs".to_owned(),
             type_name: "BasicTypes".to_owned(),
         };
-        let mut msg = DynamicMessage::new(message_type).unwrap();
+        let msg = DynamicMessage::new(message_type).unwrap();
         let generic_message = GenericMessage::from(msg.view());
         let mut msg_selection = GenericMessageSelection::new(generic_message);
 
@@ -625,7 +621,7 @@ mod test {
             package_name: "nav_msgs".to_owned(),
             type_name: "Odometry".to_owned(),
         };
-        let mut msg = DynamicMessage::new(message_type).unwrap();
+        let msg = DynamicMessage::new(message_type).unwrap();
         let generic_message = GenericMessage::from(msg.view());
         let mut msg_selection = GenericMessageSelection::new(generic_message);
 
@@ -666,7 +662,7 @@ mod test {
             package_name: "test_msgs".to_owned(),
             type_name: "BasicTypes".to_owned(),
         };
-        let mut msg = DynamicMessage::new(message_type).unwrap();
+        let msg = DynamicMessage::new(message_type).unwrap();
         let generic_message = GenericMessage::from(msg.view());
         let mut msg_selection = GenericMessageSelection::new(generic_message);
 

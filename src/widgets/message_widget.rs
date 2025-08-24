@@ -8,7 +8,7 @@ use ratatui::{
 
 use crate::common::{
     generic_message::{
-        ArrayField, BoundedSequenceField, GenericField, GenericMessage, Length, SequenceField,
+        ArrayField, GenericField, GenericMessage, Length,
         SimpleField,
     },
     style::SELECTED_STYLE,

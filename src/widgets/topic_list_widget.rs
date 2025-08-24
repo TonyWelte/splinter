@@ -1,20 +1,11 @@
-use std::{cell::RefCell, rc::Rc};
-
 use ratatui::{
     crossterm::event::{Event as CrosstermEvent, KeyCode},
     prelude::{BlockExt, Buffer, Rect},
     style::Style,
-    text::{Line, Span},
-    widgets::{Block, List, ListItem, Widget},
+    widgets::{Block, Widget},
 };
 
-use crate::{
-    common::event::Event,
-    common::style::{HEADER_STYLE, SELECTED_STYLE},
-    connections::{Connection, ConnectionType},
-    views::{raw_message::RawMessageState, topic_publisher::TopicPublisherState, TuiView, Views},
-    widgets::TuiWidget,
-};
+use crate::{common::event::Event, common::style::SELECTED_STYLE, widgets::TuiWidget};
 
 // TODO(@TonyWelte): Remove dependency on rclrs in widgets module
 use rclrs::MessageTypeName;
@@ -126,6 +117,8 @@ impl<'a> TopicListWidget<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    use ratatui::prelude::{Buffer, Line};
 
     #[track_caller]
     fn test_case_render<'a, Lines>(

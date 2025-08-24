@@ -5,7 +5,7 @@ use std::{
 };
 
 use ratatui::{
-    prelude::{Buffer, Rect, Style},
+    prelude::{Buffer, Rect},
     text::Line,
     widgets::{Block, Paragraph, Widget},
 };
@@ -14,16 +14,13 @@ use rclrs::*;
 use crate::{
     common::{
         event::{Event, NewPlotEvent},
-        generic_message::{
-            ArrayField, BoundedSequenceField, GenericField, GenericMessage, MessageMetadata,
-            SequenceField, SimpleField,
-        },
-        generic_message_selection::next_field,
-        style::{HEADER_STYLE, SELECTED_STYLE},
+        generic_message::{GenericMessage, MessageMetadata},
+        generic_message_selection::{next_field, prev_field},
+        style::HEADER_STYLE,
     },
     connections::{Connection, ConnectionType},
     // generic_message::{GenericField, GenericMessage},
-    views::{live_plot::LivePlotState, TuiView, Views},
+    views::TuiView,
     widgets::message_widget::MessageWidget,
 };
 
@@ -77,7 +74,7 @@ impl RawMessageState {
 
     pub fn select_previous_field(&mut self) {
         if let Some(message) = self.message.lock().unwrap().as_ref() {
-            // self.selected_fields = prev_field(&message, &self.selected_fields).unwrap_or_default();
+            self.selected_fields = prev_field(&message, &self.selected_fields).unwrap_or_default();
         }
     }
 }

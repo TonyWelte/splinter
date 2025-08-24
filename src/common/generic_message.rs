@@ -1,7 +1,6 @@
 use indexmap::IndexMap;
 use rclrs::{
-    ArrayValue, BoundedSequenceValue, DynamicMessage, DynamicMessageView, MessageTypeName,
-    SequenceValue, SimpleValue, Value,
+    ArrayValue, BoundedSequenceValue, DynamicMessageView, SequenceValue, SimpleValue, Value,
 };
 use std::{ops::Index, time::SystemTime};
 
@@ -614,10 +613,10 @@ impl GenericMessage {
 }
 
 #[cfg(test)]
-mod test {
-    use rclrs::{SimpleValueMut, ValueMut};
-
+mod tests {
     use super::*;
+
+    use rclrs::{dynamic_message::DynamicMessage, SimpleValueMut, ValueMut};
 
     #[test]
     fn test_generic_message_from_dynamic_message() {

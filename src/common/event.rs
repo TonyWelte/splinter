@@ -1,4 +1,3 @@
-use mcap::Message;
 use ratatui::crossterm::event::Event as CrosstermEvent;
 use rclrs::MessageTypeName;
 

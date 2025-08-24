@@ -1,15 +1,13 @@
 use std::collections::HashMap;
-use std::sync::Arc;
 
 use enum_dispatch::enum_dispatch;
 
-use rclrs::DynamicPublisherState;
 use rclrs::NodeNameInfo;
 use ros2::ConnectionROS2;
 
 use crate::common::generic_message::{GenericMessage, MessageMetadata};
 
-use rclrs::{DynamicMessage, MessageInfo, MessageTypeName};
+use rclrs::MessageTypeName;
 
 // Connection trait
 #[enum_dispatch(ConnectionType)]

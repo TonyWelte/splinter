@@ -14,7 +14,7 @@ use crate::{
         style::{HEADER_STYLE, SELECTED_STYLE},
     },
     connections::{Connection, ConnectionType},
-    views::{raw_message::RawMessageState, topic_publisher::TopicPublisherState, TuiView, Views},
+    views::TuiView,
 };
 
 // TODO(@TonyWelte): Remove dependency on rclrs in widgets module
