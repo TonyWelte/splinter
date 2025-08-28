@@ -9,51 +9,82 @@ pub struct GenericMessageSelector<'a> {
     message: &'a GenericMessage,
 }
 
-fn has_field(message: &GenericMessage, field_path: &[usize]) -> bool {
+#[derive(Debug, PartialEq, Eq)]
+pub enum FieldCategory {
+    Base,
+    Message,
+    Array,
+    Sequence,
+    BoundedSequence,
+}
+
+pub fn get_field_category(message: &GenericMessage, field_path: &[usize]) -> Option<FieldCategory> {
     if field_path.len() == 0 {
-        return true;
+        return Some(FieldCategory::Message);
     }
 
     if field_path.len() == 1 {
-        return field_path[0] < message.len();
+        if field_path[0] < message.len() {
+            return match message.get_index(field_path[0]).unwrap() {
+                GenericField::Simple(SimpleField::Message(_)) => Some(FieldCategory::Message),
+                GenericField::Simple(_) => Some(FieldCategory::Base),
+                GenericField::Array(_) => Some(FieldCategory::Array),
+                GenericField::Sequence(_) => Some(FieldCategory::Sequence),
+                GenericField::BoundedSequence(_) => Some(FieldCategory::BoundedSequence),
+            };
+        } else {
+            return None;
+        }
     }
 
     let field_index = field_path[0];
     if field_index >= message.len() {
-        return false;
+        return None;
     }
 
     let field = message.get_index(field_index).unwrap();
     match field {
         GenericField::Simple(simple_value) => {
             if let SimpleField::Message(inner_msg) = simple_value {
-                return has_field(&inner_msg, &field_path[1..]);
+                return get_field_category(&inner_msg, &field_path[1..]);
             } else {
-                return false;
+                return None;
             }
         }
         GenericField::Array(array_value) => match array_value {
             ArrayField::Message(inner_msgs) => {
-                return has_field(&inner_msgs[1], &field_path[2..]);
+                return get_field_category(&inner_msgs[1], &field_path[2..]);
             }
             _ => {
-                return field_path.len() == 2 && field_path[1] < array_value.len();
+                if field_path.len() == 2 && field_path[1] < array_value.len() {
+                    return Some(FieldCategory::Base);
+                } else {
+                    return None;
+                }
             }
         },
         GenericField::Sequence(sequence_value) => match sequence_value {
             SequenceField::Message(inner_msgs) => {
-                return has_field(&inner_msgs[1], &field_path[2..]);
+                return get_field_category(&inner_msgs[1], &field_path[2..]);
             }
             _ => {
-                return field_path.len() == 2 && field_path[1] < sequence_value.len();
+                if field_path.len() == 2 && field_path[1] < sequence_value.len() {
+                    return Some(FieldCategory::Base);
+                } else {
+                    return None;
+                }
             }
         },
         GenericField::BoundedSequence(bounded_sequence_value) => match bounded_sequence_value {
             BoundedSequenceField::Message(inner_msgs) => {
-                return has_field(&inner_msgs[1], &field_path[2..]);
+                return get_field_category(&inner_msgs[1], &field_path[2..]);
             }
             _ => {
-                return field_path.len() == 2 && field_path[1] < bounded_sequence_value.len();
+                if field_path.len() == 2 && field_path[1] < bounded_sequence_value.len() {
+                    return Some(FieldCategory::Base);
+                } else {
+                    return None;
+                }
             }
         },
     }
@@ -190,14 +221,14 @@ impl<'a> GenericMessageSelector<'a> {
 
         // Try to go right first
         result.push(0);
-        if has_field(&self.message, &result) {
+        if get_field_category(&self.message, &result).is_some() {
             return result;
         }
         result.pop();
 
         // Try to go down
         result.last_mut().map(|last| *last += 1);
-        while !result.is_empty() && !has_field(&self.message, &result) {
+        while !result.is_empty() && get_field_category(&self.message, &result).is_none() {
             result.pop();
             if let Some(last) = result.last_mut() {
                 *last += 1;
@@ -265,7 +296,7 @@ impl<'a> GenericMessageSelector<'a> {
 
         let mut result = current_field_path.to_vec();
         result.last_mut().map(|last| *last += 1);
-        if has_field(&self.message, &result) {
+        if get_field_category(&self.message, &result).is_some() {
             return result;
         } else {
             return current_field_path.to_vec();
@@ -279,558 +310,6 @@ impl<'a> GenericMessageSelector<'a> {
 
         get_last_index_path(&self.message, &[]).unwrap_or_else(|| vec![])
     }
-}
-
-fn skip_length(current_field_path: &[usize]) -> usize {
-    match current_field_path.len() {
-        0 => 0,
-        1 => current_field_path[0] + 1,
-        _ => current_field_path[0],
-    }
-}
-
-fn skip_length_backward(field_count: usize, current_field_path: &[usize]) -> usize {
-    match current_field_path.len() {
-        0 => 0,
-        1 => field_count - current_field_path[0],
-        _ => field_count - current_field_path[0] - 1,
-    }
-}
-
-// macro to handle array next field selection
-macro_rules! next_messages {
-    ($array:expr, $current_field_path:expr) => {{
-        let mut result = None;
-        let skip_fields = skip_length($current_field_path);
-        for (index, item) in $array.iter().enumerate().skip(skip_fields) {
-            if let Some(inner_path) = next_field(&item, &$current_field_path[1..]) {
-                let mut path = vec![index];
-                path.extend(inner_path);
-                result = Some(path);
-                break;
-            }
-        }
-        result
-    }};
-}
-
-macro_rules! prev_messages {
-    ($array:expr, $current_field_path:expr) => {{
-        let mut result = None;
-        let skip_fields = skip_length_backward($array.len(), $current_field_path);
-        for (index, item) in $array.iter().enumerate().rev().skip(skip_fields) {
-            if let Some(inner_path) = prev_field(&item, &$current_field_path[1..]) {
-                let mut path = vec![index];
-                path.extend(inner_path);
-                result = Some(path);
-                break;
-            }
-        }
-        result
-    }};
-}
-
-macro_rules! next_values {
-    ($index:expr, $array:expr, $current_field_path:expr) => {{
-        let skip_fields = skip_length($current_field_path);
-        for i in (0..$array.len()).skip(skip_fields) {
-            assert!(
-                $current_field_path.len() < 2,
-                "Nested list/array selection not supported"
-            );
-            return Some(vec![$index, i]);
-        }
-    }};
-}
-
-macro_rules! prev_values {
-    ($index:expr, $array:expr, $current_field_path:expr) => {{
-        let skip_fields = skip_length_backward($array.len(), $current_field_path);
-        for i in (0..$array.len()).rev().skip(skip_fields) {
-            assert!(
-                $current_field_path.len() < 2,
-                "Nested list/array selection not supported"
-            );
-            return Some(vec![$index, i]);
-        }
-    }};
-}
-
-pub fn next_field(msg: &GenericMessage, current_field_path: &[usize]) -> Option<Vec<usize>> {
-    let skip_fields = skip_length(current_field_path);
-    let mut next_current_field_path =
-        current_field_path[1.min(current_field_path.len())..].to_vec();
-    for (index, (name, value)) in msg.iter().enumerate().skip(skip_fields) {
-        match value {
-            GenericField::Simple(simple_value) => {
-                if let SimpleField::Message(inner_msg) = simple_value {
-                    if let Some(inner_path) = next_field(&inner_msg, &next_current_field_path) {
-                        let mut path = vec![index];
-                        path.extend(inner_path);
-                        return Some(path);
-                    }
-                } else {
-                    return Some(vec![index]);
-                }
-            }
-            GenericField::Array(array_value) => {
-                match array_value {
-                    ArrayField::Message(inner_msgs) => {
-                        let innder_skip_fields = skip_length(&next_current_field_path);
-                        next_current_field_path = next_current_field_path
-                            [1.min(next_current_field_path.len())..]
-                            .to_vec();
-                        if let Some(inner_path) =
-                            next_messages!(inner_msgs, &next_current_field_path)
-                        {
-                            let mut path = vec![index];
-                            path.extend(inner_path);
-                            return Some(path);
-                        }
-                    }
-                    ArrayField::Float(inner_values) => {
-                        next_values!(index, inner_values, &next_current_field_path)
-                    }
-                    ArrayField::Double(inner_values) => {
-                        next_values!(index, inner_values, &next_current_field_path)
-                    }
-                    ArrayField::LongDouble(_) => {
-                        todo!("LongDoubleArray is not supported yet")
-                    }
-                    ArrayField::Int8(inner_values) => {
-                        next_values!(index, inner_values, &next_current_field_path)
-                    }
-                    ArrayField::Uint8(inner_values) => {
-                        next_values!(index, inner_values, &next_current_field_path)
-                    }
-                    ArrayField::Int16(inner_values) => {
-                        next_values!(index, inner_values, &next_current_field_path)
-                    }
-                    ArrayField::Uint16(inner_values) => {
-                        next_values!(index, inner_values, &next_current_field_path)
-                    }
-                    ArrayField::Int32(inner_values) => {
-                        next_values!(index, inner_values, &next_current_field_path)
-                    }
-                    ArrayField::Uint32(inner_values) => {
-                        next_values!(index, inner_values, &next_current_field_path)
-                    }
-                    ArrayField::Int64(inner_values) => {
-                        next_values!(index, inner_values, &next_current_field_path)
-                    }
-                    ArrayField::Uint64(inner_values) => {
-                        next_values!(index, inner_values, &next_current_field_path)
-                    }
-                    ArrayField::Char(inner_values) => {
-                        next_values!(index, inner_values, &next_current_field_path)
-                    }
-                    ArrayField::WChar(inner_values) => {
-                        next_values!(index, inner_values, &next_current_field_path)
-                    }
-                    ArrayField::Octet(inner_values) => {
-                        next_values!(index, inner_values, &next_current_field_path)
-                    }
-                    ArrayField::Boolean(inner_values) => {
-                        next_values!(index, inner_values, &next_current_field_path)
-                    }
-                    ArrayField::String(inner_values) => {
-                        next_values!(index, inner_values, &next_current_field_path)
-                    }
-                    ArrayField::WString(inner_values) => {
-                        next_values!(index, inner_values, &next_current_field_path)
-                    }
-                    ArrayField::BoundedString(inner_values) => {
-                        next_values!(index, inner_values, &next_current_field_path)
-                    }
-                    ArrayField::BoundedWString(inner_values) => {
-                        next_values!(index, inner_values, &next_current_field_path)
-                    }
-                }
-                next_current_field_path.clear();
-            }
-            GenericField::Sequence(sequence_value) => {
-                match sequence_value {
-                    SequenceField::Message(inner_msgs) => {
-                        if let Some(inner_path) =
-                            next_messages!(inner_msgs, &next_current_field_path)
-                        {
-                            let mut path = vec![index];
-                            path.extend(inner_path);
-                            return Some(path);
-                        }
-                    }
-                    SequenceField::Float(inner_values) => {
-                        next_values!(index, inner_values, &next_current_field_path)
-                    }
-                    SequenceField::Double(inner_values) => {
-                        next_values!(index, inner_values, &next_current_field_path)
-                    }
-                    SequenceField::LongDouble(_) => {
-                        todo!("LongDoubleSequence is not supported yet")
-                    }
-                    SequenceField::Int8(inner_values) => {
-                        next_values!(index, inner_values, &next_current_field_path)
-                    }
-                    SequenceField::Uint8(inner_values) => {
-                        next_values!(index, inner_values, &next_current_field_path)
-                    }
-                    SequenceField::Int16(inner_values) => {
-                        next_values!(index, inner_values, &next_current_field_path)
-                    }
-                    SequenceField::Uint16(inner_values) => {
-                        next_values!(index, inner_values, &next_current_field_path)
-                    }
-                    SequenceField::Int32(inner_values) => {
-                        next_values!(index, inner_values, &next_current_field_path)
-                    }
-                    SequenceField::Uint32(inner_values) => {
-                        next_values!(index, inner_values, &next_current_field_path)
-                    }
-                    SequenceField::Int64(inner_values) => {
-                        next_values!(index, inner_values, &next_current_field_path)
-                    }
-                    SequenceField::Uint64(inner_values) => {
-                        next_values!(index, inner_values, &next_current_field_path)
-                    }
-                    SequenceField::Octet(inner_values) => {
-                        next_values!(index, inner_values, &next_current_field_path)
-                    }
-                    SequenceField::Char(inner_values) => {
-                        next_values!(index, inner_values, &next_current_field_path)
-                    }
-                    SequenceField::WChar(inner_values) => {
-                        next_values!(index, inner_values, &next_current_field_path)
-                    }
-                    SequenceField::Boolean(inner_values) => {
-                        next_values!(index, inner_values, &next_current_field_path)
-                    }
-                    SequenceField::String(inner_values) => {
-                        next_values!(index, inner_values, &next_current_field_path)
-                    }
-                    SequenceField::WString(inner_values) => {
-                        next_values!(index, inner_values, &next_current_field_path)
-                    }
-                    SequenceField::BoundedString(inner_values) => {
-                        next_values!(index, inner_values, &next_current_field_path)
-                    }
-                    SequenceField::BoundedWString(inner_values) => {
-                        next_values!(index, inner_values, &next_current_field_path)
-                    }
-                }
-                next_current_field_path.clear();
-            }
-            GenericField::BoundedSequence(bounded_sequence_value) => {
-                match bounded_sequence_value {
-                    BoundedSequenceField::Message(inner_msgs) => {
-                        if let Some(inner_path) =
-                            next_messages!(inner_msgs, &next_current_field_path)
-                        {
-                            let mut path = vec![index];
-                            path.extend(inner_path);
-                            return Some(path);
-                        }
-                    }
-                    BoundedSequenceField::Float(inner_values) => {
-                        next_values!(index, inner_values, &next_current_field_path)
-                    }
-                    BoundedSequenceField::Double(inner_values) => {
-                        next_values!(index, inner_values, &next_current_field_path)
-                    }
-                    BoundedSequenceField::LongDouble(_) => {
-                        todo!("LongDoubleSequence is not supported yet")
-                    }
-                    BoundedSequenceField::Int8(inner_values) => {
-                        next_values!(index, inner_values, &next_current_field_path)
-                    }
-                    BoundedSequenceField::Uint8(inner_values) => {
-                        next_values!(index, inner_values, &next_current_field_path)
-                    }
-                    BoundedSequenceField::Int16(inner_values) => {
-                        next_values!(index, inner_values, &next_current_field_path)
-                    }
-                    BoundedSequenceField::Uint16(inner_values) => {
-                        next_values!(index, inner_values, &next_current_field_path)
-                    }
-                    BoundedSequenceField::Int32(inner_values) => {
-                        next_values!(index, inner_values, &next_current_field_path)
-                    }
-                    BoundedSequenceField::Uint32(inner_values) => {
-                        next_values!(index, inner_values, &next_current_field_path)
-                    }
-                    BoundedSequenceField::Int64(inner_values) => {
-                        next_values!(index, inner_values, &next_current_field_path)
-                    }
-                    BoundedSequenceField::Uint64(inner_values) => {
-                        next_values!(index, inner_values, &next_current_field_path)
-                    }
-                    BoundedSequenceField::Octet(inner_values) => {
-                        next_values!(index, inner_values, &next_current_field_path)
-                    }
-                    BoundedSequenceField::Char(inner_values) => {
-                        next_values!(index, inner_values, &next_current_field_path)
-                    }
-                    BoundedSequenceField::WChar(inner_values) => {
-                        next_values!(index, inner_values, &next_current_field_path)
-                    }
-                    BoundedSequenceField::Boolean(inner_values) => {
-                        next_values!(index, inner_values, &next_current_field_path)
-                    }
-                    BoundedSequenceField::String(inner_values) => {
-                        next_values!(index, inner_values, &next_current_field_path)
-                    }
-                    BoundedSequenceField::WString(inner_values) => {
-                        next_values!(index, inner_values, &next_current_field_path)
-                    }
-                    BoundedSequenceField::BoundedString(inner_values) => {
-                        next_values!(index, inner_values, &next_current_field_path)
-                    }
-                    BoundedSequenceField::BoundedWString(inner_values) => {
-                        next_values!(index, inner_values, &next_current_field_path)
-                    }
-                }
-                next_current_field_path.clear();
-            }
-        }
-        next_current_field_path.clear();
-    }
-    None
-}
-
-pub fn prev_field(msg: &GenericMessage, current_field_path: &[usize]) -> Option<Vec<usize>> {
-    let skip_fields = skip_length_backward(msg.field_count(), current_field_path);
-    let mut prev_current_field_path =
-        current_field_path[1.min(current_field_path.len())..].to_vec();
-    for index in (0..msg.len()).rev().skip(skip_fields) {
-        let value = msg.get_index(index).unwrap();
-        match value {
-            GenericField::Simple(simple_value) => {
-                if let SimpleField::Message(inner_msg) = simple_value {
-                    if let Some(inner_path) = prev_field(&inner_msg, &prev_current_field_path) {
-                        let mut path = vec![index];
-                        path.extend(inner_path);
-                        return Some(path);
-                    }
-                } else {
-                    return Some(vec![index]);
-                }
-            }
-            GenericField::Array(array_value) => {
-                match array_value {
-                    ArrayField::Message(inner_msgs) => {
-                        if let Some(inner_path) =
-                            prev_messages!(inner_msgs, &prev_current_field_path)
-                        {
-                            let mut path = vec![index];
-                            path.extend(inner_path);
-                            return Some(path);
-                        }
-                    }
-                    ArrayField::Float(inner_values) => {
-                        prev_values!(index, inner_values, &prev_current_field_path)
-                    }
-                    ArrayField::Double(inner_values) => {
-                        prev_values!(index, inner_values, &prev_current_field_path)
-                    }
-                    ArrayField::LongDouble(_) => {
-                        todo!("LongDoubleArray is not supported yet")
-                    }
-                    ArrayField::Int8(inner_values) => {
-                        prev_values!(index, inner_values, &prev_current_field_path)
-                    }
-                    ArrayField::Uint8(inner_values) => {
-                        prev_values!(index, inner_values, &prev_current_field_path)
-                    }
-                    ArrayField::Int16(inner_values) => {
-                        prev_values!(index, inner_values, &prev_current_field_path)
-                    }
-                    ArrayField::Uint16(inner_values) => {
-                        prev_values!(index, inner_values, &prev_current_field_path)
-                    }
-                    ArrayField::Int32(inner_values) => {
-                        prev_values!(index, inner_values, &prev_current_field_path)
-                    }
-                    ArrayField::Uint32(inner_values) => {
-                        prev_values!(index, inner_values, &prev_current_field_path)
-                    }
-                    ArrayField::Int64(inner_values) => {
-                        prev_values!(index, inner_values, &prev_current_field_path)
-                    }
-                    ArrayField::Uint64(inner_values) => {
-                        prev_values!(index, inner_values, &prev_current_field_path)
-                    }
-                    ArrayField::Char(inner_values) => {
-                        prev_values!(index, inner_values, &prev_current_field_path)
-                    }
-                    ArrayField::WChar(inner_values) => {
-                        prev_values!(index, inner_values, &prev_current_field_path)
-                    }
-                    ArrayField::Octet(inner_values) => {
-                        prev_values!(index, inner_values, &prev_current_field_path)
-                    }
-                    ArrayField::Boolean(inner_values) => {
-                        prev_values!(index, inner_values, &prev_current_field_path)
-                    }
-                    ArrayField::String(inner_values) => {
-                        prev_values!(index, inner_values, &prev_current_field_path)
-                    }
-                    ArrayField::WString(inner_values) => {
-                        prev_values!(index, inner_values, &prev_current_field_path)
-                    }
-                    ArrayField::BoundedString(inner_values) => {
-                        prev_values!(index, inner_values, &prev_current_field_path)
-                    }
-                    ArrayField::BoundedWString(inner_values) => {
-                        prev_values!(index, inner_values, &prev_current_field_path)
-                    }
-                }
-                prev_current_field_path.clear();
-            }
-            GenericField::Sequence(sequence_value) => {
-                match sequence_value {
-                    SequenceField::Message(inner_msgs) => {
-                        if let Some(inner_path) =
-                            prev_messages!(inner_msgs, &prev_current_field_path)
-                        {
-                            let mut path = vec![index];
-                            path.extend(inner_path);
-                            return Some(path);
-                        }
-                    }
-                    SequenceField::Float(inner_values) => {
-                        prev_values!(index, inner_values, &prev_current_field_path)
-                    }
-                    SequenceField::Double(inner_values) => {
-                        prev_values!(index, inner_values, &prev_current_field_path)
-                    }
-                    SequenceField::LongDouble(_) => {
-                        todo!("LongDoubleSequence is not supported yet")
-                    }
-                    SequenceField::Int8(inner_values) => {
-                        prev_values!(index, inner_values, &prev_current_field_path)
-                    }
-                    SequenceField::Uint8(inner_values) => {
-                        prev_values!(index, inner_values, &prev_current_field_path)
-                    }
-                    SequenceField::Int16(inner_values) => {
-                        prev_values!(index, inner_values, &prev_current_field_path)
-                    }
-                    SequenceField::Uint16(inner_values) => {
-                        prev_values!(index, inner_values, &prev_current_field_path)
-                    }
-                    SequenceField::Int32(inner_values) => {
-                        prev_values!(index, inner_values, &prev_current_field_path)
-                    }
-                    SequenceField::Uint32(inner_values) => {
-                        prev_values!(index, inner_values, &prev_current_field_path)
-                    }
-                    SequenceField::Int64(inner_values) => {
-                        prev_values!(index, inner_values, &prev_current_field_path)
-                    }
-                    SequenceField::Uint64(inner_values) => {
-                        prev_values!(index, inner_values, &prev_current_field_path)
-                    }
-                    SequenceField::Octet(inner_values) => {
-                        prev_values!(index, inner_values, &prev_current_field_path)
-                    }
-                    SequenceField::Char(inner_values) => {
-                        prev_values!(index, inner_values, &prev_current_field_path)
-                    }
-                    SequenceField::WChar(inner_values) => {
-                        prev_values!(index, inner_values, &prev_current_field_path)
-                    }
-                    SequenceField::Boolean(inner_values) => {
-                        prev_values!(index, inner_values, &prev_current_field_path)
-                    }
-                    SequenceField::String(inner_values) => {
-                        prev_values!(index, inner_values, &prev_current_field_path)
-                    }
-                    SequenceField::WString(inner_values) => {
-                        prev_values!(index, inner_values, &prev_current_field_path)
-                    }
-                    SequenceField::BoundedString(inner_values) => {
-                        prev_values!(index, inner_values, &prev_current_field_path)
-                    }
-                    SequenceField::BoundedWString(inner_values) => {
-                        prev_values!(index, inner_values, &prev_current_field_path)
-                    }
-                }
-                prev_current_field_path.clear();
-            }
-            GenericField::BoundedSequence(bounded_sequence_value) => {
-                match bounded_sequence_value {
-                    BoundedSequenceField::Message(inner_msgs) => {
-                        if let Some(inner_path) =
-                            prev_messages!(inner_msgs, &prev_current_field_path)
-                        {
-                            let mut path = vec![index];
-                            path.extend(inner_path);
-                            return Some(path);
-                        }
-                    }
-                    BoundedSequenceField::Float(inner_values) => {
-                        prev_values!(index, inner_values, &prev_current_field_path)
-                    }
-                    BoundedSequenceField::Double(inner_values) => {
-                        prev_values!(index, inner_values, &prev_current_field_path)
-                    }
-                    BoundedSequenceField::LongDouble(_) => {
-                        todo!("LongDoubleSequence is not supported yet")
-                    }
-                    BoundedSequenceField::Int8(inner_values) => {
-                        prev_values!(index, inner_values, &prev_current_field_path)
-                    }
-                    BoundedSequenceField::Uint8(inner_values) => {
-                        prev_values!(index, inner_values, &prev_current_field_path)
-                    }
-                    BoundedSequenceField::Int16(inner_values) => {
-                        prev_values!(index, inner_values, &prev_current_field_path)
-                    }
-                    BoundedSequenceField::Uint16(inner_values) => {
-                        prev_values!(index, inner_values, &prev_current_field_path)
-                    }
-                    BoundedSequenceField::Int32(inner_values) => {
-                        prev_values!(index, inner_values, &prev_current_field_path)
-                    }
-                    BoundedSequenceField::Uint32(inner_values) => {
-                        prev_values!(index, inner_values, &prev_current_field_path)
-                    }
-                    BoundedSequenceField::Int64(inner_values) => {
-                        prev_values!(index, inner_values, &prev_current_field_path)
-                    }
-                    BoundedSequenceField::Uint64(inner_values) => {
-                        prev_values!(index, inner_values, &prev_current_field_path)
-                    }
-                    BoundedSequenceField::Octet(inner_values) => {
-                        prev_values!(index, inner_values, &prev_current_field_path)
-                    }
-                    BoundedSequenceField::Char(inner_values) => {
-                        prev_values!(index, inner_values, &prev_current_field_path)
-                    }
-                    BoundedSequenceField::WChar(inner_values) => {
-                        prev_values!(index, inner_values, &prev_current_field_path)
-                    }
-                    BoundedSequenceField::Boolean(inner_values) => {
-                        prev_values!(index, inner_values, &prev_current_field_path)
-                    }
-                    BoundedSequenceField::String(inner_values) => {
-                        prev_values!(index, inner_values, &prev_current_field_path)
-                    }
-                    BoundedSequenceField::WString(inner_values) => {
-                        prev_values!(index, inner_values, &prev_current_field_path)
-                    }
-                    BoundedSequenceField::BoundedString(inner_values) => {
-                        prev_values!(index, inner_values, &prev_current_field_path)
-                    }
-                    BoundedSequenceField::BoundedWString(inner_values) => {
-                        prev_values!(index, inner_values, &prev_current_field_path)
-                    }
-                }
-                prev_current_field_path.clear();
-            }
-        }
-        prev_current_field_path.clear();
-    }
-    None
 }
 
 #[cfg(test)]
@@ -848,14 +327,16 @@ mod tests {
         let msg = DynamicMessage::new(message_type).unwrap();
         let generic_message = GenericMessage::from(msg.view());
 
-        assert!(has_field(&generic_message, &vec![])); // Root always exists
-        assert!(has_field(&generic_message, &vec![0])); // header
-        assert!(has_field(&generic_message, &vec![2, 0, 1, 0])); // pose.pose.orientation.x
-        assert!(has_field(&generic_message, &vec![2, 1, 35])); // pose.covariance.35
-        assert!(!has_field(&generic_message, &vec![10])); // Out of bounds
-        assert!(!has_field(&generic_message, &vec![2, 5])); // Out of bounds
-        assert!(!has_field(&generic_message, &vec![2, 0, 5])); // Out of bounds
-        assert!(!has_field(&generic_message, &vec![2, 0, 1, 5])); // Out of bounds
+        assert!(get_field_category(&generic_message, &vec![]).is_some()); // Root always exists
+        assert!(get_field_category(&generic_message, &vec![0]).is_some()); // header
+        assert!(get_field_category(&generic_message, &vec![2, 0, 1, 0]).is_some()); // pose.pose.orientation.x
+        assert!(get_field_category(&generic_message, &vec![2, 1, 35]).is_some()); // pose.covariance.35
+
+        // Out of bounds
+        assert!(get_field_category(&generic_message, &vec![10]).is_none());
+        assert!(get_field_category(&generic_message, &vec![2, 5]).is_none());
+        assert!(get_field_category(&generic_message, &vec![2, 0, 5]).is_none());
+        assert!(get_field_category(&generic_message, &vec![2, 0, 1, 5]).is_none());
     }
 
     #[test]

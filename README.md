@@ -1,0 +1,22 @@
+# TODO
+
+- Message selection by object instead of by field
+- Scrolling
+- Plots
+  - [x] Multiple lines on same plot
+  - [x] Frequency plot
+  - Delay plot
+  - Bitrate plot
+  - Graph view (not really but navigation)
+- Parameters
+  - List
+  - Get
+  - Set
+- Connections
+  - Foxglove bridge
+  - Rosbridge
+  - Multi-connection support
+- Services
+- GenericMessage that doesn't copy the content of DynamicMessage
+- Grid view
+- Error Popup

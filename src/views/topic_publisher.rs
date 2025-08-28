@@ -11,7 +11,7 @@ use crate::{
     common::{
         event::Event,
         generic_message::{AnyTypeMutableRef, GenericMessage},
-        generic_message_selector::{next_field, prev_field},
+        generic_message_selector::{get_field_category, FieldCategory, GenericMessageSelector},
         style::HEADER_STYLE,
     },
     connections::{Connection, ConnectionType},
@@ -58,11 +58,24 @@ impl TopicPublisherState {
     }
 
     pub fn select_next_field(&mut self) {
-        self.selected_fields = next_field(&self.message, &self.selected_fields).unwrap_or_default();
+        self.selected_fields =
+            GenericMessageSelector::new(&self.message).down(&self.selected_fields);
+        while !self.selected_fields.is_empty()
+            && get_field_category(&self.message, &self.selected_fields) != Some(FieldCategory::Base)
+        {
+            self.selected_fields =
+                GenericMessageSelector::new(&self.message).down(&self.selected_fields);
+        }
     }
 
     pub fn select_previous_field(&mut self) {
-        self.selected_fields = prev_field(&self.message, &self.selected_fields).unwrap_or_default();
+        self.selected_fields = GenericMessageSelector::new(&self.message).up(&self.selected_fields);
+        while !self.selected_fields.is_empty()
+            && get_field_category(&self.message, &self.selected_fields) != Some(FieldCategory::Base)
+        {
+            self.selected_fields =
+                GenericMessageSelector::new(&self.message).up(&self.selected_fields);
+        }
     }
 
     pub fn commit_edit(&mut self) -> Result<(), String> {
