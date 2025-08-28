@@ -27,112 +27,104 @@ use crate::{
 
 use crossterm::event::{Event as CrosstermEvent, KeyCode, KeyEventKind};
 
-pub struct LivePlotWidget;
+pub struct HzPlotWidget;
 
-pub struct GraphLineState {
+pub struct HzLineState {
     topic: String,
-    selected_fields: Vec<usize>,
-    connection: Rc<RefCell<ConnectionType>>,
-    plot: Arc<Mutex<Vec<(f64, f64)>>>, // Stores the plots for each field
+
+    stamps: Vec<f64>,
+    plot: Vec<(f64, f64)>, // Stores the plots for each field
 }
 
-pub struct LivePlotState {
-    lines: Vec<GraphLineState>,
+impl HzLineState {
+    fn new(topic: String) -> Self {
+        Self {
+            topic,
+            stamps: Vec::new(),
+            plot: Vec::new(),
+        }
+    }
+}
+
+pub struct HzPlotState {
+    connection: Rc<RefCell<ConnectionType>>,
+    lines: Vec<Arc<Mutex<HzLineState>>>,
     max_duration: f64, // Maximum duration for the plot
 }
 
-impl LivePlotState {
-    pub fn new(
-        topic: String,
-        selected_fields: Vec<usize>,
-        connection: Rc<RefCell<ConnectionType>>,
-    ) -> Self {
-        let plot = Arc::new(Mutex::new(Vec::new()));
-        let plot_copy = plot.clone();
-        let selected_fields_copy = selected_fields.clone();
+impl HzPlotState {
+    pub fn new(topic: String, connection: Rc<RefCell<ConnectionType>>) -> Self {
+        let line_state = Arc::new(Mutex::new(HzLineState::new(topic.clone())));
+        let line_state_copy = line_state.clone();
         connection
             .borrow_mut()
             .subscribe(
                 &topic,
-                move |msg: GenericMessage, msg_info: MessageMetadata| {
-                    let mut mut_plot = plot_copy.lock().unwrap();
+                move |_: GenericMessage, msg_info: MessageMetadata| {
+                    let mut mut_line_state = line_state.lock().unwrap();
                     let stamp = msg_info
                         .received_time
                         .duration_since(SystemTime::UNIX_EPOCH)
                         .unwrap()
                         .as_secs_f64();
-                    let value = get_field(&msg, &selected_fields_copy).unwrap();
-                    mut_plot.push((stamp, value));
+                    mut_line_state.stamps.push(stamp);
+                    let window_length = 10; // Number of stamps to consider for frequency calculation
+                    if mut_line_state.stamps.len() > window_length {
+                        mut_line_state.stamps.remove(0);
+                    }
+                    if mut_line_state.stamps.len() == window_length {
+                        let duration = mut_line_state.stamps.last().unwrap()
+                            - mut_line_state.stamps.first().unwrap();
+                        if duration > 0.0 {
+                            let frequency = (window_length - 1) as f64 / duration;
+                            mut_line_state.plot.push((stamp, frequency));
+                        }
+                    }
                 },
             )
             .expect("Failed to subscribe to topic");
         Self {
-            lines: vec![GraphLineState {
-                topic,
-                selected_fields,
-                connection,
-                plot,
-            }],
+            lines: vec![line_state_copy],
             max_duration: 10.0, // Default maximum duration for the plot
+            connection,
         }
     }
 
-    pub fn add_graph_line(
-        &mut self,
-        topic: String,
-        selected_fields: Vec<usize>,
-        connection: Rc<RefCell<ConnectionType>>,
-    ) {
-        let plot = Arc::new(Mutex::new(Vec::new()));
-        let plot_copy = plot.clone();
-        let selected_fields_copy = selected_fields.clone();
+    pub fn add_line(&mut self, topic: String, connection: Rc<RefCell<ConnectionType>>) {
+        let line_state = Arc::new(Mutex::new(HzLineState::new(topic.clone())));
+        let line_state_copy = line_state.clone();
         connection
             .borrow_mut()
             .subscribe(
                 &topic,
-                move |msg: GenericMessage, msg_info: MessageMetadata| {
-                    let mut mut_plot = plot_copy.lock().unwrap();
+                move |_: GenericMessage, msg_info: MessageMetadata| {
+                    let mut mut_line_state = line_state.lock().unwrap();
                     let stamp = msg_info
                         .received_time
                         .duration_since(SystemTime::UNIX_EPOCH)
                         .unwrap()
                         .as_secs_f64();
-                    let value = get_field(&msg, &selected_fields_copy).unwrap();
-                    mut_plot.push((stamp, value));
+                    mut_line_state.stamps.push(stamp);
+                    let window_length = 10; // Number of stamps to consider for frequency calculation
+                    if mut_line_state.stamps.len() > window_length {
+                        mut_line_state.stamps.remove(0);
+                    }
+                    if mut_line_state.stamps.len() == window_length {
+                        let duration = mut_line_state.stamps.last().unwrap()
+                            - mut_line_state.stamps.first().unwrap();
+                        if duration > 0.0 {
+                            let frequency = (window_length - 1) as f64 / duration;
+                            mut_line_state.plot.push((stamp, frequency));
+                        }
+                    }
                 },
             )
             .expect("Failed to subscribe to topic");
-        self.lines.push(GraphLineState {
-            topic,
-            selected_fields,
-            connection,
-            plot,
-        });
+        self.lines.push(line_state_copy);
     }
 }
 
-fn get_field(message: &GenericMessage, field_index_path: &[usize]) -> Option<f64> {
-    if field_index_path.is_empty() {
-        return None; // No field index provided
-    }
-    let field_index = field_index_path.first()?;
-    let field = message.get_index(*field_index).unwrap();
-    match field {
-        GenericField::Simple(SimpleField::Double(value)) => Some(*value),
-        GenericField::Simple(SimpleField::Float(value)) => Some(*value as f64),
-        GenericField::Simple(SimpleField::Int64(value)) => Some(*value as f64),
-        GenericField::Simple(SimpleField::Uint64(value)) => Some(*value as f64),
-        GenericField::Simple(SimpleField::Int32(value)) => Some(*value as f64),
-        GenericField::Simple(SimpleField::Uint32(value)) => Some(*value as f64),
-        GenericField::Simple(SimpleField::Message(msg)) => {
-            // If the field is a nested message, recursively get the field value
-            get_field(&msg, &field_index_path[1..])
-        }
-        _ => None, // Handle other types as needed
-    }
-}
-
-impl TuiView for LivePlotState {
+impl TuiView for HzPlotState {
     fn handle_event(&mut self, event: Event) -> Event {
         if let Event::Key(CrosstermEvent::Key(key_event)) = event {
             if key_event.kind != KeyEventKind::Press {
@@ -157,65 +149,55 @@ impl TuiView for LivePlotState {
     }
 
     fn name(&self) -> String {
-        format!("Live Data - {}s", self.max_duration)
+        format!("Frequency - {}s - window: 10 msg", self.max_duration)
     }
 }
 
-impl LivePlotWidget {
-    pub fn render(area: Rect, buf: &mut Buffer, state: &mut LivePlotState) {
+impl HzPlotWidget {
+    pub fn render(area: Rect, buf: &mut Buffer, state: &mut HzPlotState) {
         for line in &state.lines {
             // Ensure the plot does not exceed the maximum duration
-            let mut plot = line.plot.lock().unwrap();
+            let mut hz_line = line.lock().unwrap();
             let current_time = SystemTime::now()
                 .duration_since(SystemTime::UNIX_EPOCH)
                 .unwrap()
                 .as_secs_f64();
-            plot.retain(|&(stamp, _)| current_time - stamp <= state.max_duration);
+            hz_line
+                .plot
+                .retain(|&(stamp, _)| current_time - stamp <= state.max_duration);
         }
 
         let block = Block::bordered()
-            .title(Line::raw("Live Plot").centered())
+            .title(Line::raw("Frequency Plot").centered())
             .border_style(HEADER_STYLE);
 
         // Find the overall bounds for Y axis
-        let (mut min_y, mut max_y) = (f64::MAX, f64::MIN);
+        let mut max_y = f64::MIN;
         for line in &state.lines {
-            let plot = line.plot.lock().unwrap();
-            for &(_, y) in plot.iter() {
-                if y < min_y {
-                    min_y = y;
-                }
+            let hz_line = line.lock().unwrap();
+            for &(_, y) in hz_line.plot.iter() {
                 if y > max_y {
                     max_y = y;
                 }
             }
         }
-        if min_y == f64::MAX || max_y == f64::MIN {
-            min_y = 0.0;
+        if max_y == f64::MIN {
             max_y = 10.0;
         }
-        if (min_y - max_y).abs() < 0.001 {
-            min_y -= 1.0;
+        if max_y.abs() < 0.001 {
             max_y += 1.0;
         }
 
         let bindings = state
             .lines
             .iter()
-            .map(|line| line.plot.lock().unwrap())
+            .map(|hz_line| hz_line.lock().unwrap().plot.clone())
             .collect::<Vec<_>>();
         let datasets = zip(state.lines.iter(), bindings.iter())
             .enumerate()
             .map(|(i, (line, plot))| {
                 Dataset::default()
-                    .name(format!(
-                        "{} {:?}",
-                        line.topic,
-                        line.selected_fields
-                            .iter()
-                            .map(|idx| idx.to_string())
-                            .collect::<Vec<_>>()
-                    ))
+                    .name(format!("{}", line.lock().unwrap().topic,))
                     .marker(Marker::Dot)
                     .graph_type(GraphType::Line)
                     .style(Style::default().fg(match i % 6 {
@@ -247,10 +229,10 @@ impl LivePlotWidget {
         // Create the Y axis and define its properties
         let y_axis = Axis::default()
             .style(Style::default().white())
-            .bounds([min_y, max_y])
+            .bounds([0.0, max_y])
             .labels(
                 (0..=5)
-                    .map(|i| format!("{:.1}", min_y + i as f64 * (max_y - min_y) / 5.0))
+                    .map(|i| format!("{:.1}", i as f64 * (max_y) / 5.0))
                     .collect::<Vec<_>>(),
             );
 

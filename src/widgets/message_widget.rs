@@ -2,15 +2,12 @@ use std::fmt;
 
 use ratatui::{
     prelude::{BlockExt, Buffer, Rect},
-    style::{Modifier, Style},
+    style::{Color, Modifier, Style},
     widgets::{Block, Widget},
 };
 
 use crate::common::{
-    generic_message::{
-        ArrayField, GenericField, GenericMessage, Length,
-        SimpleField,
-    },
+    generic_message::{ArrayField, GenericField, GenericMessage, Length, SimpleField},
     style::SELECTED_STYLE,
 };
 
@@ -269,6 +266,7 @@ impl<'a> Widget for ArrayWidget<'a> {
                     let style = if let Some(selection) = self.selection {
                         if !selection.is_empty() && selection[0] == i {
                             if self.edit.is_some() {
+                                // TODO: Edit validation for arrays
                                 SELECTED_STYLE.add_modifier(Modifier::SLOW_BLINK)
                             } else {
                                 SELECTED_STYLE
@@ -284,7 +282,64 @@ impl<'a> Widget for ArrayWidget<'a> {
                             && !self.selection.unwrap().is_empty()
                             && self.selection.unwrap()[0] == i
                         {
-                            buf.set_stringn(x, y, edit, 10, style);
+                            let is_edit_valid = match self.value {
+                                ArrayField::Float(_) => {
+                                    edit.parse::<f32>().is_ok() && !edit.contains(' ')
+                                }
+                                ArrayField::Double(_) => {
+                                    edit.parse::<f64>().is_ok() && !edit.contains(' ')
+                                }
+                                ArrayField::LongDouble(_) => false,
+                                ArrayField::Char(_) => edit.len() == 1,
+                                ArrayField::WChar(_) => edit.len() == 1,
+                                ArrayField::Boolean(_) => {
+                                    let lower = edit.to_lowercase();
+                                    lower == "true" || lower == "false"
+                                }
+                                ArrayField::Octet(_) => {
+                                    edit.parse::<u8>().is_ok() && !edit.contains(' ')
+                                }
+                                ArrayField::Uint8(_) => {
+                                    edit.parse::<u8>().is_ok() && !edit.contains(' ')
+                                }
+                                ArrayField::Int8(_) => {
+                                    edit.parse::<i8>().is_ok() && !edit.contains(' ')
+                                }
+                                ArrayField::Uint16(_) => {
+                                    edit.parse::<u16>().is_ok() && !edit.contains(' ')
+                                }
+                                ArrayField::Int16(_) => {
+                                    edit.parse::<i16>().is_ok() && !edit.contains(' ')
+                                }
+                                ArrayField::Uint32(_) => {
+                                    edit.parse::<u32>().is_ok() && !edit.contains(' ')
+                                }
+                                ArrayField::Int32(_) => {
+                                    edit.parse::<i32>().is_ok() && !edit.contains(' ')
+                                }
+                                ArrayField::Uint64(_) => {
+                                    edit.parse::<u64>().is_ok() && !edit.contains(' ')
+                                }
+                                ArrayField::Int64(_) => {
+                                    edit.parse::<i64>().is_ok() && !edit.contains(' ')
+                                }
+                                ArrayField::String(_) => true, // Any string is valid
+                                ArrayField::BoundedString(_) => true, // Any string is valid
+                                ArrayField::WString(_) => true, // Any string is valid
+                                ArrayField::BoundedWString(_) => true, // Any string is valid
+                                ArrayField::Message(_) => false, // Should not happen
+                            };
+                            buf.set_stringn(
+                                x,
+                                y,
+                                edit,
+                                10,
+                                style.fg(if is_edit_valid {
+                                    Color::Green
+                                } else {
+                                    Color::Red
+                                }),
+                            );
                             x += 10;
                             continue;
                         }
@@ -308,12 +363,13 @@ impl<'a> Widget for ValueWidget<'a> {
         if area.height == 0 || area.width == 0 {
             return; // Nothing to render if the area is empty
         }
+
         buf.set_stringn(
             area.x,
             area.y,
             format!("{}: ", self.name),
             area.width as usize - area.x as usize,
-            Style::default(),
+            style,
         );
         let area_right = Rect::new(
             area.x + self.name.len() as u16 + 2,
@@ -345,12 +401,65 @@ impl<'a> Widget for ValueWidget<'a> {
                 }
                 if let Some(edit) = self.edit {
                     if !self.selection.is_none() && self.selection.unwrap().is_empty() {
+                        let is_edit_valid = match simple_value {
+                            SimpleField::Float(_) => {
+                                edit.parse::<f32>().is_ok() && !edit.contains(' ')
+                            }
+                            SimpleField::Double(_) => {
+                                edit.parse::<f64>().is_ok() && !edit.contains(' ')
+                            }
+                            SimpleField::LongDouble(_) => false,
+                            SimpleField::Char(_) => edit.len() == 1,
+                            SimpleField::WChar(_) => edit.len() == 1,
+                            SimpleField::Boolean(_) => {
+                                let lower = edit.to_lowercase();
+                                lower == "true" || lower == "false"
+                            }
+                            SimpleField::Octet(_) => {
+                                edit.parse::<u8>().is_ok() && !edit.contains(' ')
+                            }
+                            SimpleField::Uint8(_) => {
+                                edit.parse::<u8>().is_ok() && !edit.contains(' ')
+                            }
+                            SimpleField::Int8(_) => {
+                                edit.parse::<i8>().is_ok() && !edit.contains(' ')
+                            }
+                            SimpleField::Uint16(_) => {
+                                edit.parse::<u16>().is_ok() && !edit.contains(' ')
+                            }
+                            SimpleField::Int16(_) => {
+                                edit.parse::<i16>().is_ok() && !edit.contains(' ')
+                            }
+                            SimpleField::Uint32(_) => {
+                                edit.parse::<u32>().is_ok() && !edit.contains(' ')
+                            }
+                            SimpleField::Int32(_) => {
+                                edit.parse::<i32>().is_ok() && !edit.contains(' ')
+                            }
+                            SimpleField::Uint64(_) => {
+                                edit.parse::<u64>().is_ok() && !edit.contains(' ')
+                            }
+                            SimpleField::Int64(_) => {
+                                edit.parse::<i64>().is_ok() && !edit.contains(' ')
+                            }
+                            SimpleField::String(_) => true, // Any string is valid
+                            SimpleField::BoundedString(_) => true, // Any string is valid
+                            SimpleField::WString(_) => true, // Any string is valid
+                            SimpleField::BoundedWString(_) => true, // Any string is valid
+                            SimpleField::Message(_) => false, // Should not happen
+                        };
                         buf.set_stringn(
                             area_right.x,
                             area_right.y,
                             edit,
                             area_right.width as usize,
-                            style.add_modifier(Modifier::SLOW_BLINK),
+                            style
+                                .add_modifier(Modifier::SLOW_BLINK)
+                                .fg(if is_edit_valid {
+                                    Color::Green
+                                } else {
+                                    Color::Red
+                                }),
                         );
                         return;
                     }

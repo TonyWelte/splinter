@@ -10,6 +10,7 @@ use crate::connections::Connection;
 
 use rclrs::MessageTypeName;
 use rclrs::*;
+use rosidl_runtime_rs::Sequence;
 
 pub struct ConnectionROS2 {
     // Fields for the ROS2 connection
@@ -199,6 +200,23 @@ fn populate_message(dynamic_message: DynamicMessageViewMut, generic_message: &Ge
                             *elem = rosidl_runtime_rs::String::from(item.clone());
                         }
                     }
+                }
+                // (
+                //     ValueMut::Array(ArrayValueMut::MessageArray(v)),
+                //     GenericField::Array(ArrayField::Message(f)),
+                // ) => {
+                //     for (i, item) in f.iter().enumerate() {
+                //         if let Some(elem) = v.get(i) {
+                //             populate_message(elem, item);
+                //         }
+                //     }
+                // }
+                (
+                    ValueMut::Sequence(SequenceValueMut::BooleanSequence(v)),
+                    GenericField::Array(ArrayField::Boolean(f)),
+                ) => {
+                    *v = Sequence::new(f.len());
+                    v.copy_from_slice(&f);
                 }
                 _ => {
                     eprintln!("Type mismatch for field: {}", name);

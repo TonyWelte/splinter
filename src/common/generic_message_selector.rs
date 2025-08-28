@@ -1,34 +1,283 @@
 use std::usize;
 
 use crate::common::generic_message::{
-    ArrayField, BoundedSequenceField, GenericField, GenericMessage, SequenceField, SimpleField,
+    ArrayField, BoundedSequenceField, GenericField, GenericMessage, Length, SequenceField,
+    SimpleField,
 };
 
-struct GenericMessageSelection {
-    message: GenericMessage,
-    current_field_path: Vec<usize>,
+pub struct GenericMessageSelector<'a> {
+    message: &'a GenericMessage,
 }
 
-impl GenericMessageSelection {
-    pub fn new(message: GenericMessage) -> Self {
-        Self {
-            message: message,
-            current_field_path: vec![],
+fn has_field(message: &GenericMessage, field_path: &[usize]) -> bool {
+    if field_path.len() == 0 {
+        return true;
+    }
+
+    if field_path.len() == 1 {
+        return field_path[0] < message.len();
+    }
+
+    let field_index = field_path[0];
+    if field_index >= message.len() {
+        return false;
+    }
+
+    let field = message.get_index(field_index).unwrap();
+    match field {
+        GenericField::Simple(simple_value) => {
+            if let SimpleField::Message(inner_msg) = simple_value {
+                return has_field(&inner_msg, &field_path[1..]);
+            } else {
+                return false;
+            }
+        }
+        GenericField::Array(array_value) => match array_value {
+            ArrayField::Message(inner_msgs) => {
+                return has_field(&inner_msgs[1], &field_path[2..]);
+            }
+            _ => {
+                return field_path.len() == 2 && field_path[1] < array_value.len();
+            }
+        },
+        GenericField::Sequence(sequence_value) => match sequence_value {
+            SequenceField::Message(inner_msgs) => {
+                return has_field(&inner_msgs[1], &field_path[2..]);
+            }
+            _ => {
+                return field_path.len() == 2 && field_path[1] < sequence_value.len();
+            }
+        },
+        GenericField::BoundedSequence(bounded_sequence_value) => match bounded_sequence_value {
+            BoundedSequenceField::Message(inner_msgs) => {
+                return has_field(&inner_msgs[1], &field_path[2..]);
+            }
+            _ => {
+                return field_path.len() == 2 && field_path[1] < bounded_sequence_value.len();
+            }
+        },
+    }
+}
+
+fn get_last_index_path(message: &GenericMessage, field_path: &[usize]) -> Option<Vec<usize>> {
+    if field_path.len() == 0 {
+        return get_last_index_path(&message, &[message.len() - 1]);
+    }
+
+    let field_index = field_path[0];
+    if field_index >= message.len() {
+        return None;
+    }
+
+    let field = message.get_index(field_index).unwrap();
+    match field {
+        GenericField::Simple(simple_value) => {
+            if let SimpleField::Message(inner_msg) = simple_value {
+                if let Some(mut inner_path) = get_last_index_path(&inner_msg, &field_path[1..]) {
+                    let mut path = vec![field_index];
+                    path.append(&mut inner_path);
+                    return Some(path);
+                } else {
+                    return None;
+                }
+            } else {
+                if field_path.len() == 1 {
+                    return Some(vec![field_index]);
+                } else {
+                    return None;
+                }
+            }
+        }
+        GenericField::Array(array_value) => match array_value {
+            ArrayField::Message(inner_msgs) => {
+                if field_path.len() < 2 {
+                    return None;
+                }
+                let inner_index = field_path[1];
+                if inner_index >= inner_msgs.len() {
+                    return None;
+                }
+                if let Some(mut inner_path) =
+                    get_last_index_path(&inner_msgs[inner_index], &field_path[2..])
+                {
+                    let mut path = vec![field_index, inner_index];
+                    path.append(&mut inner_path);
+                    return Some(path);
+                } else {
+                    return None;
+                }
+            }
+            _ => {
+                if field_path.len() == 2 && field_path[1] < array_value.len() {
+                    return Some(vec![field_index, field_path[1]]);
+                } else {
+                    return Some(vec![field_index, array_value.len() - 1]);
+                }
+            }
+        },
+        GenericField::Sequence(sequence_value) => match sequence_value {
+            SequenceField::Message(inner_msgs) => {
+                if field_path.len() < 2 {
+                    return None;
+                }
+                let inner_index = field_path[1];
+                if inner_index >= inner_msgs.len() {
+                    return None;
+                }
+                if let Some(mut inner_path) =
+                    get_last_index_path(&inner_msgs[inner_index], &field_path[2..])
+                {
+                    let mut path = vec![field_index, inner_index];
+                    path.append(&mut inner_path);
+                    return Some(path);
+                } else {
+                    return None;
+                }
+            }
+            _ => {
+                if field_path.len() == 2 && field_path[1] < sequence_value.len() {
+                    return Some(vec![field_index, field_path[1]]);
+                } else {
+                    return Some(vec![field_index, sequence_value.len() - 1]);
+                }
+            }
+        },
+        GenericField::BoundedSequence(bounded_sequence_value) => match bounded_sequence_value {
+            BoundedSequenceField::Message(inner_msgs) => {
+                if field_path.len() < 2 {
+                    return None;
+                }
+                let inner_index = field_path[1];
+                if inner_index >= inner_msgs.len() {
+                    return None;
+                }
+                if let Some(mut inner_path) =
+                    get_last_index_path(&inner_msgs[inner_index], &field_path[2..])
+                {
+                    let mut path = vec![field_index, inner_index];
+                    path.append(&mut inner_path);
+                    return Some(path);
+                } else {
+                    return None;
+                }
+            }
+            _ => {
+                if field_path.len() == 2 && field_path[1] < bounded_sequence_value.len() {
+                    return Some(vec![field_index, field_path[1]]);
+                } else {
+                    return Some(vec![field_index, bounded_sequence_value.len() - 1]);
+                }
+            }
+        },
+    }
+}
+
+impl<'a> GenericMessageSelector<'a> {
+    pub fn new(message: &'a GenericMessage) -> Self {
+        Self { message }
+    }
+
+    pub fn down(&self, current_field_path: &[usize]) -> Vec<usize> {
+        if self.message.len() == 0 {
+            return vec![];
+        }
+
+        if current_field_path.len() == 0 {
+            return vec![0];
+        }
+
+        let mut result = current_field_path.to_vec();
+
+        // Try to go right first
+        result.push(0);
+        if has_field(&self.message, &result) {
+            return result;
+        }
+        result.pop();
+
+        // Try to go down
+        result.last_mut().map(|last| *last += 1);
+        while !result.is_empty() && !has_field(&self.message, &result) {
+            result.pop();
+            if let Some(last) = result.last_mut() {
+                *last += 1;
+            }
+        }
+
+        result
+    }
+
+    pub fn up(&self, current_field_path: &[usize]) -> Vec<usize> {
+        if self.message.len() == 0 {
+            return vec![];
+        }
+
+        if current_field_path.len() == 0 {
+            return vec![self.message.len() - 1];
+        }
+
+        let mut result = current_field_path.to_vec();
+        if result.last().unwrap() > &0 {
+            result.last_mut().map(|last| *last -= 1);
+            if let Some(inner_path) = get_last_index_path(&self.message, &result) {
+                return inner_path;
+            } else {
+                return result;
+            }
+        }
+
+        // If can't go up, go left
+        result.pop();
+        return result;
+    }
+
+    pub fn left(&self, current_field_path: &[usize]) -> Vec<usize> {
+        if self.message.len() == 0 {
+            return vec![];
+        }
+
+        if current_field_path.len() == 0 {
+            return vec![self.message.len() - 1];
+        }
+
+        let mut result = current_field_path.to_vec();
+        if result.len() == 1 && result[0] > 0 {
+            result[0] -= 1;
+            return result;
+        }
+
+        result.pop();
+        return result;
+    }
+
+    pub fn right(&self, current_field_path: &[usize]) -> Vec<usize> {
+        if self.message.len() == 0 {
+            return vec![];
+        }
+
+        if current_field_path.len() == 0 {
+            return vec![0];
+        }
+
+        if current_field_path.len() == 1 && current_field_path[0] + 1 > self.message.len() - 1 {
+            return vec![];
+        }
+
+        let mut result = current_field_path.to_vec();
+        result.last_mut().map(|last| *last += 1);
+        if has_field(&self.message, &result) {
+            return result;
+        } else {
+            return current_field_path.to_vec();
         }
     }
 
-    pub fn get_selected_field_path(&self) -> Vec<usize> {
-        self.current_field_path.clone()
-    }
+    pub fn last_field_path(&self) -> Vec<usize> {
+        if self.message.len() == 0 {
+            return vec![];
+        }
 
-    pub fn next(&mut self) {
-        self.current_field_path =
-            next_field(&self.message, &self.current_field_path).unwrap_or_default();
-    }
-
-    pub fn previous(&mut self) {
-        self.current_field_path =
-            prev_field(&self.message, &self.current_field_path).unwrap_or_default();
+        get_last_index_path(&self.message, &[]).unwrap_or_else(|| vec![])
     }
 }
 
@@ -591,6 +840,25 @@ mod tests {
     use rclrs::MessageTypeName;
 
     #[test]
+    fn test_has_field() {
+        let message_type = MessageTypeName {
+            package_name: "nav_msgs".to_owned(),
+            type_name: "Odometry".to_owned(),
+        };
+        let msg = DynamicMessage::new(message_type).unwrap();
+        let generic_message = GenericMessage::from(msg.view());
+
+        assert!(has_field(&generic_message, &vec![])); // Root always exists
+        assert!(has_field(&generic_message, &vec![0])); // header
+        assert!(has_field(&generic_message, &vec![2, 0, 1, 0])); // pose.pose.orientation.x
+        assert!(has_field(&generic_message, &vec![2, 1, 35])); // pose.covariance.35
+        assert!(!has_field(&generic_message, &vec![10])); // Out of bounds
+        assert!(!has_field(&generic_message, &vec![2, 5])); // Out of bounds
+        assert!(!has_field(&generic_message, &vec![2, 0, 5])); // Out of bounds
+        assert!(!has_field(&generic_message, &vec![2, 0, 1, 5])); // Out of bounds
+    }
+
+    #[test]
     fn test_next_field_basic_types() {
         let message_type = MessageTypeName {
             package_name: "test_msgs".to_owned(),
@@ -598,21 +866,21 @@ mod tests {
         };
         let msg = DynamicMessage::new(message_type).unwrap();
         let generic_message = GenericMessage::from(msg.view());
-        let mut msg_selection = GenericMessageSelection::new(generic_message);
+        let msg_selection = GenericMessageSelector::new(&generic_message);
 
-        assert_eq!(msg_selection.get_selected_field_path(), vec![]);
-        msg_selection.next();
-        assert_eq!(msg_selection.get_selected_field_path(), vec![0]);
-        msg_selection.next();
-        assert_eq!(msg_selection.get_selected_field_path(), vec![1]);
-        msg_selection.next();
-        assert_eq!(msg_selection.get_selected_field_path(), vec![2]);
-        msg_selection.next();
-        assert_eq!(msg_selection.get_selected_field_path(), vec![3]);
-        msg_selection.next();
-        assert_eq!(msg_selection.get_selected_field_path(), vec![4]);
-        msg_selection.next();
-        assert_eq!(msg_selection.get_selected_field_path(), vec![5]);
+        let mut selection = vec![];
+        selection = msg_selection.down(&selection);
+        assert_eq!(selection, vec![0]);
+        selection = msg_selection.down(&selection);
+        assert_eq!(selection, vec![1]);
+        selection = msg_selection.down(&selection);
+        assert_eq!(selection, vec![2]);
+        selection = msg_selection.down(&selection);
+        assert_eq!(selection, vec![3]);
+        selection = msg_selection.down(&selection);
+        assert_eq!(selection, vec![4]);
+        selection = msg_selection.down(&selection);
+        assert_eq!(selection, vec![5]);
     }
 
     #[test]
@@ -623,37 +891,35 @@ mod tests {
         };
         let msg = DynamicMessage::new(message_type).unwrap();
         let generic_message = GenericMessage::from(msg.view());
-        let mut msg_selection = GenericMessageSelection::new(generic_message);
+        let msg_selection = GenericMessageSelector::new(&generic_message);
 
-        assert_eq!(msg_selection.get_selected_field_path(), vec![]);
-        msg_selection.next();
-        assert_eq!(msg_selection.get_selected_field_path(), vec![0, 0, 0]); // header.stamp.sec
-        msg_selection.next();
-        assert_eq!(msg_selection.get_selected_field_path(), vec![0, 0, 1]); // header.stamp.nanosec
-        msg_selection.next();
-        assert_eq!(msg_selection.get_selected_field_path(), vec![0, 1]); // header.frame_id
-        msg_selection.next();
-        assert_eq!(msg_selection.get_selected_field_path(), vec![1]); // child_frame_id
-        msg_selection.next();
-        assert_eq!(msg_selection.get_selected_field_path(), vec![2, 0, 0, 0]); // pose.pose.position.x
-        msg_selection.next();
-        assert_eq!(msg_selection.get_selected_field_path(), vec![2, 0, 0, 1]); // pose.pose.position.y
-        msg_selection.next();
-        assert_eq!(msg_selection.get_selected_field_path(), vec![2, 0, 0, 2]); // pose.pose.position.z
-        msg_selection.next();
-        assert_eq!(msg_selection.get_selected_field_path(), vec![2, 0, 1, 0]); // pose.pose.orientation.x
-        msg_selection.next();
-        assert_eq!(msg_selection.get_selected_field_path(), vec![2, 0, 1, 1]); // pose.pose.orientation.y
-        msg_selection.next();
-        assert_eq!(msg_selection.get_selected_field_path(), vec![2, 0, 1, 2]); // pose.pose.orientation.z
-        msg_selection.next();
-        assert_eq!(msg_selection.get_selected_field_path(), vec![2, 0, 1, 3]); // pose.pose.orientation.w
-        for i in 0..36 {
-            msg_selection.next();
-            assert_eq!(msg_selection.get_selected_field_path(), vec![2, 1, i]); // pose.covariance[i]
-        }
-        msg_selection.next();
-        assert_eq!(msg_selection.get_selected_field_path(), vec![3, 0, 0, 0]); // twist.twist.linear.x
+        let mut selection = vec![];
+        selection = msg_selection.down(&selection); // header
+        assert_eq!(selection, vec![0]);
+        selection = msg_selection.down(&selection); // child_frame_id
+        assert_eq!(selection, vec![1]);
+        selection = msg_selection.down(&selection); // pose
+        assert_eq!(selection, vec![2]);
+        selection = msg_selection.right(&selection); // pose.pose
+        assert_eq!(selection, vec![2, 0]);
+        selection = msg_selection.right(&selection); // pose.pose.position
+        assert_eq!(selection, vec![2, 0, 0]);
+        selection = msg_selection.down(&selection); // pose.pose.orientation
+        assert_eq!(selection, vec![2, 0, 1]);
+        selection = msg_selection.right(&selection); // pose.pose.orientation.x
+        assert_eq!(selection, vec![2, 0, 1, 0]);
+        selection = msg_selection.right(&selection); // No deeper field, so no change
+        assert_eq!(selection, vec![2, 0, 1, 0]);
+
+        selection = vec![2, 0]; // pose.pose
+        selection = msg_selection.down(&selection); // pose.covariance
+        assert_eq!(selection, vec![2, 1]);
+        selection = msg_selection.right(&selection); // pose.covariance.0
+        assert_eq!(selection, vec![2, 1, 0]);
+
+        selection = vec![2, 1, 35]; // pose.covariance.35
+        selection = msg_selection.down(&selection); // pose.covariance.35
+        assert_eq!(selection, vec![2, 1, 35]);
     }
 
     #[test]
@@ -664,33 +930,33 @@ mod tests {
         };
         let msg = DynamicMessage::new(message_type).unwrap();
         let generic_message = GenericMessage::from(msg.view());
-        let mut msg_selection = GenericMessageSelection::new(generic_message);
+        let msg_selection = GenericMessageSelector::new(&generic_message);
 
-        assert_eq!(msg_selection.get_selected_field_path(), vec![]);
-        msg_selection.next();
-        assert_eq!(msg_selection.get_selected_field_path(), vec![0]);
-        msg_selection.next();
-        assert_eq!(msg_selection.get_selected_field_path(), vec![1]);
-        msg_selection.next();
-        assert_eq!(msg_selection.get_selected_field_path(), vec![2]);
-        msg_selection.next();
-        assert_eq!(msg_selection.get_selected_field_path(), vec![3]);
-        msg_selection.next();
-        assert_eq!(msg_selection.get_selected_field_path(), vec![4]);
-        msg_selection.next();
-        assert_eq!(msg_selection.get_selected_field_path(), vec![5]);
+        let mut selection = vec![];
+        selection = msg_selection.down(&selection);
+        assert_eq!(selection, vec![0]);
+        selection = msg_selection.down(&selection);
+        assert_eq!(selection, vec![1]);
+        selection = msg_selection.down(&selection);
+        assert_eq!(selection, vec![2]);
+        selection = msg_selection.down(&selection);
+        assert_eq!(selection, vec![3]);
+        selection = msg_selection.down(&selection);
+        assert_eq!(selection, vec![4]);
+        selection = msg_selection.down(&selection);
+        assert_eq!(selection, vec![5]);
 
         // Test going back
-        msg_selection.previous();
-        assert_eq!(msg_selection.get_selected_field_path(), vec![4]);
-        msg_selection.previous();
-        assert_eq!(msg_selection.get_selected_field_path(), vec![3]);
-        msg_selection.previous();
-        assert_eq!(msg_selection.get_selected_field_path(), vec![2]);
-        msg_selection.previous();
-        assert_eq!(msg_selection.get_selected_field_path(), vec![1]);
-        msg_selection.previous();
-        assert_eq!(msg_selection.get_selected_field_path(), vec![0]);
+        selection = msg_selection.up(&selection);
+        assert_eq!(selection, vec![4]);
+        selection = msg_selection.up(&selection);
+        assert_eq!(selection, vec![3]);
+        selection = msg_selection.up(&selection);
+        assert_eq!(selection, vec![2]);
+        selection = msg_selection.up(&selection);
+        assert_eq!(selection, vec![1]);
+        selection = msg_selection.up(&selection);
+        assert_eq!(selection, vec![0]);
     }
 
     #[test]
@@ -702,59 +968,15 @@ mod tests {
         let msg = DynamicMessage::new(message_type).unwrap();
         let generic_message = GenericMessage::from(msg.view());
 
-        let mut msg_selection = GenericMessageSelection::new(generic_message);
-        assert_eq!(msg_selection.get_selected_field_path(), vec![]);
-
-        for i in (0..36).rev() {
-            msg_selection.previous();
-            assert_eq!(msg_selection.get_selected_field_path(), vec![3, 1, i]); // twist.covariance[i]
-        }
-        msg_selection.previous();
-        assert_eq!(msg_selection.get_selected_field_path(), vec![3, 0, 1, 2]); // twist.twist.angular.z
-        msg_selection.previous();
-        assert_eq!(msg_selection.get_selected_field_path(), vec![3, 0, 1, 1]); // twist.twist.angular.y
-        msg_selection.previous();
-        assert_eq!(msg_selection.get_selected_field_path(), vec![3, 0, 1, 0]); // twist.twist.angular.x
-        msg_selection.previous();
-        assert_eq!(msg_selection.get_selected_field_path(), vec![3, 0, 0, 2]); // twist.twist.linear.z
-        msg_selection.previous();
-        assert_eq!(msg_selection.get_selected_field_path(), vec![3, 0, 0, 1]); // twist.twist.linear.y
-        msg_selection.previous();
-        assert_eq!(msg_selection.get_selected_field_path(), vec![3, 0, 0, 0]); // twist.twist.linear.x
-        msg_selection.previous();
-        for i in (0..36).rev() {
-            assert_eq!(msg_selection.get_selected_field_path(), vec![2, 1, i]); // pose.covariance[i]
-            msg_selection.previous();
-        }
-        assert_eq!(msg_selection.get_selected_field_path(), vec![2, 0, 1, 3]); // pose.pose.orientation.w
-        msg_selection.previous();
-        assert_eq!(msg_selection.get_selected_field_path(), vec![2, 0, 1, 2]); // pose.pose.orientation.z
-        msg_selection.previous();
-        assert_eq!(msg_selection.get_selected_field_path(), vec![2, 0, 1, 1]); // pose.pose.orientation.y
-        msg_selection.previous();
-        assert_eq!(msg_selection.get_selected_field_path(), vec![2, 0, 1, 0]); // pose.pose.orientation.x
-        msg_selection.previous();
-        assert_eq!(msg_selection.get_selected_field_path(), vec![2, 0, 0, 2]); // pose.pose.position.z
-        msg_selection.previous();
-        assert_eq!(msg_selection.get_selected_field_path(), vec![2, 0, 0, 1]); // pose.pose.position.y
-        msg_selection.previous();
-        assert_eq!(msg_selection.get_selected_field_path(), vec![2, 0, 0, 0]); // pose.pose.position.x
-        msg_selection.previous();
-        assert_eq!(msg_selection.get_selected_field_path(), vec![1]); // child_frame_id
-        msg_selection.previous();
-        assert_eq!(msg_selection.get_selected_field_path(), vec![0, 1]); // header.frame_id
-        msg_selection.previous();
-        assert_eq!(msg_selection.get_selected_field_path(), vec![0, 0, 1]); // header.stamp.nanosec
-        msg_selection.previous();
-        assert_eq!(msg_selection.get_selected_field_path(), vec![0, 0, 0]); // header.stamp.sec
+        let msg_selection = GenericMessageSelector::new(&generic_message);
+        let mut selection = vec![2, 0, 1, 0]; // pose.pose.orientation.x
+        selection = msg_selection.left(&selection); // pose.pose.orientation
+        assert_eq!(selection, vec![2, 0, 1]);
+        selection = msg_selection.left(&selection); // pose.pose
+        assert_eq!(selection, vec![2, 0]);
+        selection = msg_selection.left(&selection); // pose
+        assert_eq!(selection, vec![2]);
+        selection = msg_selection.left(&selection); // header
+        assert_eq!(selection, vec![]);
     }
-
-    // #[test]
-    // fn test_next_field_sequence() {
-    //     let mut msg_selection = DynamicMessageSelection::new(msg);
-    //     assert_eq!(msg_selection.get_selected_field_path(), vec![]);
-
-    //     msg_selection.next();
-    //     assert_eq!(msg_selection.get_selected_field_path(), vec![0, 0]); //
-    // }
 }

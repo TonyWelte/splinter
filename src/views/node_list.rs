@@ -378,6 +378,9 @@ impl NodeListWidget {
                     details_items
                         .push(ListItem::new(Text::from(format!("  {}", param))).style(style));
                 }
+            } else {
+                details_items.push(ListItem::new(Text::from("Parameters:")));
+                details_items.push(ListItem::new(Text::from("  <Not fetched>")));
             }
 
             List::new(details_items).block(block_details)

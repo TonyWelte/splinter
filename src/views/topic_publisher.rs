@@ -11,7 +11,7 @@ use crate::{
     common::{
         event::Event,
         generic_message::{AnyTypeMutableRef, GenericMessage},
-        generic_message_selection::{next_field, prev_field},
+        generic_message_selector::{next_field, prev_field},
         style::HEADER_STYLE,
     },
     connections::{Connection, ConnectionType},
@@ -84,6 +84,13 @@ impl TopicPublisherState {
                     .field_content
                     .parse::<f64>()
                     .map_err(|e| format!("Failed to parse double: {}", e))?;
+                Ok(())
+            }
+            AnyTypeMutableRef::Boolean(v) => {
+                *v = self
+                    .field_content
+                    .parse::<bool>()
+                    .map_err(|e| format!("Failed to parse boolean: {}", e))?;
                 Ok(())
             }
             AnyTypeMutableRef::Uint8(v) => {

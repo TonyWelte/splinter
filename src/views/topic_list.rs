@@ -3,7 +3,7 @@ use std::{cell::RefCell, rc::Rc};
 use ratatui::{
     prelude::{Buffer, Rect},
     text::{Line, Span},
-    widgets::{Block, List, ListItem, Widget},
+    widgets::{Block, List, ListItem, StatefulWidget, Widget},
 };
 
 use crossterm::event::{Event as CrosstermEvent, KeyCode, KeyEventKind};
@@ -15,6 +15,10 @@ use crate::{
     },
     connections::{Connection, ConnectionType},
     views::TuiView,
+    widgets::{
+        topic_list_widget::{TopicListWidget, TopicListWidgetState},
+        TuiWidget,
+    },
 };
 
 // TODO(@TonyWelte): Remove dependency on rclrs in widgets module
@@ -24,8 +28,7 @@ pub struct TopicList;
 
 pub struct TopicListState {
     connection: Rc<RefCell<ConnectionType>>,
-    pub topics: Vec<(String, MessageTypeName)>,
-    pub selected_index: usize,
+    state: TopicListWidgetState,
 }
 
 impl TopicListState {
@@ -33,59 +36,33 @@ impl TopicListState {
         let topics = connection.borrow().list_topics();
         Self {
             connection,
-            topics,
-            selected_index: 0,
-        }
-    }
-
-    pub fn next_topic(&mut self) {
-        if !self.topics.is_empty() {
-            self.selected_index = (self.selected_index + 1) % self.topics.len();
-        }
-    }
-
-    pub fn previous_topic(&mut self) {
-        if !self.topics.is_empty() {
-            self.selected_index = (self.selected_index + self.topics.len() - 1) % self.topics.len();
+            state: TopicListWidgetState {
+                topics,
+                selected_index: 0,
+            },
         }
     }
 
     pub fn update(&mut self) {
         let mut new_topics = self.connection.borrow().list_topics();
         new_topics.sort_by(|a, b| a.0.cmp(&b.0));
-        if self.topics.is_empty() {
-            self.topics = new_topics;
-            self.selected_index = 0;
-        } else if new_topics != self.topics {
-            let selected_topic = self.topics.get(self.selected_index).unwrap().0.clone();
-            let new_index = new_topics
-                .iter()
-                .position(|topic| topic.0 == selected_topic)
-                .unwrap_or(0);
-            self.topics = new_topics;
-            self.selected_index = new_index;
-        }
+        self.state.update(new_topics);
     }
 }
 
 impl TuiView for TopicListState {
     fn handle_event(&mut self, event: Event) -> Event {
+        let event = self.state.handle_event(event);
         if let Event::Key(CrosstermEvent::Key(key_event)) = event {
             if key_event.kind != KeyEventKind::Press {
                 return event;
             }
             match key_event.code {
-                KeyCode::Char('j') | KeyCode::Down => {
-                    self.next_topic();
-                    Event::None
-                }
-                KeyCode::Char('k') | KeyCode::Up => {
-                    self.previous_topic();
-                    Event::None
-                }
                 KeyCode::Char('l') | KeyCode::Right => {
-                    if let Some((topic, type_name)) = self.topics.get(self.selected_index) {
-                        Event::NewTopic(NewTopicEvent {
+                    if let Some((topic, type_name)) =
+                        self.state.topics.get(self.state.selected_index)
+                    {
+                        Event::NewHzPlot(NewTopicEvent {
                             topic: topic.clone(),
                             message_type: type_name.clone(),
                         })
@@ -113,35 +90,8 @@ impl TopicList {
             .title(Line::raw("Topic List").centered())
             .border_style(HEADER_STYLE);
 
-        // Iterate through all elements in the `items` and stylize them.
-        let items: Vec<ListItem> = state
-            .topics
-            .iter()
-            .enumerate()
-            .map(|(i, topic_item)| {
-                if i == state.selected_index {
-                    ListItem::new(topic_item.0.as_str()).style(SELECTED_STYLE)
-                } else {
-                    let available_width = area.width as usize;
-                    let remaining_space = available_width.saturating_sub(
-                        topic_item.0.len()
-                            + topic_item.1.package_name.len()
-                            + "/msg/".len()
-                            + topic_item.1.type_name.len(),
-                    );
+        let topic_list_widget = TopicListWidget::new().block(block);
 
-                    let text = Span::raw(format!(
-                        "{}{:>remaining_space$}{}/msg/{}",
-                        topic_item.0, "", topic_item.1.package_name, topic_item.1.type_name
-                    ));
-                    ListItem::new(text)
-                }
-            })
-            .collect();
-
-        // Create a List from all list items and highlight the currently selected one
-        let list = List::new(items).block(block);
-
-        Widget::render(list, area, buf);
+        topic_list_widget.render(area, buf, &mut state.state);
     }
 }

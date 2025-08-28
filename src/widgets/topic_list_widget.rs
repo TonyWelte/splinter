@@ -2,7 +2,7 @@ use ratatui::{
     crossterm::event::{Event as CrosstermEvent, KeyCode},
     prelude::{BlockExt, Buffer, Rect},
     style::Style,
-    widgets::{Block, Widget},
+    widgets::{Block, StatefulWidget, Widget},
 };
 
 use crate::{common::event::Event, common::style::SELECTED_STYLE, widgets::TuiWidget};
@@ -84,8 +84,12 @@ impl<'a> TopicListWidget<'a> {
         self.block = Some(block);
         self
     }
+}
 
-    pub fn render(self, area: Rect, buf: &mut Buffer, state: &mut TopicListWidgetState) {
+impl<'a> StatefulWidget for TopicListWidget<'a> {
+    type State = TopicListWidgetState;
+
+    fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
         self.block.as_ref().render(area, buf);
 
         let inner_area = self.block.inner_if_some(area);

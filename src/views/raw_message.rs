@@ -13,9 +13,9 @@ use rclrs::*;
 
 use crate::{
     common::{
-        event::{Event, NewPlotEvent},
+        event::{Event, NewGraphLineEvent},
         generic_message::{GenericMessage, MessageMetadata},
-        generic_message_selection::{next_field, prev_field},
+        generic_message_selector::GenericMessageSelector,
         style::HEADER_STYLE,
     },
     connections::{Connection, ConnectionType},
@@ -66,15 +66,36 @@ impl RawMessageState {
         object
     }
 
-    pub fn select_next_field(&mut self) {
+    pub fn select_down(&mut self) {
         if let Some(message) = self.message.lock().unwrap().as_ref() {
-            self.selected_fields = next_field(&message, &self.selected_fields).unwrap_or_default();
+            self.selected_fields =
+                GenericMessageSelector::new(&message).down(&self.selected_fields);
         }
     }
 
-    pub fn select_previous_field(&mut self) {
+    pub fn select_up(&mut self) {
         if let Some(message) = self.message.lock().unwrap().as_ref() {
-            self.selected_fields = prev_field(&message, &self.selected_fields).unwrap_or_default();
+            self.selected_fields = GenericMessageSelector::new(&message).up(&self.selected_fields);
+        }
+    }
+
+    pub fn select_left(&mut self) {
+        if let Some(message) = self.message.lock().unwrap().as_ref() {
+            self.selected_fields =
+                GenericMessageSelector::new(&message).left(&self.selected_fields);
+        }
+    }
+
+    pub fn select_right(&mut self) {
+        if let Some(message) = self.message.lock().unwrap().as_ref() {
+            self.selected_fields =
+                GenericMessageSelector::new(&message).right(&self.selected_fields);
+        }
+    }
+
+    pub fn select_last(&mut self) {
+        if let Some(message) = self.message.lock().unwrap().as_ref() {
+            self.selected_fields = GenericMessageSelector::new(&message).last_field_path();
         }
     }
 }
@@ -87,16 +108,32 @@ impl TuiView for RawMessageState {
             }
             match key_event.code {
                 KeyCode::Char('j') | KeyCode::Down => {
-                    self.select_next_field();
+                    self.select_down();
                     Event::None
                 }
                 KeyCode::Char('k') | KeyCode::Up => {
-                    self.select_previous_field();
+                    self.select_up();
                     Event::None
                 }
-                KeyCode::Char('l') | KeyCode::Enter => Event::NewPlot(NewPlotEvent {
+                KeyCode::Char('l') | KeyCode::Right => {
+                    self.select_right();
+                    Event::None
+                }
+                KeyCode::Char('h') | KeyCode::Left => {
+                    self.select_left();
+                    Event::None
+                }
+                KeyCode::Char('g') => {
+                    todo!("Wait for double g");
+                }
+                KeyCode::Char('G') => {
+                    self.select_last();
+                    Event::None
+                }
+                KeyCode::Enter => Event::NewGraphLine(NewGraphLineEvent {
                     topic: self.topic.clone(),
                     field: self.selected_fields.clone(),
+                    view: None,
                 }),
                 _ => event,
             }
