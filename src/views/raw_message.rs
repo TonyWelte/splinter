@@ -7,13 +7,13 @@ use std::{
 use ratatui::{
     prelude::{Buffer, Rect},
     text::Line,
-    widgets::{Block, Paragraph, Widget},
+    widgets::{Block, BorderType, Paragraph, Widget},
 };
 use rclrs::*;
 
 use crate::{
     common::{
-        event::{Event, NewGraphLineEvent},
+        event::{Event, NewLineEvent},
         generic_message::{GenericMessage, MessageMetadata},
         generic_message_selector::GenericMessageSelector,
         style::HEADER_STYLE,
@@ -130,7 +130,7 @@ impl TuiView for RawMessageState {
                     self.select_last();
                     Event::None
                 }
-                KeyCode::Enter => Event::NewGraphLine(NewGraphLineEvent {
+                KeyCode::Enter => Event::NewLine(NewLineEvent {
                     topic: self.topic.clone(),
                     field: self.selected_fields.clone(),
                     view: None,
@@ -159,7 +159,8 @@ impl RawMessageWidget {
                 ))
                 .centered(),
             )
-            .border_style(HEADER_STYLE);
+            .border_style(HEADER_STYLE)
+            .border_type(BorderType::Rounded);
 
         if let Some(message) = &*state.message.lock().unwrap() {
             // Clear the area before rendering

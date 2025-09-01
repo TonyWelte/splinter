@@ -65,7 +65,13 @@ pub fn get_field_category(message: &GenericMessage, field_path: &[usize]) -> Opt
         },
         GenericField::Sequence(sequence_value) => match sequence_value {
             SequenceField::Message(inner_msgs) => {
-                return get_field_category(&inner_msgs[1], &field_path[2..]);
+                if field_path[1] >= inner_msgs.len() {
+                    return None;
+                }
+                if field_path.len() == 2 {
+                    return Some(FieldCategory::Message);
+                }
+                return get_field_category(&inner_msgs[field_path[1]], &field_path[2..]);
             }
             _ => {
                 if field_path.len() == 2 && field_path[1] < sequence_value.len() {
@@ -76,8 +82,14 @@ pub fn get_field_category(message: &GenericMessage, field_path: &[usize]) -> Opt
             }
         },
         GenericField::BoundedSequence(bounded_sequence_value) => match bounded_sequence_value {
-            BoundedSequenceField::Message(inner_msgs) => {
-                return get_field_category(&inner_msgs[1], &field_path[2..]);
+            BoundedSequenceField::Message(inner_msgs, _) => {
+                if field_path[1] >= inner_msgs.len() {
+                    return None;
+                }
+                if field_path.len() == 2 {
+                    return Some(FieldCategory::Message);
+                }
+                return get_field_category(&inner_msgs[field_path[1]], &field_path[2..]);
             }
             _ => {
                 if field_path.len() == 2 && field_path[1] < bounded_sequence_value.len() {
@@ -166,15 +178,21 @@ fn get_last_index_path(message: &GenericMessage, field_path: &[usize]) -> Option
                 }
             }
             _ => {
-                if field_path.len() == 2 && field_path[1] < sequence_value.len() {
+                if field_path.len() >= 2 && field_path[1] >= sequence_value.len() {
+                    return None;
+                }
+                if field_path.len() == 2 {
                     return Some(vec![field_index, field_path[1]]);
                 } else {
+                    if sequence_value.len() == 0 {
+                        return None;
+                    }
                     return Some(vec![field_index, sequence_value.len() - 1]);
                 }
             }
         },
         GenericField::BoundedSequence(bounded_sequence_value) => match bounded_sequence_value {
-            BoundedSequenceField::Message(inner_msgs) => {
+            BoundedSequenceField::Message(inner_msgs, _) => {
                 if field_path.len() < 2 {
                     return None;
                 }
@@ -193,9 +211,15 @@ fn get_last_index_path(message: &GenericMessage, field_path: &[usize]) -> Option
                 }
             }
             _ => {
-                if field_path.len() == 2 && field_path[1] < bounded_sequence_value.len() {
+                if field_path.len() >= 2 && field_path[1] >= bounded_sequence_value.len() {
+                    return None;
+                }
+                if field_path.len() == 2 {
                     return Some(vec![field_index, field_path[1]]);
                 } else {
+                    if bounded_sequence_value.len() == 0 {
+                        return None;
+                    }
                     return Some(vec![field_index, bounded_sequence_value.len() - 1]);
                 }
             }

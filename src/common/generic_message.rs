@@ -87,26 +87,26 @@ pub enum SequenceField {
 // TODO: Replace Vec with a more appropriate type
 #[derive(Debug, Clone, PartialEq)]
 pub enum BoundedSequenceField {
-    Float(Vec<f32>),
-    Double(Vec<f64>),
-    LongDouble(Vec<[u8; 16]>),
-    Char(Vec<u8>),
-    WChar(Vec<u16>),
-    Boolean(Vec<bool>),
-    Octet(Vec<u8>),
-    Uint8(Vec<u8>),
-    Int8(Vec<i8>),
-    Uint16(Vec<u16>),
-    Int16(Vec<i16>),
-    Uint32(Vec<u32>),
-    Int32(Vec<i32>),
-    Uint64(Vec<u64>),
-    Int64(Vec<i64>),
-    String(Vec<String>),
-    BoundedString(Vec<String>),
-    WString(Vec<String>),
-    BoundedWString(Vec<String>),
-    Message(Vec<GenericMessage>),
+    Float(Vec<f32>, usize),
+    Double(Vec<f64>, usize),
+    LongDouble(Vec<[u8; 16]>, usize),
+    Char(Vec<u8>, usize),
+    WChar(Vec<u16>, usize),
+    Boolean(Vec<bool>, usize),
+    Octet(Vec<u8>, usize),
+    Uint8(Vec<u8>, usize),
+    Int8(Vec<i8>, usize),
+    Uint16(Vec<u16>, usize),
+    Int16(Vec<i16>, usize),
+    Uint32(Vec<u32>, usize),
+    Int32(Vec<i32>, usize),
+    Uint64(Vec<u64>, usize),
+    Int64(Vec<i64>, usize),
+    String(Vec<String>, usize),
+    BoundedString(Vec<String>, usize),
+    WString(Vec<String>, usize),
+    BoundedWString(Vec<String>, usize),
+    Message(Vec<GenericMessage>, usize),
 }
 
 pub enum AnyTypeMutableRef<'a> {
@@ -122,6 +122,9 @@ pub enum AnyTypeMutableRef<'a> {
     Uint64(&'a mut u64),
     Int64(&'a mut i64),
     String(&'a mut String),
+    Array(&'a mut ArrayField),
+    Sequence(&'a mut SequenceField),
+    BoundedSequence(&'a mut BoundedSequenceField),
 }
 
 pub enum FieldType {
@@ -204,26 +207,183 @@ impl Length for SequenceField {
 impl Length for BoundedSequenceField {
     fn len(&self) -> usize {
         match self {
-            BoundedSequenceField::Float(v) => v.len(),
-            BoundedSequenceField::Double(v) => v.len(),
-            BoundedSequenceField::LongDouble(v) => v.len(),
-            BoundedSequenceField::Char(v) => v.len(),
-            BoundedSequenceField::WChar(v) => v.len(),
-            BoundedSequenceField::Boolean(v) => v.len(),
-            BoundedSequenceField::Octet(v) => v.len(),
-            BoundedSequenceField::Uint8(v) => v.len(),
-            BoundedSequenceField::Int8(v) => v.len(),
-            BoundedSequenceField::Uint16(v) => v.len(),
-            BoundedSequenceField::Int16(v) => v.len(),
-            BoundedSequenceField::Uint32(v) => v.len(),
-            BoundedSequenceField::Int32(v) => v.len(),
-            BoundedSequenceField::Uint64(v) => v.len(),
-            BoundedSequenceField::Int64(v) => v.len(),
-            BoundedSequenceField::String(v) => v.len(),
-            BoundedSequenceField::BoundedString(v) => v.len(),
-            BoundedSequenceField::WString(v) => v.len(),
-            BoundedSequenceField::BoundedWString(v) => v.len(),
-            BoundedSequenceField::Message(v) => v.len(),
+            BoundedSequenceField::Float(v, _) => v.len(),
+            BoundedSequenceField::Double(v, _) => v.len(),
+            BoundedSequenceField::LongDouble(v, _) => v.len(),
+            BoundedSequenceField::Char(v, _) => v.len(),
+            BoundedSequenceField::WChar(v, _) => v.len(),
+            BoundedSequenceField::Boolean(v, _) => v.len(),
+            BoundedSequenceField::Octet(v, _) => v.len(),
+            BoundedSequenceField::Uint8(v, _) => v.len(),
+            BoundedSequenceField::Int8(v, _) => v.len(),
+            BoundedSequenceField::Uint16(v, _) => v.len(),
+            BoundedSequenceField::Int16(v, _) => v.len(),
+            BoundedSequenceField::Uint32(v, _) => v.len(),
+            BoundedSequenceField::Int32(v, _) => v.len(),
+            BoundedSequenceField::Uint64(v, _) => v.len(),
+            BoundedSequenceField::Int64(v, _) => v.len(),
+            BoundedSequenceField::String(v, _) => v.len(),
+            BoundedSequenceField::BoundedString(v, _) => v.len(),
+            BoundedSequenceField::WString(v, _) => v.len(),
+            BoundedSequenceField::BoundedWString(v, _) => v.len(),
+            BoundedSequenceField::Message(v, _) => v.len(),
+        }
+    }
+}
+
+impl SequenceField {
+    pub fn resize(&mut self, new_size: usize) {
+        match self {
+            SequenceField::Float(v) => v.resize(new_size, 0.0),
+            SequenceField::Double(v) => v.resize(new_size, 0.0),
+            SequenceField::LongDouble(v) => v.resize(new_size, [0u8; 16]),
+            SequenceField::Char(v) => v.resize(new_size, 0),
+            SequenceField::WChar(v) => v.resize(new_size, 0),
+            SequenceField::Boolean(v) => v.resize(new_size, false),
+            SequenceField::Octet(v) => v.resize(new_size, 0),
+            SequenceField::Uint8(v) => v.resize(new_size, 0),
+            SequenceField::Int8(v) => v.resize(new_size, 0),
+            SequenceField::Uint16(v) => v.resize(new_size, 0),
+            SequenceField::Int16(v) => v.resize(new_size, 0),
+            SequenceField::Uint32(v) => v.resize(new_size, 0),
+            SequenceField::Int32(v) => v.resize(new_size, 0),
+            SequenceField::Uint64(v) => v.resize(new_size, 0),
+            SequenceField::Int64(v) => v.resize(new_size, 0),
+            SequenceField::String(v) => v.resize(new_size, "".to_string()),
+            SequenceField::BoundedString(v) => v.resize(new_size, "".to_string()),
+            SequenceField::WString(v) => v.resize(new_size, "".to_string()),
+            SequenceField::BoundedWString(v) => v.resize(new_size, "".to_string()),
+            SequenceField::Message(_) => todo!("Implement resize for Message sequence"),
+        }
+    }
+}
+
+impl BoundedSequenceField {
+    pub fn resize(&mut self, new_size: usize) {
+        match self {
+            BoundedSequenceField::Float(v, max_size) => {
+                if new_size <= *max_size {
+                    v.resize(new_size, 0.0)
+                }
+            }
+            BoundedSequenceField::Double(v, max_size) => {
+                if new_size <= *max_size {
+                    v.resize(new_size, 0.0)
+                }
+            }
+            BoundedSequenceField::LongDouble(v, max_size) => {
+                if new_size <= *max_size {
+                    v.resize(new_size, [0u8; 16])
+                }
+            }
+            BoundedSequenceField::Char(v, max_size) => {
+                if new_size <= *max_size {
+                    v.resize(new_size, 0)
+                }
+            }
+            BoundedSequenceField::WChar(v, max_size) => {
+                if new_size <= *max_size {
+                    v.resize(new_size, 0)
+                }
+            }
+            BoundedSequenceField::Boolean(v, max_size) => {
+                if new_size <= *max_size {
+                    v.resize(new_size, false)
+                }
+            }
+            BoundedSequenceField::Octet(v, max_size) => {
+                if new_size <= *max_size {
+                    v.resize(new_size, 0)
+                }
+            }
+            BoundedSequenceField::Uint8(v, max_size) => {
+                if new_size <= *max_size {
+                    v.resize(new_size, 0)
+                }
+            }
+            BoundedSequenceField::Int8(v, max_size) => {
+                if new_size <= *max_size {
+                    v.resize(new_size, 0)
+                }
+            }
+            BoundedSequenceField::Uint16(v, max_size) => {
+                if new_size <= *max_size {
+                    v.resize(new_size, 0)
+                }
+            }
+            BoundedSequenceField::Int16(v, max_size) => {
+                if new_size <= *max_size {
+                    v.resize(new_size, 0)
+                }
+            }
+            BoundedSequenceField::Uint32(v, max_size) => {
+                if new_size <= *max_size {
+                    v.resize(new_size, 0)
+                }
+            }
+            BoundedSequenceField::Int32(v, max_size) => {
+                if new_size <= *max_size {
+                    v.resize(new_size, 0)
+                }
+            }
+            BoundedSequenceField::Uint64(v, max_size) => {
+                if new_size <= *max_size {
+                    v.resize(new_size, 0)
+                }
+            }
+            BoundedSequenceField::Int64(v, max_size) => {
+                if new_size <= *max_size {
+                    v.resize(new_size, 0)
+                }
+            }
+            BoundedSequenceField::String(v, max_size) => {
+                if new_size <= *max_size {
+                    v.resize(new_size, "".to_string())
+                }
+            }
+            BoundedSequenceField::BoundedString(v, max_size) => {
+                if new_size <= *max_size {
+                    v.resize(new_size, "".to_string())
+                }
+            }
+            BoundedSequenceField::WString(v, max_size) => {
+                if new_size <= *max_size {
+                    v.resize(new_size, "".to_string())
+                }
+            }
+            BoundedSequenceField::BoundedWString(v, max_size) => {
+                if new_size <= *max_size {
+                    v.resize(new_size, "".to_string())
+                }
+            }
+            BoundedSequenceField::Message(_, _) => {
+                todo!("Implement resize for Message bounded sequence")
+            }
+        }
+    }
+
+    pub fn max_len(&self) -> usize {
+        match self {
+            BoundedSequenceField::Float(_, max_size) => *max_size,
+            BoundedSequenceField::Double(_, max_size) => *max_size,
+            BoundedSequenceField::LongDouble(_, max_size) => *max_size,
+            BoundedSequenceField::Char(_, max_size) => *max_size,
+            BoundedSequenceField::WChar(_, max_size) => *max_size,
+            BoundedSequenceField::Boolean(_, max_size) => *max_size,
+            BoundedSequenceField::Octet(_, max_size) => *max_size,
+            BoundedSequenceField::Uint8(_, max_size) => *max_size,
+            BoundedSequenceField::Int8(_, max_size) => *max_size,
+            BoundedSequenceField::Uint16(_, max_size) => *max_size,
+            BoundedSequenceField::Int16(_, max_size) => *max_size,
+            BoundedSequenceField::Uint32(_, max_size) => *max_size,
+            BoundedSequenceField::Int32(_, max_size) => *max_size,
+            BoundedSequenceField::Uint64(_, max_size) => *max_size,
+            BoundedSequenceField::Int64(_, max_size) => *max_size,
+            BoundedSequenceField::String(_, max_size) => *max_size,
+            BoundedSequenceField::BoundedString(_, max_size) => *max_size,
+            BoundedSequenceField::WString(_, max_size) => *max_size,
+            BoundedSequenceField::BoundedWString(_, max_size) => *max_size,
+            BoundedSequenceField::Message(_, max_size) => *max_size,
         }
     }
 }
@@ -268,21 +428,11 @@ impl GenericField {
                     _ => Err("Unsupported simple field type for mutable reference".to_string()),
                 }
             }
-            GenericField::Array(ArrayField::Message(msgs)) => {
-                if field_index_path.is_empty() {
-                    return Err("Field index path is empty".to_string());
-                }
-                let index = field_index_path[0];
-                if index >= msgs.len() {
-                    return Err("Index out of bounds".to_string());
-                }
-                return msgs[index].get_mut_deep_index(&field_index_path[1..]);
-            }
             GenericField::Array(array_field) => {
-                if field_index_path.is_empty() {
-                    return Err("Field index path is empty".to_string());
-                }
-                let index = field_index_path[0];
+                let index = match field_index_path.first() {
+                    Some(i) => *i,
+                    None => return Ok(AnyTypeMutableRef::Array(array_field)),
+                };
                 match array_field {
                     ArrayField::Float(v) => v
                         .get_mut(index)
@@ -332,6 +482,138 @@ impl GenericField {
                         .get_mut(index)
                         .map(|val| AnyTypeMutableRef::String(val))
                         .ok_or_else(|| "Index out of bounds".to_string()),
+                    ArrayField::Message(v) => {
+                        if index >= v.len() {
+                            return Err("Index out of bounds".to_string());
+                        }
+                        return v[index].get_mut_deep_index(&field_index_path[1..]);
+                    }
+                    _ => Err("Unsupported array field type for mutable reference".to_string()),
+                }
+            }
+            GenericField::Sequence(sequence_field) => {
+                let index = match field_index_path.first() {
+                    Some(i) => *i,
+                    None => return Ok(AnyTypeMutableRef::Sequence(sequence_field)),
+                };
+                match sequence_field {
+                    SequenceField::Float(v) => v
+                        .get_mut(index)
+                        .map(|val| AnyTypeMutableRef::Float(val))
+                        .ok_or_else(|| "Index out of bounds".to_string()),
+                    SequenceField::Double(v) => v
+                        .get_mut(index)
+                        .map(|val| AnyTypeMutableRef::Double(val))
+                        .ok_or_else(|| "Index out of bounds".to_string()),
+                    SequenceField::Boolean(v) => v
+                        .get_mut(index)
+                        .map(|val| AnyTypeMutableRef::Boolean(val))
+                        .ok_or_else(|| "Index out of bounds".to_string()),
+                    SequenceField::Uint8(v) => v
+                        .get_mut(index)
+                        .map(|val| AnyTypeMutableRef::Uint8(val))
+                        .ok_or_else(|| "Index out of bounds".to_string()),
+                    SequenceField::Int8(v) => v
+                        .get_mut(index)
+                        .map(|val| AnyTypeMutableRef::Int8(val))
+                        .ok_or_else(|| "Index out of bounds".to_string()),
+                    SequenceField::Uint16(v) => v
+                        .get_mut(index)
+                        .map(|val| AnyTypeMutableRef::Uint16(val))
+                        .ok_or_else(|| "Index out of bounds".to_string()),
+                    SequenceField::Int16(v) => v
+                        .get_mut(index)
+                        .map(|val| AnyTypeMutableRef::Int16(val))
+                        .ok_or_else(|| "Index out of bounds".to_string()),
+                    SequenceField::Uint32(v) => v
+                        .get_mut(index)
+                        .map(|val| AnyTypeMutableRef::Uint32(val))
+                        .ok_or_else(|| "Index out of bounds".to_string()),
+                    SequenceField::Int32(v) => v
+                        .get_mut(index)
+                        .map(|val| AnyTypeMutableRef::Int32(val))
+                        .ok_or_else(|| "Index out of bounds".to_string()),
+                    SequenceField::Uint64(v) => v
+                        .get_mut(index)
+                        .map(|val| AnyTypeMutableRef::Uint64(val))
+                        .ok_or_else(|| "Index out of bounds".to_string()),
+                    SequenceField::Int64(v) => v
+                        .get_mut(index)
+                        .map(|val| AnyTypeMutableRef::Int64(val))
+                        .ok_or_else(|| "Index out of bounds".to_string()),
+                    SequenceField::String(v) => v
+                        .get_mut(index)
+                        .map(|val| AnyTypeMutableRef::String(val))
+                        .ok_or_else(|| "Index out of bounds".to_string()),
+                    SequenceField::Message(v) => {
+                        if index >= v.len() {
+                            return Err("Index out of bounds".to_string());
+                        }
+                        return v[index].get_mut_deep_index(&field_index_path[1..]);
+                    }
+                    _ => Err("Unsupported array field type for mutable reference".to_string()),
+                }
+            }
+            GenericField::BoundedSequence(sequence_field) => {
+                let index = match field_index_path.first() {
+                    Some(i) => *i,
+                    None => return Ok(AnyTypeMutableRef::BoundedSequence(sequence_field)),
+                };
+                match sequence_field {
+                    BoundedSequenceField::Float(v, _) => v
+                        .get_mut(index)
+                        .map(|val| AnyTypeMutableRef::Float(val))
+                        .ok_or_else(|| "Index out of bounds".to_string()),
+                    BoundedSequenceField::Double(v, _) => v
+                        .get_mut(index)
+                        .map(|val| AnyTypeMutableRef::Double(val))
+                        .ok_or_else(|| "Index out of bounds".to_string()),
+                    BoundedSequenceField::Boolean(v, _) => v
+                        .get_mut(index)
+                        .map(|val| AnyTypeMutableRef::Boolean(val))
+                        .ok_or_else(|| "Index out of bounds".to_string()),
+                    BoundedSequenceField::Uint8(v, _) => v
+                        .get_mut(index)
+                        .map(|val| AnyTypeMutableRef::Uint8(val))
+                        .ok_or_else(|| "Index out of bounds".to_string()),
+                    BoundedSequenceField::Int8(v, _) => v
+                        .get_mut(index)
+                        .map(|val| AnyTypeMutableRef::Int8(val))
+                        .ok_or_else(|| "Index out of bounds".to_string()),
+                    BoundedSequenceField::Uint16(v, _) => v
+                        .get_mut(index)
+                        .map(|val| AnyTypeMutableRef::Uint16(val))
+                        .ok_or_else(|| "Index out of bounds".to_string()),
+                    BoundedSequenceField::Int16(v, _) => v
+                        .get_mut(index)
+                        .map(|val| AnyTypeMutableRef::Int16(val))
+                        .ok_or_else(|| "Index out of bounds".to_string()),
+                    BoundedSequenceField::Uint32(v, _) => v
+                        .get_mut(index)
+                        .map(|val| AnyTypeMutableRef::Uint32(val))
+                        .ok_or_else(|| "Index out of bounds".to_string()),
+                    BoundedSequenceField::Int32(v, _) => v
+                        .get_mut(index)
+                        .map(|val| AnyTypeMutableRef::Int32(val))
+                        .ok_or_else(|| "Index out of bounds".to_string()),
+                    BoundedSequenceField::Uint64(v, _) => v
+                        .get_mut(index)
+                        .map(|val| AnyTypeMutableRef::Uint64(val))
+                        .ok_or_else(|| "Index out of bounds".to_string()),
+                    BoundedSequenceField::Int64(v, _) => v
+                        .get_mut(index)
+                        .map(|val| AnyTypeMutableRef::Int64(val))
+                        .ok_or_else(|| "Index out of bounds".to_string()),
+                    BoundedSequenceField::String(v, _) => v
+                        .get_mut(index)
+                        .map(|val| AnyTypeMutableRef::String(val))
+                        .ok_or_else(|| "Index out of bounds".to_string()),
+                    BoundedSequenceField::Message(v, _) => {
+                        if index >= v.len() {
+                            return Err("Index out of bounds".to_string());
+                        }
+                        return v[index].get_mut_deep_index(&field_index_path[1..]);
+                    }
                     _ => Err("Unsupported array field type for mutable reference".to_string()),
                 }
             }
@@ -543,79 +825,79 @@ impl GenericField {
                     return Ok(FieldType::BoundedSequence);
                 }
                 match bounded_sequence_field {
-                    BoundedSequenceField::Message(msgs) => {
+                    BoundedSequenceField::Message(msgs, _) => {
                         if index >= msgs.len() {
                             return Err("Index out of bounds".to_string());
                         }
                         return msgs[index].get_field_type(&field_index_path[1..]);
                     }
-                    BoundedSequenceField::Float(v) => {
+                    BoundedSequenceField::Float(v, _) => {
                         if index >= v.len() {
                             return Err("Index out of bounds".to_string());
                         }
                         return Ok(FieldType::Float);
                     }
-                    BoundedSequenceField::Double(v) => {
+                    BoundedSequenceField::Double(v, _) => {
                         if index >= v.len() {
                             return Err("Index out of bounds".to_string());
                         }
                         return Ok(FieldType::Double);
                     }
-                    BoundedSequenceField::Boolean(v) => {
+                    BoundedSequenceField::Boolean(v, _) => {
                         if index >= v.len() {
                             return Err("Index out of bounds".to_string());
                         }
                         return Ok(FieldType::Boolean);
                     }
-                    BoundedSequenceField::Uint8(v) => {
+                    BoundedSequenceField::Uint8(v, _) => {
                         if index >= v.len() {
                             return Err("Index out of bounds".to_string());
                         }
                         return Ok(FieldType::Uint8);
                     }
-                    BoundedSequenceField::Int8(v) => {
+                    BoundedSequenceField::Int8(v, _) => {
                         if index >= v.len() {
                             return Err("Index out of bounds".to_string());
                         }
                         return Ok(FieldType::Int8);
                     }
-                    BoundedSequenceField::Uint16(v) => {
+                    BoundedSequenceField::Uint16(v, _) => {
                         if index >= v.len() {
                             return Err("Index out of bounds".to_string());
                         }
                         return Ok(FieldType::Uint16);
                     }
-                    BoundedSequenceField::Int16(v) => {
+                    BoundedSequenceField::Int16(v, _) => {
                         if index >= v.len() {
                             return Err("Index out of bounds".to_string());
                         }
                         return Ok(FieldType::Int16);
                     }
-                    BoundedSequenceField::Uint32(v) => {
+                    BoundedSequenceField::Uint32(v, _) => {
                         if index >= v.len() {
                             return Err("Index out of bounds".to_string());
                         }
                         return Ok(FieldType::Uint32);
                     }
-                    BoundedSequenceField::Int32(v) => {
+                    BoundedSequenceField::Int32(v, _) => {
                         if index >= v.len() {
                             return Err("Index out of bounds".to_string());
                         }
                         return Ok(FieldType::Int32);
                     }
-                    BoundedSequenceField::Uint64(v) => {
+                    BoundedSequenceField::Uint64(v, _) => {
                         if index >= v.len() {
                             return Err("Index out of bounds".to_string());
                         }
                         return Ok(FieldType::Uint64);
                     }
-                    BoundedSequenceField::Int64(v) => {
+                    BoundedSequenceField::Int64(v, _) => {
                         if index >= v.len() {
                             return Err("Index out of bounds".to_string());
                         }
                         return Ok(FieldType::Int64);
                     }
-                    BoundedSequenceField::String(v) => {
+                    BoundedSequenceField::String(v, _) => {
                         if index >= v.len() {
                             return Err("Index out of bounds".to_string());
                         }
@@ -643,7 +925,7 @@ impl From<SimpleValue<'_>> for SimpleField {
         match value {
             SimpleValue::Float(v) => SimpleField::Float(*v),
             SimpleValue::Double(v) => SimpleField::Double(*v),
-            SimpleValue::LongDouble(v) => SimpleField::LongDouble([0; 16]), // Placeholder, actual value not used),
+            SimpleValue::LongDouble(_) => SimpleField::LongDouble([0; 16]), // Placeholder, actual value not used),
             SimpleValue::Char(v) => SimpleField::Char(*v),
             SimpleValue::WChar(v) => SimpleField::WChar(*v),
             SimpleValue::Boolean(v) => SimpleField::Boolean(*v),
@@ -670,7 +952,7 @@ impl From<ArrayValue<'_>> for ArrayField {
         match value {
             ArrayValue::FloatArray(v) => ArrayField::Float(v.to_vec()),
             ArrayValue::DoubleArray(v) => ArrayField::Double(v.to_vec()),
-            ArrayValue::LongDoubleArray(v, size) => ArrayField::LongDouble([].to_vec()), // Placeholder, actual value not used
+            ArrayValue::LongDoubleArray(_, _) => ArrayField::LongDouble([].to_vec()), // Placeholder, actual value not used
             ArrayValue::CharArray(v) => ArrayField::Char(v.to_vec()),
             ArrayValue::WCharArray(v) => ArrayField::WChar(v.to_vec()),
             ArrayValue::BooleanArray(v) => ArrayField::Boolean(v.to_vec()),
@@ -708,7 +990,7 @@ impl From<SequenceValue<'_>> for SequenceField {
         match value {
             SequenceValue::FloatSequence(v) => SequenceField::Float(v.to_vec()),
             SequenceValue::DoubleSequence(v) => SequenceField::Double(v.to_vec()),
-            SequenceValue::LongDoubleSequence(v) => SequenceField::LongDouble([].to_vec()), // Placeholder, actual value not used
+            SequenceValue::LongDoubleSequence(_) => SequenceField::LongDouble([].to_vec()), // Placeholder, actual value not used
             SequenceValue::CharSequence(v) => SequenceField::Char(v.to_vec()),
             SequenceValue::WCharSequence(v) => SequenceField::WChar(v.to_vec()),
             SequenceValue::BooleanSequence(v) => SequenceField::Boolean(v.to_vec()),
@@ -745,61 +1027,73 @@ impl From<BoundedSequenceValue<'_>> for BoundedSequenceField {
     fn from(value: BoundedSequenceValue) -> Self {
         match value {
             BoundedSequenceValue::FloatBoundedSequence(v) => {
-                BoundedSequenceField::Float(v.to_vec())
+                BoundedSequenceField::Float(v.to_vec(), v.upper_bound())
             }
             BoundedSequenceValue::DoubleBoundedSequence(v) => {
-                BoundedSequenceField::Double(v.to_vec())
+                BoundedSequenceField::Double(v.to_vec(), v.upper_bound())
             }
-            BoundedSequenceValue::LongDoubleBoundedSequence(v, size) => {
-                BoundedSequenceField::LongDouble([].to_vec()) // Placeholder, actual value not used
+            BoundedSequenceValue::LongDoubleBoundedSequence(_, _) => {
+                BoundedSequenceField::LongDouble([].to_vec(), 0) // Placeholder, actual value not used
             }
-            BoundedSequenceValue::CharBoundedSequence(v) => BoundedSequenceField::Char(v.to_vec()),
+            BoundedSequenceValue::CharBoundedSequence(v) => {
+                BoundedSequenceField::Char(v.to_vec(), v.upper_bound())
+            }
             BoundedSequenceValue::WCharBoundedSequence(v) => {
-                BoundedSequenceField::WChar(v.to_vec())
+                BoundedSequenceField::WChar(v.to_vec(), v.upper_bound())
             }
             BoundedSequenceValue::BooleanBoundedSequence(v) => {
-                BoundedSequenceField::Boolean(v.to_vec())
+                BoundedSequenceField::Boolean(v.to_vec(), v.upper_bound())
             }
             BoundedSequenceValue::OctetBoundedSequence(v) => {
-                BoundedSequenceField::Octet(v.to_vec())
+                BoundedSequenceField::Octet(v.to_vec(), v.upper_bound())
             }
             BoundedSequenceValue::Uint8BoundedSequence(v) => {
-                BoundedSequenceField::Uint8(v.to_vec())
+                BoundedSequenceField::Uint8(v.to_vec(), v.upper_bound())
             }
-            BoundedSequenceValue::Int8BoundedSequence(v) => BoundedSequenceField::Int8(v.to_vec()),
+            BoundedSequenceValue::Int8BoundedSequence(v) => {
+                BoundedSequenceField::Int8(v.to_vec(), v.upper_bound())
+            }
             BoundedSequenceValue::Uint16BoundedSequence(v) => {
-                BoundedSequenceField::Uint16(v.to_vec())
+                BoundedSequenceField::Uint16(v.to_vec(), v.upper_bound())
             }
             BoundedSequenceValue::Int16BoundedSequence(v) => {
-                BoundedSequenceField::Int16(v.to_vec())
+                BoundedSequenceField::Int16(v.to_vec(), v.upper_bound())
             }
             BoundedSequenceValue::Uint32BoundedSequence(v) => {
-                BoundedSequenceField::Uint32(v.to_vec())
+                BoundedSequenceField::Uint32(v.to_vec(), v.upper_bound())
             }
             BoundedSequenceValue::Int32BoundedSequence(v) => {
-                BoundedSequenceField::Int32(v.to_vec())
+                BoundedSequenceField::Int32(v.to_vec(), v.upper_bound())
             }
             BoundedSequenceValue::Uint64BoundedSequence(v) => {
-                BoundedSequenceField::Uint64(v.to_vec())
+                BoundedSequenceField::Uint64(v.to_vec(), v.upper_bound())
             }
             BoundedSequenceValue::Int64BoundedSequence(v) => {
-                BoundedSequenceField::Int64(v.to_vec())
+                BoundedSequenceField::Int64(v.to_vec(), v.upper_bound())
             }
-            BoundedSequenceValue::StringBoundedSequence(s) => {
-                BoundedSequenceField::String(s.iter().map(|s| s.to_string()).collect())
-            }
+            BoundedSequenceValue::StringBoundedSequence(s) => BoundedSequenceField::String(
+                s.iter().map(|s| s.to_string()).collect(),
+                s.upper_bound(),
+            ),
             BoundedSequenceValue::BoundedStringBoundedSequence(s) => {
-                BoundedSequenceField::BoundedString(s.iter().map(|s| s.to_string()).collect())
+                BoundedSequenceField::BoundedString(
+                    s.iter().map(|s| s.to_string()).collect(),
+                    0, // TODO: s.upper_bound()
+                )
             }
-            BoundedSequenceValue::WStringBoundedSequence(s) => {
-                BoundedSequenceField::WString(s.iter().map(|s| s.to_string()).collect())
-            }
+            BoundedSequenceValue::WStringBoundedSequence(s) => BoundedSequenceField::WString(
+                s.iter().map(|s| s.to_string()).collect(),
+                s.upper_bound(),
+            ),
             BoundedSequenceValue::BoundedWStringBoundedSequence(s) => {
-                BoundedSequenceField::BoundedWString(s.iter().map(|s| s.to_string()).collect())
+                BoundedSequenceField::BoundedWString(
+                    s.iter().map(|s| s.to_string()).collect(),
+                    0, // TODO: s.upper_bound()
+                )
             }
             BoundedSequenceValue::MessageBoundedSequence(msgs) => {
                 let generic_msgs = msgs.into_iter().map(GenericMessage::from).collect();
-                BoundedSequenceField::Message(generic_msgs)
+                BoundedSequenceField::Message(generic_msgs, 0) // TODO: msgs.upper_bound()
             }
         }
     }
@@ -880,6 +1174,10 @@ impl Index<usize> for GenericMessage {
 }
 
 impl GenericMessage {
+    pub fn new(type_name: InterfaceType, fields: IndexMap<String, GenericField>) -> Self {
+        Self { fields, type_name }
+    }
+
     pub fn type_name(&self) -> &InterfaceType {
         &self.type_name
     }

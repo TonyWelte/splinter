@@ -10,7 +10,7 @@ use ratatui::{
     prelude::{Buffer, Rect, Style, Stylize},
     symbols::Marker,
     text::Line,
-    widgets::{Axis, Block, Chart, Dataset, GraphType, Widget},
+    widgets::{Axis, Block, BorderType, Chart, Dataset, GraphType, Widget},
 };
 use rclrs::*;
 
@@ -175,7 +175,8 @@ impl LivePlotWidget {
 
         let block = Block::bordered()
             .title(Line::raw("Live Plot").centered())
-            .border_style(HEADER_STYLE);
+            .border_style(HEADER_STYLE)
+            .border_type(BorderType::Rounded);
 
         // Find the overall bounds for Y axis
         let (mut min_y, mut max_y) = (f64::MAX, f64::MIN);

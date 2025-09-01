@@ -1,7 +1,8 @@
 use ratatui::{
     crossterm::event::{Event as CrosstermEvent, KeyCode},
     prelude::{BlockExt, Buffer, Rect},
-    style::Style,
+    style::{Style, Styled},
+    text::{Line, Span, Text},
     widgets::{Block, StatefulWidget, Widget},
 };
 
@@ -12,6 +13,7 @@ use rclrs::MessageTypeName;
 
 pub struct TopicListWidget<'a> {
     block: Option<Block<'a>>,
+    overlay: Option<Line<'a>>,
 }
 
 pub struct TopicListWidgetState {
@@ -76,12 +78,21 @@ impl TuiWidget for TopicListWidgetState {
 
 impl<'a> TopicListWidget<'a> {
     pub fn new() -> Self {
-        Self { block: None }
+        Self {
+            block: None,
+            overlay: None,
+        }
     }
 
     #[must_use = "method moves the value of self and returns the modified value"]
     pub fn block(mut self, block: Block<'a>) -> Self {
         self.block = Some(block);
+        self
+    }
+
+    #[must_use = "method moves the value of self and returns the modified value"]
+    pub fn overlay(mut self, overlay: Line<'a>) -> Self {
+        self.overlay = Some(overlay);
         self
     }
 }
@@ -96,11 +107,6 @@ impl<'a> StatefulWidget for TopicListWidget<'a> {
 
         // Iterate through all elements in the `items` and stylize them.
         for (i, (topic_name, topic_type)) in state.topics.iter().enumerate() {
-            let style = if i == state.selected_index {
-                SELECTED_STYLE
-            } else {
-                Style::default()
-            };
             let available_width = inner_area.width as usize;
             let remaining_space = available_width.saturating_sub(
                 topic_name.len()
@@ -109,11 +115,37 @@ impl<'a> StatefulWidget for TopicListWidget<'a> {
                     + topic_type.type_name.len(),
             );
 
-            let text = format!(
-                "{}{:>remaining_space$}{}/msg/{}",
-                topic_name, "", topic_type.package_name, topic_type.type_name
-            );
-            buf.set_string(inner_area.x, inner_area.y + i as u16, text, style);
+            let item_area = Rect {
+                x: inner_area.x,
+                y: inner_area.y + i as u16,
+                width: inner_area.width,
+                height: 1,
+            };
+
+            let style = if i == state.selected_index {
+                SELECTED_STYLE
+            } else {
+                Style::default()
+            };
+
+            Line::from_iter([
+                Span::raw(topic_name),
+                Span::raw(" ".repeat(remaining_space)),
+                Span::raw(format!(
+                    "{}/msg/{}",
+                    topic_type.package_name, topic_type.type_name
+                )),
+            ])
+            .set_style(style)
+            .render(item_area, buf);
+
+            if i != state.selected_index {
+                continue;
+            }
+
+            if let Some(overlay) = &self.overlay {
+                overlay.render(item_area, buf);
+            }
         }
     }
 }

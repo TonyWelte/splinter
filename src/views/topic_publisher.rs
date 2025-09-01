@@ -3,14 +3,14 @@ use std::{cell::RefCell, rc::Rc};
 use ratatui::{
     prelude::{Buffer, Rect},
     text::Line,
-    widgets::{Block, Widget},
+    widgets::{Block, BorderType, Widget},
 };
 use rclrs::*;
 
 use crate::{
     common::{
         event::Event,
-        generic_message::{AnyTypeMutableRef, GenericMessage},
+        generic_message::{AnyTypeMutableRef, GenericMessage, Length},
         generic_message_selector::{get_field_category, FieldCategory, GenericMessageSelector},
         style::HEADER_STYLE,
     },
@@ -37,8 +37,8 @@ pub struct TopicPublisherState {
 impl TopicPublisherState {
     pub fn new(topic: String, connection: Rc<RefCell<ConnectionType>>) -> Self {
         let message_type = MessageTypeName {
-            package_name: "nav_msgs".to_string(),
-            type_name: "Odometry".to_string(),
+            package_name: "test_msgs".to_string(),
+            type_name: "BoundedSequences".to_string(),
         };
         let message = DynamicMessage::new(message_type.clone()).expect("Failed to create message");
         let generic_message = GenericMessage::from(message.view());
@@ -60,22 +60,10 @@ impl TopicPublisherState {
     pub fn select_next_field(&mut self) {
         self.selected_fields =
             GenericMessageSelector::new(&self.message).down(&self.selected_fields);
-        while !self.selected_fields.is_empty()
-            && get_field_category(&self.message, &self.selected_fields) != Some(FieldCategory::Base)
-        {
-            self.selected_fields =
-                GenericMessageSelector::new(&self.message).down(&self.selected_fields);
-        }
     }
 
     pub fn select_previous_field(&mut self) {
         self.selected_fields = GenericMessageSelector::new(&self.message).up(&self.selected_fields);
-        while !self.selected_fields.is_empty()
-            && get_field_category(&self.message, &self.selected_fields) != Some(FieldCategory::Base)
-        {
-            self.selected_fields =
-                GenericMessageSelector::new(&self.message).up(&self.selected_fields);
-        }
     }
 
     pub fn commit_edit(&mut self) -> Result<(), String> {
@@ -166,6 +154,11 @@ impl TopicPublisherState {
                 *v = self.field_content.clone();
                 Ok(())
             }
+            AnyTypeMutableRef::Array(_)
+            | AnyTypeMutableRef::Sequence(_)
+            | AnyTypeMutableRef::BoundedSequence(_) => {
+                Err("Cannot edit non-primitive field".to_string())
+            }
         }
     }
 }
@@ -205,6 +198,48 @@ impl TuiView for TopicPublisherState {
                         Event::None
                     }
                 }
+                KeyCode::Char('h') | KeyCode::Left => {
+                    if self.is_editing {
+                        self.field_content.push('h');
+                        Event::None
+                    } else {
+                        if let Some(field) =
+                            self.message.get_mut_deep_index(&self.selected_fields).ok()
+                        {
+                            match field {
+                                AnyTypeMutableRef::Sequence(sequence_field) => {
+                                    sequence_field.resize(sequence_field.len().saturating_sub(1));
+                                }
+                                AnyTypeMutableRef::BoundedSequence(sequence_field) => {
+                                    sequence_field.resize(sequence_field.len().saturating_sub(1));
+                                }
+                                _ => {}
+                            }
+                        }
+                        Event::None
+                    }
+                }
+                KeyCode::Char('l') | KeyCode::Right => {
+                    if self.is_editing {
+                        self.field_content.push('l');
+                        Event::None
+                    } else {
+                        if let Some(field) =
+                            self.message.get_mut_deep_index(&self.selected_fields).ok()
+                        {
+                            match field {
+                                AnyTypeMutableRef::Sequence(sequence_field) => {
+                                    sequence_field.resize(sequence_field.len() + 1);
+                                }
+                                AnyTypeMutableRef::BoundedSequence(sequence_field) => {
+                                    sequence_field.resize(sequence_field.len() + 1);
+                                }
+                                _ => {}
+                            }
+                        }
+                        Event::None
+                    }
+                }
                 KeyCode::Backspace => {
                     if self.is_editing {
                         self.field_content.pop();
@@ -223,9 +258,15 @@ impl TuiView for TopicPublisherState {
                         self.field_content.clear();
                         Event::None
                     } else {
-                        self.is_editing = true;
-                        self.field_content.clear();
-                        Event::None
+                        if get_field_category(&self.message, &self.selected_fields)
+                            == Some(FieldCategory::Base)
+                        {
+                            self.is_editing = true;
+                            self.field_content.clear();
+                            Event::None
+                        } else {
+                            event
+                        }
                     }
                 }
                 KeyCode::Char(c) => {
@@ -258,7 +299,8 @@ impl TopicPublisherWidget {
                 ))
                 .centered(),
             )
-            .border_style(HEADER_STYLE);
+            .border_style(HEADER_STYLE)
+            .border_type(BorderType::Rounded);
 
         let mut message_widget = MessageWidget::new(&state.message).block(block);
         if !state.selected_fields.is_empty() {

@@ -6,7 +6,7 @@ use ratatui::{
     style::{Color, Style},
     symbols,
     text::{Line, Text},
-    widgets::{Block, Borders, List, ListItem, Widget},
+    widgets::{Block, BorderType, Borders, List, ListItem, Widget},
 };
 
 use crossterm::event::{Event as CrosstermEvent, KeyCode};
@@ -261,12 +261,14 @@ impl NodeListWidget {
         let block_list = Block::bordered()
             .title(Line::raw("Node List").centered())
             .borders(Borders::TOP | Borders::LEFT | Borders::BOTTOM)
-            .border_style(HEADER_STYLE);
+            .border_style(HEADER_STYLE)
+            .border_type(BorderType::Rounded);
 
         let block_details = Block::bordered()
             .title(Line::raw("Node Details").centered())
             .border_set(border_set)
-            .border_style(HEADER_STYLE);
+            .border_style(HEADER_STYLE)
+            .border_type(BorderType::Rounded);
 
         // Iterate through all elements in the `items` and stylize them.
         let node_items: Vec<ListItem> = state

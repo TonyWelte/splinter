@@ -2,14 +2,22 @@ use std::fmt;
 
 use ratatui::{
     prelude::{BlockExt, Buffer, Rect},
-    style::{Color, Modifier, Style},
     widgets::{Block, Widget},
 };
 
-use crate::common::{
-    generic_message::{ArrayField, GenericField, GenericMessage, Length, SimpleField},
-    style::SELECTED_STYLE,
+use crate::common::generic_message::{
+    ArrayField, BoundedSequenceField, GenericMessage, SequenceField, SimpleField,
 };
+
+mod array_widget;
+mod bounded_sequence_widget;
+mod sequence_widget;
+mod value_widget;
+
+use array_widget::ArrayWidget;
+use bounded_sequence_widget::BoundedSequenceWidget;
+use sequence_widget::SequenceWidget;
+use value_widget::ValueWidget;
 
 pub struct MessageWidget<'a> {
     message: &'a GenericMessage,
@@ -82,13 +90,6 @@ impl<'a> Widget for MessageWidget<'a> {
     }
 }
 
-struct ValueWidget<'a> {
-    name: &'a str,
-    value: &'a GenericField,
-    selection: Option<&'a [usize]>,
-    edit: Option<&'a str>,
-}
-
 impl fmt::Display for SimpleField {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -112,93 +113,6 @@ impl fmt::Display for SimpleField {
             SimpleField::WString(value) => write!(f, "\"{}\"", value),
             SimpleField::BoundedWString(value) => write!(f, "\"{}\"", value),
             SimpleField::Message(_) => write!(f, "<message>"),
-        }
-    }
-}
-
-impl<'a> ValueWidget<'a> {
-    pub fn new(name: &'a str, value: &'a GenericField) -> Self {
-        Self {
-            name,
-            value,
-            selection: None,
-            edit: None,
-        }
-    }
-
-    pub fn with_selection(mut self, selection: &'a [usize]) -> Self {
-        self.selection = Some(selection);
-        self
-    }
-
-    pub fn with_edit(mut self, edit: &'a str) -> Self {
-        self.edit = Some(edit);
-        self
-    }
-
-    pub fn height(&self, width: u16) -> u16 {
-        match &self.value {
-            GenericField::Simple(SimpleField::Message(inner_message)) => {
-                MessageWidget::new(inner_message).height(width.saturating_sub(2)) + 1
-                // +1 for the field name
-            }
-            GenericField::Simple(_) => 1,
-            GenericField::Array(ArrayField::Message(inner_messages)) => {
-                let mut height = 1; // +1 for the field name
-                for inner_message in inner_messages {
-                    height += MessageWidget::new(inner_message).height(width.saturating_sub(2));
-                }
-                height
-            }
-            GenericField::Array(array_value) => {
-                1 + ArrayWidget::new(array_value).height(width.saturating_sub(2))
-                // +1 for the field name
-                // -2 for the indentation
-            }
-            GenericField::Sequence(_) | GenericField::BoundedSequence(_) => 1,
-        }
-    }
-}
-
-struct ArrayWidget<'a> {
-    value: &'a ArrayField,
-    selection: Option<&'a [usize]>,
-    edit: Option<&'a str>,
-}
-
-impl<'a> ArrayWidget<'a> {
-    pub fn new(value: &'a ArrayField) -> Self {
-        Self {
-            value,
-            edit: None,
-            selection: None,
-        }
-    }
-
-    pub fn with_selection(mut self, selection: &'a [usize]) -> Self {
-        self.selection = Some(selection);
-        self
-    }
-
-    pub fn with_edit(mut self, edit: &'a str) -> Self {
-        self.edit = Some(edit);
-        self
-    }
-
-    pub fn height(&self, width: u16) -> u16 {
-        match &self.value {
-            ArrayField::Message(inner_messages) => {
-                let mut height = 0;
-                for inner_message in inner_messages {
-                    height += MessageWidget::new(inner_message).height(width);
-                }
-                height
-            }
-            _ => {
-                let quot = (self.value.len() as u16) / (width / 10/* fixed width of val */);
-                let rem = (self.value.len() as u16) % (width / 10/* fixed width of val */);
-                quot + if rem > 0 { 1 } else { 0 } // +1 for the field name
-            }
         }
     }
 }
@@ -234,289 +148,99 @@ impl AsStrVec for ArrayField {
     }
 }
 
-impl<'a> Widget for ArrayWidget<'a> {
-    fn render(self, area: Rect, buf: &mut Buffer) {
-        match &self.value {
-            ArrayField::Message(inner_messages) => {
-                let mut area_remaining = area;
-                for inner_message in inner_messages {
-                    let inner_widget = MessageWidget::new(inner_message);
-                    let widget_height = inner_widget
-                        .height(area_remaining.width)
-                        .min(area_remaining.height);
-                    inner_widget.render(area_remaining, buf);
-
-                    // Move the area down for the next field
-                    area_remaining.y += widget_height;
-                    area_remaining.height -= widget_height;
-                }
+impl AsStrVec for SequenceField {
+    fn as_str_iter(&self) -> Vec<String> {
+        match self {
+            SequenceField::Float(values) => values.iter().map(|v| format!("{}", v)).collect(),
+            SequenceField::Double(values) => values.iter().map(|v| format!("{}", v)).collect(),
+            SequenceField::LongDouble(_) => vec![],
+            SequenceField::Char(values) => values.iter().map(|v| format!("{}", v)).collect(),
+            SequenceField::WChar(values) => values.iter().map(|v| format!("{}", v)).collect(),
+            SequenceField::Boolean(values) => values.iter().map(|v| format!("{}", v)).collect(),
+            SequenceField::Octet(values) => values.iter().map(|v| format!("{}", v)).collect(),
+            SequenceField::Uint8(values) => values.iter().map(|v| format!("{}", v)).collect(),
+            SequenceField::Int8(values) => values.iter().map(|v| format!("{}", v)).collect(),
+            SequenceField::Uint16(values) => values.iter().map(|v| format!("{}", v)).collect(),
+            SequenceField::Int16(values) => values.iter().map(|v| format!("{}", v)).collect(),
+            SequenceField::Uint32(values) => values.iter().map(|v| format!("{}", v)).collect(),
+            SequenceField::Int32(values) => values.iter().map(|v| format!("{}", v)).collect(),
+            SequenceField::Uint64(values) => values.iter().map(|v| format!("{}", v)).collect(),
+            SequenceField::Int64(values) => values.iter().map(|v| format!("{}", v)).collect(),
+            SequenceField::String(values) => values.iter().map(|v| format!("{}", v)).collect(),
+            SequenceField::BoundedString(values) => {
+                values.iter().map(|v| format!("{}", v)).collect()
             }
-            _ => {
-                let values = self.value.as_str_iter();
-                let mut x = area.x;
-                let mut y = area.y;
-                for (i, value) in values.iter().enumerate() {
-                    if x + 10 > area.x + area.width {
-                        x = area.x;
-                        y += 1;
-                        if y >= area.y + area.height {
-                            break; // No more space to render
-                        }
-                    }
-                    let style = if let Some(selection) = self.selection {
-                        if !selection.is_empty() && selection[0] == i {
-                            if self.edit.is_some() {
-                                // TODO: Edit validation for arrays
-                                SELECTED_STYLE.add_modifier(Modifier::SLOW_BLINK)
-                            } else {
-                                SELECTED_STYLE
-                            }
-                        } else {
-                            Style::default()
-                        }
-                    } else {
-                        Style::default()
-                    };
-                    if let Some(edit) = self.edit {
-                        if !self.selection.is_none()
-                            && !self.selection.unwrap().is_empty()
-                            && self.selection.unwrap()[0] == i
-                        {
-                            let is_edit_valid = match self.value {
-                                ArrayField::Float(_) => {
-                                    edit.parse::<f32>().is_ok() && !edit.contains(' ')
-                                }
-                                ArrayField::Double(_) => {
-                                    edit.parse::<f64>().is_ok() && !edit.contains(' ')
-                                }
-                                ArrayField::LongDouble(_) => false,
-                                ArrayField::Char(_) => edit.len() == 1,
-                                ArrayField::WChar(_) => edit.len() == 1,
-                                ArrayField::Boolean(_) => {
-                                    let lower = edit.to_lowercase();
-                                    lower == "true" || lower == "false"
-                                }
-                                ArrayField::Octet(_) => {
-                                    edit.parse::<u8>().is_ok() && !edit.contains(' ')
-                                }
-                                ArrayField::Uint8(_) => {
-                                    edit.parse::<u8>().is_ok() && !edit.contains(' ')
-                                }
-                                ArrayField::Int8(_) => {
-                                    edit.parse::<i8>().is_ok() && !edit.contains(' ')
-                                }
-                                ArrayField::Uint16(_) => {
-                                    edit.parse::<u16>().is_ok() && !edit.contains(' ')
-                                }
-                                ArrayField::Int16(_) => {
-                                    edit.parse::<i16>().is_ok() && !edit.contains(' ')
-                                }
-                                ArrayField::Uint32(_) => {
-                                    edit.parse::<u32>().is_ok() && !edit.contains(' ')
-                                }
-                                ArrayField::Int32(_) => {
-                                    edit.parse::<i32>().is_ok() && !edit.contains(' ')
-                                }
-                                ArrayField::Uint64(_) => {
-                                    edit.parse::<u64>().is_ok() && !edit.contains(' ')
-                                }
-                                ArrayField::Int64(_) => {
-                                    edit.parse::<i64>().is_ok() && !edit.contains(' ')
-                                }
-                                ArrayField::String(_) => true, // Any string is valid
-                                ArrayField::BoundedString(_) => true, // Any string is valid
-                                ArrayField::WString(_) => true, // Any string is valid
-                                ArrayField::BoundedWString(_) => true, // Any string is valid
-                                ArrayField::Message(_) => false, // Should not happen
-                            };
-                            buf.set_stringn(
-                                x,
-                                y,
-                                edit,
-                                10,
-                                style.fg(if is_edit_valid {
-                                    Color::Green
-                                } else {
-                                    Color::Red
-                                }),
-                            );
-                            x += 10;
-                            continue;
-                        }
-                    }
-                    buf.set_stringn(x, y, value, 10, style);
-                    x += 10;
-                }
+            SequenceField::WString(values) => values.iter().map(|v| format!("{}", v)).collect(),
+            SequenceField::BoundedWString(values) => {
+                values.iter().map(|v| format!("{}", v)).collect()
+            }
+            SequenceField::Message(_) => {
+                panic!("Sequence of messages cannot be converted to string vector")
             }
         }
     }
 }
 
-impl<'a> Widget for ValueWidget<'a> {
-    fn render(self, area: Rect, buf: &mut Buffer) {
-        let style = if self.selection.is_some() {
-            SELECTED_STYLE
-        } else {
-            Style::default()
-        };
-
-        if area.height == 0 || area.width == 0 {
-            return; // Nothing to render if the area is empty
-        }
-
-        buf.set_stringn(
-            area.x,
-            area.y,
-            format!("{}: ", self.name),
-            area.width as usize - area.x as usize,
-            style,
-        );
-        let area_right = Rect::new(
-            area.x + self.name.len() as u16 + 2,
-            area.y,
-            area.width.saturating_sub(self.name.len() as u16 + 2),
-            area.height,
-        );
-        let area_under = Rect::new(
-            area.x + 2,
-            area.y + 1,
-            area.width.saturating_sub(2),
-            area.height.saturating_sub(1),
-        );
-
-        match &self.value {
-            GenericField::Simple(SimpleField::Message(inner_message)) => {
-                let mut inner_widget = MessageWidget::new(inner_message);
-                if let Some(selection) = self.selection {
-                    inner_widget = inner_widget.with_selection(selection);
-                }
-                if let Some(edit) = self.edit {
-                    inner_widget = inner_widget.with_edit(edit);
-                }
-                inner_widget.render(area_under, buf);
+impl AsStrVec for BoundedSequenceField {
+    fn as_str_iter(&self) -> Vec<String> {
+        match self {
+            BoundedSequenceField::Float(values, _) => {
+                values.iter().map(|v| format!("{}", v)).collect()
             }
-            GenericField::Simple(simple_value) => {
-                if area_right.height == 0 {
-                    return; // Nothing to render if the area is empty
-                }
-                if let Some(edit) = self.edit {
-                    if !self.selection.is_none() && self.selection.unwrap().is_empty() {
-                        let is_edit_valid = match simple_value {
-                            SimpleField::Float(_) => {
-                                edit.parse::<f32>().is_ok() && !edit.contains(' ')
-                            }
-                            SimpleField::Double(_) => {
-                                edit.parse::<f64>().is_ok() && !edit.contains(' ')
-                            }
-                            SimpleField::LongDouble(_) => false,
-                            SimpleField::Char(_) => edit.len() == 1,
-                            SimpleField::WChar(_) => edit.len() == 1,
-                            SimpleField::Boolean(_) => {
-                                let lower = edit.to_lowercase();
-                                lower == "true" || lower == "false"
-                            }
-                            SimpleField::Octet(_) => {
-                                edit.parse::<u8>().is_ok() && !edit.contains(' ')
-                            }
-                            SimpleField::Uint8(_) => {
-                                edit.parse::<u8>().is_ok() && !edit.contains(' ')
-                            }
-                            SimpleField::Int8(_) => {
-                                edit.parse::<i8>().is_ok() && !edit.contains(' ')
-                            }
-                            SimpleField::Uint16(_) => {
-                                edit.parse::<u16>().is_ok() && !edit.contains(' ')
-                            }
-                            SimpleField::Int16(_) => {
-                                edit.parse::<i16>().is_ok() && !edit.contains(' ')
-                            }
-                            SimpleField::Uint32(_) => {
-                                edit.parse::<u32>().is_ok() && !edit.contains(' ')
-                            }
-                            SimpleField::Int32(_) => {
-                                edit.parse::<i32>().is_ok() && !edit.contains(' ')
-                            }
-                            SimpleField::Uint64(_) => {
-                                edit.parse::<u64>().is_ok() && !edit.contains(' ')
-                            }
-                            SimpleField::Int64(_) => {
-                                edit.parse::<i64>().is_ok() && !edit.contains(' ')
-                            }
-                            SimpleField::String(_) => true, // Any string is valid
-                            SimpleField::BoundedString(_) => true, // Any string is valid
-                            SimpleField::WString(_) => true, // Any string is valid
-                            SimpleField::BoundedWString(_) => true, // Any string is valid
-                            SimpleField::Message(_) => false, // Should not happen
-                        };
-                        buf.set_stringn(
-                            area_right.x,
-                            area_right.y,
-                            edit,
-                            area_right.width as usize,
-                            style
-                                .add_modifier(Modifier::SLOW_BLINK)
-                                .fg(if is_edit_valid {
-                                    Color::Green
-                                } else {
-                                    Color::Red
-                                }),
-                        );
-                        return;
-                    }
-                }
-                buf.set_stringn(
-                    area_right.x,
-                    area_right.y,
-                    format!("{}", simple_value),
-                    area_right.width as usize,
-                    style,
-                );
+            BoundedSequenceField::Double(values, _) => {
+                values.iter().map(|v| format!("{}", v)).collect()
             }
-            GenericField::Array(ArrayField::Message(inner_messages)) => {
-                if area_right.height == 0 {
-                    return; // Nothing to render if the area is empty
-                }
-                for inner_message in inner_messages {
-                    let inner_widget = MessageWidget::new(inner_message);
-                    inner_widget.render(area_under, buf);
-                }
+            BoundedSequenceField::LongDouble(_, _) => vec![],
+            BoundedSequenceField::Char(values, _) => {
+                values.iter().map(|v| format!("{}", v)).collect()
             }
-            GenericField::Array(array_value) => {
-                if area_under.height == 0 {
-                    return; // Nothing to render if the area is empty
-                }
-                let mut inner_widget = ArrayWidget::new(array_value);
-                if let Some(selection) = self.selection {
-                    inner_widget = inner_widget.with_selection(selection);
-                    if let Some(edit) = self.edit {
-                        inner_widget = inner_widget.with_edit(edit);
-                    }
-                }
-                inner_widget.render(area_under, buf);
+            BoundedSequenceField::WChar(values, _) => {
+                values.iter().map(|v| format!("{}", v)).collect()
             }
-            GenericField::Sequence(sequence_value) => {
-                if area_right.height == 0 {
-                    return; // Nothing to render if the area is empty
-                }
-                buf.set_stringn(
-                    area_right.x,
-                    area_right.y,
-                    format!("{:?}", sequence_value),
-                    area_right.width as usize,
-                    Style::default(),
-                );
+            BoundedSequenceField::Boolean(values, _) => {
+                values.iter().map(|v| format!("{}", v)).collect()
             }
-            GenericField::BoundedSequence(bounded_sequence_value) => {
-                if area_right.height == 0 {
-                    return; // Nothing to render if the area is empty
-                }
-                buf.set_stringn(
-                    area_right.x,
-                    area_right.y,
-                    format!("{:?}", bounded_sequence_value),
-                    area_right.width as usize,
-                    Style::default(),
-                );
+            BoundedSequenceField::Octet(values, _) => {
+                values.iter().map(|v| format!("{}", v)).collect()
+            }
+            BoundedSequenceField::Uint8(values, _) => {
+                values.iter().map(|v| format!("{}", v)).collect()
+            }
+            BoundedSequenceField::Int8(values, _) => {
+                values.iter().map(|v| format!("{}", v)).collect()
+            }
+            BoundedSequenceField::Uint16(values, _) => {
+                values.iter().map(|v| format!("{}", v)).collect()
+            }
+            BoundedSequenceField::Int16(values, _) => {
+                values.iter().map(|v| format!("{}", v)).collect()
+            }
+            BoundedSequenceField::Uint32(values, _) => {
+                values.iter().map(|v| format!("{}", v)).collect()
+            }
+            BoundedSequenceField::Int32(values, _) => {
+                values.iter().map(|v| format!("{}", v)).collect()
+            }
+            BoundedSequenceField::Uint64(values, _) => {
+                values.iter().map(|v| format!("{}", v)).collect()
+            }
+            BoundedSequenceField::Int64(values, _) => {
+                values.iter().map(|v| format!("{}", v)).collect()
+            }
+            BoundedSequenceField::String(values, _) => {
+                values.iter().map(|v| format!("{}", v)).collect()
+            }
+            BoundedSequenceField::BoundedString(values, _) => {
+                values.iter().map(|v| format!("{}", v)).collect()
+            }
+            BoundedSequenceField::WString(values, _) => {
+                values.iter().map(|v| format!("{}", v)).collect()
+            }
+            BoundedSequenceField::BoundedWString(values, _) => {
+                values.iter().map(|v| format!("{}", v)).collect()
+            }
+            BoundedSequenceField::Message(_, _) => {
+                panic!("Sequence of messages cannot be converted to string vector")
             }
         }
     }
@@ -524,8 +248,11 @@ impl<'a> Widget for ValueWidget<'a> {
 
 #[cfg(test)]
 mod tests {
+    use ratatui::style::Modifier;
     use rclrs::DynamicMessage;
     use rclrs::MessageTypeName;
+
+    use crate::common::style::SELECTED_STYLE;
 
     use super::*;
 
@@ -794,6 +521,15 @@ mod tests {
         ]);
         expected_buffer.set_style(
             Rect {
+                x: 0,
+                y: 0,
+                width: 6,
+                height: 1,
+            },
+            SELECTED_STYLE,
+        );
+        expected_buffer.set_style(
+            Rect {
                 x: 12,
                 y: 4,
                 width: 2,
@@ -833,6 +569,33 @@ mod tests {
             "    0         0         0         0               ",
             "    0         0         0         0               ",
         ]);
+        expected_buffer.set_style(
+            Rect {
+                x: 0,
+                y: 6,
+                width: 4,
+                height: 1,
+            },
+            SELECTED_STYLE,
+        );
+        expected_buffer.set_style(
+            Rect {
+                x: 2,
+                y: 7,
+                width: 4,
+                height: 1,
+            },
+            SELECTED_STYLE,
+        );
+        expected_buffer.set_style(
+            Rect {
+                x: 4,
+                y: 12,
+                width: 11,
+                height: 1,
+            },
+            SELECTED_STYLE,
+        );
         expected_buffer.set_style(
             Rect {
                 x: 9,
@@ -919,6 +682,24 @@ mod tests {
 
         expected_buffer.set_style(
             Rect {
+                x: 0,
+                y: 6,
+                width: 6,
+                height: 1,
+            },
+            SELECTED_STYLE,
+        );
+        expected_buffer.set_style(
+            Rect {
+                x: 2,
+                y: 17,
+                width: 12,
+                height: 1,
+            },
+            SELECTED_STYLE,
+        );
+        expected_buffer.set_style(
+            Rect {
                 x: 14,
                 y: 19,
                 width: 1,
@@ -950,7 +731,7 @@ mod tests {
         let mut buffer = Buffer::empty(area);
         widget.render(area, &mut buffer);
 
-        let mut expected = Buffer::with_lines([
+        let mut expected_buffer = Buffer::with_lines([
             "header:                                           ",
             "  stamp:                                          ",
             "    sec: 0                                        ",
@@ -972,7 +753,25 @@ mod tests {
             "    0         0         0         0               ",
             "    0         0         0         0               ",
         ]);
-        expected.set_style(
+        expected_buffer.set_style(
+            Rect {
+                x: 0,
+                y: 6,
+                width: 6,
+                height: 1,
+            },
+            SELECTED_STYLE,
+        );
+        expected_buffer.set_style(
+            Rect {
+                x: 2,
+                y: 7,
+                width: 6,
+                height: 1,
+            },
+            SELECTED_STYLE,
+        );
+        expected_buffer.set_style(
             Rect {
                 x: 9,
                 y: 10,
@@ -982,7 +781,7 @@ mod tests {
             SELECTED_STYLE.add_modifier(Modifier::SLOW_BLINK),
         );
 
-        // Check if the buffer has been modified as expected
-        assert_eq!(buffer, expected);
+        // Check if the buffer has been modified as expected_buffer
+        assert_eq!(buffer, expected_buffer);
     }
 }

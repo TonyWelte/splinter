@@ -1,16 +1,18 @@
 use std::{cell::RefCell, rc::Rc};
 
 use ratatui::{
+    layout::{Constraint, Layout},
     prelude::{Buffer, Rect},
-    text::{Line, Span},
-    widgets::{Block, List, ListItem, StatefulWidget, Widget},
+    style::{Color, Style},
+    text::{Line, Span, Text},
+    widgets::{Block, BorderType, List, ListItem, StatefulWidget, Widget},
 };
 
 use crossterm::event::{Event as CrosstermEvent, KeyCode, KeyEventKind};
 
 use crate::{
     common::{
-        event::{Event, NewTopicEvent},
+        event::{Event, NewHzEvent, NewPublisherEvent, NewTopicEvent},
         style::{HEADER_STYLE, SELECTED_STYLE},
     },
     connections::{Connection, ConnectionType},
@@ -26,9 +28,34 @@ use rclrs::MessageTypeName;
 
 pub struct TopicList;
 
+enum Action {
+    Echo,
+    Pub,
+    FrequencyPlot,
+}
+
+impl Action {
+    pub fn next(&self) -> Self {
+        match self {
+            Action::Echo => Action::Pub,
+            Action::Pub => Action::FrequencyPlot,
+            Action::FrequencyPlot => Action::FrequencyPlot,
+        }
+    }
+
+    pub fn previous(&self) -> Self {
+        match self {
+            Action::Echo => Action::Echo,
+            Action::Pub => Action::Echo,
+            Action::FrequencyPlot => Action::Pub,
+        }
+    }
+}
+
 pub struct TopicListState {
     connection: Rc<RefCell<ConnectionType>>,
     state: TopicListWidgetState,
+    action: Action,
 }
 
 impl TopicListState {
@@ -40,6 +67,7 @@ impl TopicListState {
                 topics,
                 selected_index: 0,
             },
+            action: Action::Echo,
         }
     }
 
@@ -59,13 +87,30 @@ impl TuiView for TopicListState {
             }
             match key_event.code {
                 KeyCode::Char('l') | KeyCode::Right => {
+                    self.action = self.action.next();
+                    Event::None
+                }
+                KeyCode::Char('h') | KeyCode::Left => {
+                    self.action = self.action.previous();
+                    Event::None
+                }
+                KeyCode::Enter => {
                     if let Some((topic, type_name)) =
                         self.state.topics.get(self.state.selected_index)
                     {
-                        Event::NewHzPlot(NewTopicEvent {
-                            topic: topic.clone(),
-                            message_type: type_name.clone(),
-                        })
+                        match self.action {
+                            Action::Echo => Event::NewMessageView(NewTopicEvent {
+                                topic: topic.clone(),
+                                message_type: type_name.clone(),
+                            }),
+                            Action::Pub => Event::NewPublisher(NewPublisherEvent {
+                                topic: topic.clone(),
+                            }),
+                            Action::FrequencyPlot => Event::NewHz(NewHzEvent {
+                                topic: topic.clone(),
+                                view: None,
+                            }),
+                        }
                     } else {
                         event
                     }
@@ -86,9 +131,39 @@ impl TopicList {
     pub fn render(area: Rect, buf: &mut Buffer, state: &mut TopicListState) {
         state.update();
 
+        let action_text = Line::from_iter([
+            Span::raw(" Topic List - "),
+            Span::styled(
+                " Echo ",
+                if matches!(state.action, Action::Echo) {
+                    SELECTED_STYLE
+                } else {
+                    Style::default()
+                },
+            ),
+            Span::styled(
+                " Pub ",
+                if matches!(state.action, Action::Pub) {
+                    SELECTED_STYLE
+                } else {
+                    Style::default()
+                },
+            ),
+            Span::styled(
+                " Hz ",
+                if matches!(state.action, Action::FrequencyPlot) {
+                    SELECTED_STYLE
+                } else {
+                    Style::default()
+                },
+            ),
+        ])
+        .centered();
+
         let block = Block::bordered()
-            .title(Line::raw("Topic List").centered())
-            .border_style(HEADER_STYLE);
+            .title(action_text)
+            .border_style(HEADER_STYLE)
+            .border_type(BorderType::Rounded);
 
         let topic_list_widget = TopicListWidget::new().block(block);
 
