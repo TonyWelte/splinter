@@ -139,10 +139,14 @@ impl AsStrVec for ArrayField {
             ArrayField::Int32(values) => values.iter().map(|v| format!("{}", v)).collect(),
             ArrayField::Uint64(values) => values.iter().map(|v| format!("{}", v)).collect(),
             ArrayField::Int64(values) => values.iter().map(|v| format!("{}", v)).collect(),
-            ArrayField::String(values) => values.iter().map(|v| format!("{}", v)).collect(),
-            ArrayField::BoundedString(values) => values.iter().map(|v| format!("{}", v)).collect(),
-            ArrayField::WString(values) => values.iter().map(|v| format!("{}", v)).collect(),
-            ArrayField::BoundedWString(values) => values.iter().map(|v| format!("{}", v)).collect(),
+            ArrayField::String(values) => values.iter().map(|v| format!("\"{}\"", v)).collect(),
+            ArrayField::BoundedString(values) => {
+                values.iter().map(|v| format!("\"{}\"", v)).collect()
+            }
+            ArrayField::WString(values) => values.iter().map(|v| format!("\"{}\"", v)).collect(),
+            ArrayField::BoundedWString(values) => {
+                values.iter().map(|v| format!("\"{}\"", v)).collect()
+            }
             _ => vec![],
         }
     }
@@ -166,13 +170,13 @@ impl AsStrVec for SequenceField {
             SequenceField::Int32(values) => values.iter().map(|v| format!("{}", v)).collect(),
             SequenceField::Uint64(values) => values.iter().map(|v| format!("{}", v)).collect(),
             SequenceField::Int64(values) => values.iter().map(|v| format!("{}", v)).collect(),
-            SequenceField::String(values) => values.iter().map(|v| format!("{}", v)).collect(),
+            SequenceField::String(values) => values.iter().map(|v| format!("\"{}\"", v)).collect(),
             SequenceField::BoundedString(values) => {
-                values.iter().map(|v| format!("{}", v)).collect()
+                values.iter().map(|v| format!("\"{}\"", v)).collect()
             }
-            SequenceField::WString(values) => values.iter().map(|v| format!("{}", v)).collect(),
+            SequenceField::WString(values) => values.iter().map(|v| format!("\"{}\"", v)).collect(),
             SequenceField::BoundedWString(values) => {
-                values.iter().map(|v| format!("{}", v)).collect()
+                values.iter().map(|v| format!("\"{}\"", v)).collect()
             }
             SequenceField::Message(_) => {
                 panic!("Sequence of messages cannot be converted to string vector")
@@ -228,16 +232,16 @@ impl AsStrVec for BoundedSequenceField {
                 values.iter().map(|v| format!("{}", v)).collect()
             }
             BoundedSequenceField::String(values, _) => {
-                values.iter().map(|v| format!("{}", v)).collect()
+                values.iter().map(|v| format!("\"{}\"", v)).collect()
             }
             BoundedSequenceField::BoundedString(values, _) => {
-                values.iter().map(|v| format!("{}", v)).collect()
+                values.iter().map(|v| format!("\"{}\"", v)).collect()
             }
             BoundedSequenceField::WString(values, _) => {
-                values.iter().map(|v| format!("{}", v)).collect()
+                values.iter().map(|v| format!("\"{}\"", v)).collect()
             }
             BoundedSequenceField::BoundedWString(values, _) => {
-                values.iter().map(|v| format!("{}", v)).collect()
+                values.iter().map(|v| format!("\"{}\"", v)).collect()
             }
             BoundedSequenceField::Message(_, _) => {
                 panic!("Sequence of messages cannot be converted to string vector")

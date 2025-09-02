@@ -17,7 +17,9 @@ use rclrs::*;
 use crate::{
     common::{
         event::Event,
-        generic_message::{GenericField, GenericMessage, MessageMetadata, SimpleField},
+        generic_message::{
+            AnyTypeRef, GenericField, GenericMessage, Length, MessageMetadata, SimpleField,
+        },
         style::HEADER_STYLE,
     },
     connections::{Connection, ConnectionType},
@@ -115,20 +117,29 @@ fn get_field(message: &GenericMessage, field_index_path: &[usize]) -> Option<f64
     if field_index_path.is_empty() {
         return None; // No field index provided
     }
-    let field_index = field_index_path.first()?;
-    let field = message.get_index(*field_index).unwrap();
+    let field = message.get_deep_index(field_index_path).unwrap();
     match field {
-        GenericField::Simple(SimpleField::Double(value)) => Some(*value),
-        GenericField::Simple(SimpleField::Float(value)) => Some(*value as f64),
-        GenericField::Simple(SimpleField::Int64(value)) => Some(*value as f64),
-        GenericField::Simple(SimpleField::Uint64(value)) => Some(*value as f64),
-        GenericField::Simple(SimpleField::Int32(value)) => Some(*value as f64),
-        GenericField::Simple(SimpleField::Uint32(value)) => Some(*value as f64),
-        GenericField::Simple(SimpleField::Message(msg)) => {
-            // If the field is a nested message, recursively get the field value
-            get_field(&msg, &field_index_path[1..])
+        AnyTypeRef::Float(v) => Some(*v as f64),
+        AnyTypeRef::Double(v) => Some(*v as f64),
+        AnyTypeRef::Boolean(v) => {
+            if *v {
+                Some(1.0)
+            } else {
+                Some(0.0)
+            }
         }
-        _ => None, // Handle other types as needed
+        AnyTypeRef::Uint8(v) => Some(*v as f64),
+        AnyTypeRef::Int8(v) => Some(*v as f64),
+        AnyTypeRef::Uint16(v) => Some(*v as f64),
+        AnyTypeRef::Int16(v) => Some(*v as f64),
+        AnyTypeRef::Uint32(v) => Some(*v as f64),
+        AnyTypeRef::Int32(v) => Some(*v as f64),
+        AnyTypeRef::Uint64(v) => Some(*v as f64),
+        AnyTypeRef::Int64(v) => Some(*v as f64),
+        AnyTypeRef::String(v) => Some(v.len() as f64),
+        AnyTypeRef::Array(v) => Some(v.len() as f64),
+        AnyTypeRef::Sequence(v) => Some(v.len() as f64),
+        AnyTypeRef::BoundedSequence(v) => Some(v.len() as f64),
     }
 }
 

@@ -2,13 +2,14 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::time::Duration;
 
-use ratatui::text::Line;
-use ratatui::widgets::{BorderType, StatefulWidget, Tabs};
+use ratatui::widgets::Tabs;
 
-use crate::common::event::{Event, NewHzEvent, NewLineEvent};
+use crate::common::event::Event;
 use crate::common::style::SELECTED_STYLE;
 use crate::connections::ros2::ConnectionROS2;
-use crate::connections::{Connection, ConnectionType};
+use crate::connections::ConnectionType;
+use crate::popups::PopupView;
+use crate::popups::{add_hz_popup::AddHzState, add_line_popup::AddLineState};
 use crate::views::hz_plot::{HzPlotState, HzPlotWidget};
 use crate::views::live_plot::LivePlotState;
 use crate::views::raw_message::RawMessageState;
@@ -31,198 +32,6 @@ use ratatui::{
     widgets::{Paragraph, Widget},
     DefaultTerminal,
 };
-
-enum PopupView {
-    None,
-    AddLine(AddLineState),
-    AddHz(AddHzState),
-}
-
-struct AddLineState {
-    topic: String,
-    field: Vec<usize>,
-    candidate_views: Vec<usize>,
-    selected_index: usize, // Index out of candidate_views means "Create new view"
-}
-
-impl AddLineState {
-    pub fn new(topic: String, field: Vec<usize>, candidate_views: Vec<usize>) -> Self {
-        Self {
-            topic,
-            field,
-            candidate_views,
-            selected_index: 0,
-        }
-    }
-
-    pub fn handle_event(&mut self, event: Event) -> Event {
-        if let Event::Key(CrosstermEvent::Key(key_event)) = event {
-            if key_event.kind != KeyEventKind::Press {
-                return event;
-            }
-            match key_event.code {
-                KeyCode::Char('k') | KeyCode::Up => {
-                    if self.selected_index == 0 {
-                        self.selected_index = self.candidate_views.len();
-                    } else {
-                        self.selected_index -= 1;
-                    }
-                    return Event::None;
-                }
-                KeyCode::Char('j') | KeyCode::Down => {
-                    self.selected_index =
-                        (self.selected_index + 1) % (self.candidate_views.len() + 1);
-                    return Event::None;
-                }
-                KeyCode::Enter => {
-                    if self.selected_index == self.candidate_views.len() {
-                        return Event::NewLinePlot(NewLineEvent {
-                            topic: self.topic.clone(),
-                            field: self.field.clone(),
-                            view: None,
-                        });
-                    } else {
-                        return Event::NewLine(NewLineEvent {
-                            topic: self.topic.clone(),
-                            field: self.field.clone(),
-                            view: Some(self.candidate_views[self.selected_index]),
-                        });
-                    }
-                }
-                KeyCode::Esc => {
-                    return Event::None;
-                }
-                _ => {}
-            }
-        }
-        Event::None
-    }
-}
-
-struct AddHzState {
-    topic: String,
-    candidate_views: Vec<usize>,
-    selected_index: usize, // Index out of candidate_views means "Create new view"
-}
-
-impl AddHzState {
-    pub fn new(topic: String, candidate_views: Vec<usize>) -> Self {
-        Self {
-            topic,
-            candidate_views,
-            selected_index: 0,
-        }
-    }
-
-    pub fn handle_event(&mut self, event: Event) -> Event {
-        if let Event::Key(CrosstermEvent::Key(key_event)) = event {
-            if key_event.kind != KeyEventKind::Press {
-                return event;
-            }
-            match key_event.code {
-                KeyCode::Char('k') | KeyCode::Up => {
-                    if self.selected_index == 0 {
-                        self.selected_index = self.candidate_views.len();
-                    } else {
-                        self.selected_index -= 1;
-                    }
-                    return Event::None;
-                }
-                KeyCode::Char('j') | KeyCode::Down => {
-                    self.selected_index =
-                        (self.selected_index + 1) % (self.candidate_views.len() + 1);
-                    return Event::None;
-                }
-                KeyCode::Enter => {
-                    if self.selected_index == self.candidate_views.len() {
-                        return Event::NewHzPlot(NewHzEvent {
-                            topic: self.topic.clone(),
-                            view: None,
-                        });
-                    } else {
-                        return Event::NewHz(NewHzEvent {
-                            topic: self.topic.clone(),
-                            view: Some(self.candidate_views[self.selected_index]),
-                        });
-                    }
-                }
-                KeyCode::Esc => {
-                    return Event::None;
-                }
-                _ => {}
-            }
-        }
-        Event::None
-    }
-}
-
-struct AddLinePopup;
-
-impl AddLinePopup {}
-
-impl StatefulWidget for AddLinePopup {
-    type State = AddLineState;
-
-    fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
-        let block = ratatui::widgets::Block::default()
-            .title(Line::raw("Add to Graph").centered())
-            .borders(ratatui::widgets::Borders::ALL)
-            .border_style(SELECTED_STYLE)
-            .border_type(BorderType::Rounded);
-
-        let inner_area = block.inner(area);
-        block.render(area, buf);
-
-        let options: Vec<String> = state
-            .candidate_views
-            .iter()
-            .map(|i| format!("Add to View {}", i + 1))
-            .chain(std::iter::once("Create New View".to_string()))
-            .collect();
-
-        let options_widget = Tabs::new(options)
-            .select(state.selected_index)
-            .block(ratatui::widgets::Block::default())
-            .highlight_style(SELECTED_STYLE)
-            .divider(" | ");
-
-        options_widget.render(inner_area, buf);
-    }
-}
-
-struct AddHzPopup;
-
-impl AddHzPopup {}
-
-impl StatefulWidget for AddHzPopup {
-    type State = AddHzState;
-
-    fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
-        let block = ratatui::widgets::Block::default()
-            .title(Line::raw("Add to Graph").centered())
-            .borders(ratatui::widgets::Borders::ALL)
-            .border_style(SELECTED_STYLE)
-            .border_type(BorderType::Rounded);
-
-        let inner_area = block.inner(area);
-        block.render(area, buf);
-
-        let options: Vec<String> = state
-            .candidate_views
-            .iter()
-            .map(|i| format!("Add to View {}", i + 1))
-            .chain(std::iter::once("Create New View".to_string()))
-            .collect();
-
-        let options_widget = Tabs::new(options)
-            .select(state.selected_index)
-            .block(ratatui::widgets::Block::default())
-            .highlight_style(SELECTED_STYLE)
-            .divider(" | ");
-
-        options_widget.render(inner_area, buf);
-    }
-}
 
 struct App {
     should_exit: bool,
@@ -334,18 +143,18 @@ impl App {
                     let connection = self.connection.clone();
                     if let Some(Views::LivePlot(live_plot_state)) = self.widgets.get_mut(view) {
                         live_plot_state.add_graph_line(topic, field, connection);
+                        self.active_widget_index = view;
                     }
                     return;
                 }
                 let topic = new_graph_event.topic;
                 let field = new_graph_event.field;
-                let connection = self.connection.clone();
-                let candidate_views: Vec<usize> = self
+                let candidate_views: Vec<(usize, String)> = self
                     .widgets
                     .iter()
                     .enumerate()
                     .filter_map(|(i, w)| match w {
-                        Views::LivePlot(_) => Some(i),
+                        Views::LivePlot(_) => Some((i, w.name())),
                         _ => None,
                     })
                     .collect();
@@ -377,16 +186,17 @@ impl App {
                     let connection = self.connection.clone();
                     if let Some(Views::HzPlot(hz_plot_state)) = self.widgets.get_mut(view) {
                         hz_plot_state.add_line(topic, connection);
+                        self.active_widget_index = view;
                     }
                     return;
                 }
                 let topic = new_hz_event.topic;
-                let candidate_views: Vec<usize> = self
+                let candidate_views: Vec<(usize, String)> = self
                     .widgets
                     .iter()
                     .enumerate()
                     .filter_map(|(i, w)| match w {
-                        Views::HzPlot(_) => Some(i),
+                        Views::HzPlot(_) => Some((i, w.name())),
                         _ => None,
                     })
                     .collect();
@@ -458,24 +268,18 @@ impl Widget for &mut App {
             }
         }
 
+        let popup_area = Rect {
+            x: area.width / 4,
+            y: area.height / 4,
+            width: area.width / 2,
+            height: area.height / 2,
+        };
         match &mut self.popup_view {
             PopupView::AddLine(state) => {
-                let popup_area = Rect {
-                    x: area.width / 4,
-                    y: area.height / 4,
-                    width: area.width / 2,
-                    height: 3,
-                };
-                AddLinePopup.render(popup_area, buf, state);
+                state.render(popup_area, buf);
             }
             PopupView::AddHz(state) => {
-                let popup_area = Rect {
-                    x: area.width / 4,
-                    y: area.height / 4,
-                    width: area.width / 2,
-                    height: 3,
-                };
-                AddHzPopup.render(popup_area, buf, state);
+                state.render(popup_area, buf);
             }
             _ => {}
         }

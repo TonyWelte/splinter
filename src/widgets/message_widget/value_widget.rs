@@ -214,15 +214,6 @@ impl<'a> Widget for ValueWidget<'a> {
                     style,
                 );
             }
-            GenericField::Array(ArrayField::Message(inner_messages)) => {
-                if area_right.height == 0 {
-                    return; // Nothing to render if the area is empty
-                }
-                for inner_message in inner_messages {
-                    let inner_widget = MessageWidget::new(inner_message);
-                    inner_widget.render(area_under, buf);
-                }
-            }
             GenericField::Array(array_value) => {
                 if area.height == 0 {
                     return; // Nothing to render if the area is empty

@@ -50,6 +50,12 @@ impl<'a> SequenceWidget<'a> {
                 }
                 height
             }
+            SequenceField::String(inner_strings)
+            | SequenceField::WString(inner_strings)
+            | SequenceField::BoundedString(inner_strings)
+            | SequenceField::BoundedWString(inner_strings) => {
+                1 + inner_strings.len() as u16 // +1 for the field name
+            }
             _ => {
                 let quot = (self.value.len() as u16) / (width / 10/* fixed width of val */);
                 let rem = (self.value.len() as u16) % (width / 10/* fixed width of val */);
@@ -88,16 +94,95 @@ impl<'a> Widget for SequenceWidget<'a> {
 
         match &self.value {
             SequenceField::Message(inner_messages) => {
-                for inner_message in inner_messages {
-                    let inner_widget = MessageWidget::new(inner_message);
+                for (i, inner_message) in inner_messages.iter().enumerate() {
+                    let mut inner_widget = MessageWidget::new(inner_message);
+                    if let Some(selection) = self.selection {
+                        if !selection.is_empty() && selection[0] == i {
+                            inner_widget = inner_widget.with_selection(&selection[1..]);
+                            if let Some(edit) = self.edit {
+                                inner_widget = inner_widget.with_edit(edit);
+                            }
+                        }
+                    }
                     let widget_height = inner_widget
-                        .height(area_remaining.width)
+                        .height(area_remaining.width.saturating_sub(2))
                         .min(area_remaining.height);
-                    inner_widget.render(area_remaining, buf);
+                    let message_area = Rect {
+                        x: area_remaining.x + 2,
+                        y: area_remaining.y,
+                        width: area_remaining.width.saturating_sub(2),
+                        height: widget_height,
+                    };
+                    let style = if let Some(selection) = self.selection {
+                        if !selection.is_empty() && selection[0] == i {
+                            SELECTED_STYLE
+                        } else {
+                            Style::default()
+                        }
+                    } else {
+                        Style::default()
+                    };
+
+                    Span::raw("- ").style(style).render(area_remaining, buf);
+                    inner_widget.render(message_area, buf);
 
                     // Move the area down for the next field
                     area_remaining.y += widget_height;
                     area_remaining.height -= widget_height;
+                }
+            }
+            SequenceField::String(inner_strings)
+            | SequenceField::WString(inner_strings)
+            | SequenceField::BoundedString(inner_strings)
+            | SequenceField::BoundedWString(inner_strings) => {
+                // Print each string on its own line, with quotes
+                let mut y = area_remaining.y;
+                for (i, value) in inner_strings.iter().enumerate() {
+                    if y >= area_remaining.y + area_remaining.height {
+                        break; // No more space to render
+                    }
+                    let style = if let Some(selection) = self.selection {
+                        if !selection.is_empty() && selection[0] == i {
+                            if self.edit.is_some() {
+                                SELECTED_STYLE.add_modifier(Modifier::SLOW_BLINK)
+                            } else {
+                                SELECTED_STYLE
+                            }
+                        } else {
+                            Style::default()
+                        }
+                    } else {
+                        Style::default()
+                    };
+                    if let Some(edit) = self.edit {
+                        if !self.selection.is_none()
+                            && !self.selection.unwrap().is_empty()
+                            && self.selection.unwrap()[0] == i
+                        {
+                            let is_edit_valid = true; // Any string is valid
+                            buf.set_stringn(
+                                area_remaining.x,
+                                y,
+                                edit,
+                                area_remaining.width as usize,
+                                style.fg(if is_edit_valid {
+                                    Color::Green
+                                } else {
+                                    Color::Red
+                                }),
+                            );
+                            y += 1;
+                            continue;
+                        }
+                    }
+                    buf.set_stringn(
+                        area_remaining.x,
+                        y,
+                        &format!("- \"{}\"", value),
+                        area_remaining.width as usize,
+                        style,
+                    );
+                    y += 1;
                 }
             }
             _ => {
@@ -203,8 +288,12 @@ impl<'a> Widget for SequenceWidget<'a> {
 
 #[cfg(test)]
 mod tests {
+    use indexmap::IndexMap;
+
     use super::*;
-    use crate::common::generic_message::SequenceField;
+    use crate::common::generic_message::{
+        GenericField, GenericMessage, InterfaceType, SequenceField, SimpleField,
+    };
 
     #[test]
     fn test_sequence_widget_height() {
@@ -243,6 +332,64 @@ mod tests {
             "1         2         3         4         5         ",
             "6         7         8         9         10        ",
             "11        12        13        14        15        ",
+        ]);
+
+        buf.set_style(buf.area, Style::reset()); // Not testing style here
+        assert_eq!(buf, expected);
+    }
+
+    #[test]
+    fn test_sequence_of_messages_render() {
+        let sequence_field = SequenceField::Message(vec![
+            GenericMessage::new(
+                InterfaceType {
+                    package_name: "test".to_string(),
+                    catergory: "msg".to_string(),
+                    type_name: "Message".to_string(),
+                },
+                IndexMap::from_iter([
+                    (
+                        "field1".to_string(),
+                        GenericField::Simple(SimpleField::Int32(42)),
+                    ),
+                    (
+                        "field2".to_string(),
+                        GenericField::Simple(SimpleField::String("hello".to_string())),
+                    ),
+                ]),
+            ),
+            GenericMessage::new(
+                InterfaceType {
+                    package_name: "test".to_string(),
+                    catergory: "msg".to_string(),
+                    type_name: "Message".to_string(),
+                },
+                IndexMap::from_iter([
+                    (
+                        "field1".to_string(),
+                        GenericField::Simple(SimpleField::Int32(100)),
+                    ),
+                    (
+                        "field2".to_string(),
+                        GenericField::Simple(SimpleField::String("world".to_string())),
+                    ),
+                ]),
+            ),
+        ]);
+        let sequence_widget = SequenceWidget::new("test_sequence", &sequence_field);
+        let mut buf = Buffer::empty(Rect::new(0, 0, 50, 10));
+        sequence_widget.render(buf.area, &mut buf);
+        let expected = Buffer::with_lines([
+            "test_sequence: 2 elements                         ",
+            "- field1: 42                                      ",
+            "  field2: \"hello\"                                 ",
+            "- field1: 100                                     ",
+            "  field2: \"world\"                                 ",
+            "                                                  ",
+            "                                                  ",
+            "                                                  ",
+            "                                                  ",
+            "                                                  ",
         ]);
 
         buf.set_style(buf.area, Style::reset()); // Not testing style here

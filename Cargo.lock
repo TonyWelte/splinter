@@ -3,6 +3,16 @@
 version = 4
 
 [[package]]
+name = "action_msgs"
+version = "2.0.2"
+dependencies = [
+ "builtin_interfaces",
+ "rosidl_runtime_rs",
+ "service_msgs",
+ "unique_identifier_msgs",
+]
+
+[[package]]
 name = "addr2line"
 version = "0.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1842,6 +1852,7 @@ dependencies = [
  "rosidl_runtime_rs",
  "serde",
  "std_msgs",
+ "test_msgs",
  "tokio",
 ]
 
@@ -1953,6 +1964,14 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.101",
+]
+
+[[package]]
+name = "service_msgs"
+version = "2.0.2"
+dependencies = [
+ "builtin_interfaces",
+ "rosidl_runtime_rs",
 ]
 
 [[package]]
@@ -2122,7 +2141,7 @@ dependencies = [
  "getrandom 0.3.3",
  "once_cell",
  "rustix 1.0.8",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -2189,6 +2208,17 @@ dependencies = [
  "wezterm-dynamic",
  "wezterm-input-types",
  "winapi",
+]
+
+[[package]]
+name = "test_msgs"
+version = "2.0.2"
+dependencies = [
+ "action_msgs",
+ "builtin_interfaces",
+ "rosidl_runtime_rs",
+ "service_msgs",
+ "unique_identifier_msgs",
 ]
 
 [[package]]
@@ -2372,6 +2402,13 @@ name = "unicode-width"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1fc81956842c57dac11422a97c3b8195a1ff727f06e85c84ed2e8aa277c9a0fd"
+
+[[package]]
+name = "unique_identifier_msgs"
+version = "2.5.0"
+dependencies = [
+ "rosidl_runtime_rs",
+]
 
 [[package]]
 name = "utf8parse"
@@ -2826,10 +2863,6 @@ dependencies = [
 ]
 
 [[patch.unused]]
-name = "action_msgs"
-version = "2.0.2"
-
-[[patch.unused]]
 name = "example_interfaces"
 version = "0.12.0"
 
@@ -2844,15 +2877,3 @@ version = "0.1.0"
 [[patch.unused]]
 name = "rosgraph_msgs"
 version = "2.0.2"
-
-[[patch.unused]]
-name = "service_msgs"
-version = "2.0.2"
-
-[[patch.unused]]
-name = "test_msgs"
-version = "2.0.2"
-
-[[patch.unused]]
-name = "unique_identifier_msgs"
-version = "2.5.0"

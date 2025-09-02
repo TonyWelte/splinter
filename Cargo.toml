@@ -20,6 +20,7 @@ enum_dispatch = "*"
 std_msgs = "*"
 anyhow = "*"
 rosidl_runtime_rs = "*"
+test_msgs = "*"
 
 [lib]
 name = "ros2tui"
@@ -28,3 +29,7 @@ path = "src/lib.rs"
 [[bin]]
 name = "ros2tui"
 path = "src/ros2tui.rs"
+
+[[bin]]
+name = "dev_node"
+path = "src/dev_node.rs"
