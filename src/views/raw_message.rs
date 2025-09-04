@@ -9,12 +9,11 @@ use ratatui::{
     text::Line,
     widgets::{Block, BorderType, Paragraph, Widget},
 };
-use rclrs::*;
 
 use crate::{
     common::{
         event::{Event, NewLineEvent},
-        generic_message::{GenericMessage, MessageMetadata},
+        generic_message::{FieldType, GenericMessage, MessageMetadata},
         generic_message_selector::GenericMessageSelector,
         style::HEADER_STYLE,
     },
@@ -130,11 +129,36 @@ impl TuiView for RawMessageState {
                     self.select_last();
                     Event::None
                 }
-                KeyCode::Enter => Event::NewLine(NewLineEvent {
-                    topic: self.topic.clone(),
-                    field: self.selected_fields.clone(),
-                    view: None,
-                }),
+                KeyCode::Enter => {
+                    match self
+                        .message
+                        .lock()
+                        .unwrap()
+                        .as_ref()
+                        .unwrap()
+                        .get_field_type(&self.selected_fields)
+                    {
+                        Ok(FieldType::Float)
+                        | Ok(FieldType::Double)
+                        | Ok(FieldType::Boolean)
+                        | Ok(FieldType::Uint8)
+                        | Ok(FieldType::Int8)
+                        | Ok(FieldType::Uint16)
+                        | Ok(FieldType::Int16)
+                        | Ok(FieldType::Uint32)
+                        | Ok(FieldType::Int32)
+                        | Ok(FieldType::Uint64)
+                        | Ok(FieldType::Int64) => {
+                            return Event::NewLine(NewLineEvent {
+                                topic: self.topic.clone(),
+                                field: self.selected_fields.clone(),
+                                view: None,
+                            });
+                        }
+                        Ok(_) => Event::Error("Cannot plot non-primitive field".to_string()),
+                        Err(e) => Event::Error(format!("Failed to get field type: {}", e)),
+                    }
+                }
                 _ => event,
             }
         } else {

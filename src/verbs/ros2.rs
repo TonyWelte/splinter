@@ -8,6 +8,7 @@ use crate::common::event::Event;
 use crate::common::style::SELECTED_STYLE;
 use crate::connections::ros2::ConnectionROS2;
 use crate::connections::ConnectionType;
+use crate::popups::error_popup::ErrorPopup;
 use crate::popups::PopupView;
 use crate::popups::{add_hz_popup::AddHzState, add_line_popup::AddLineState};
 use crate::views::hz_plot::{HzPlotState, HzPlotWidget};
@@ -98,6 +99,7 @@ impl App {
                     }
                 }
             }
+            PopupView::Error(data) => data.handle_event(event),
         };
 
         match event {
@@ -219,6 +221,12 @@ impl App {
                 self.widgets.push(widget);
                 self.active_widget_index = self.widgets.len() - 1;
             }
+            Event::ClosePopup => {
+                self.popup_view = PopupView::None;
+            }
+            Event::Error(err_msg) => {
+                self.popup_view = PopupView::Error(ErrorPopup::new(err_msg));
+            }
             Event::Key(_) => {}
             Event::None => {}
         }
@@ -281,7 +289,10 @@ impl Widget for &mut App {
             PopupView::AddHz(state) => {
                 state.render(popup_area, buf);
             }
-            _ => {}
+            PopupView::Error(state) => {
+                state.render(popup_area, buf);
+            }
+            PopupView::None => {}
         }
     }
 }
@@ -297,7 +308,7 @@ impl App {
 
     fn render_footer(area: Rect, buf: &mut Buffer) {
         Paragraph::new(
-            "Use Tab to switch active pannel, ↓↑ to move, → for actions, q or Esc to exit",
+            "Use Tab to switch active pannel, ↓↑ to move, Enter for actions, q or Esc to exit",
         )
         .centered()
         .render(area, buf);

@@ -940,11 +940,13 @@ impl GenericField {
     }
 
     pub fn get_field_type(&self, field_index_path: &[usize]) -> Result<FieldType, String> {
-        if field_index_path.is_empty() {
-            return Err("Field index path is empty".to_string());
-        }
-        let index = field_index_path[0];
         match self {
+            GenericField::Simple(SimpleField::Message(inner_message)) => {
+                if field_index_path.is_empty() {
+                    return Ok(FieldType::Message);
+                }
+                return inner_message.get_field_type(&field_index_path);
+            }
             GenericField::Simple(simple_field) => {
                 if !field_index_path.is_empty() {
                     return Err("Field index path out of bounds".to_string());
@@ -962,21 +964,25 @@ impl GenericField {
                     SimpleField::Uint64(_) => Ok(FieldType::Uint64),
                     SimpleField::Int64(_) => Ok(FieldType::Int64),
                     SimpleField::String(_) => Ok(FieldType::String),
-                    SimpleField::Message(_) => Ok(FieldType::Message),
                     _ => Err("Unsupported simple field type".to_string()),
                 }
             }
-            GenericField::Array(array_field) => {
-                if field_index_path.len() == 1 {
+            GenericField::Array(ArrayField::Message(msg)) => {
+                if field_index_path.is_empty() {
                     return Ok(FieldType::Array);
                 }
+                let index = field_index_path[0];
+                if index >= msg.len() {
+                    return Err("Index out of bounds".to_string());
+                }
+                return msg[index].get_field_type(&field_index_path[1..]);
+            }
+            GenericField::Array(array_field) => {
+                if field_index_path.is_empty() {
+                    return Ok(FieldType::Array);
+                }
+                let index = field_index_path[0];
                 match array_field {
-                    ArrayField::Message(msgs) => {
-                        if index >= msgs.len() {
-                            return Err("Index out of bounds".to_string());
-                        }
-                        return msgs[index].get_field_type(&field_index_path[1..]);
-                    }
                     ArrayField::Float(v) => {
                         if index >= v.len() {
                             return Err("Index out of bounds".to_string());
@@ -1052,17 +1058,22 @@ impl GenericField {
                     _ => Err("Unsupported array field type".to_string()),
                 }
             }
-            GenericField::Sequence(sequence_field) => {
-                if field_index_path.len() == 1 {
+            GenericField::Sequence(SequenceField::Message(msgs)) => {
+                if field_index_path.is_empty() {
                     return Ok(FieldType::Sequence);
                 }
+                let index = field_index_path[0];
+                if index >= msgs.len() {
+                    return Err("Index out of bounds".to_string());
+                }
+                return msgs[index].get_field_type(&field_index_path[1..]);
+            }
+            GenericField::Sequence(sequence_field) => {
+                if field_index_path.is_empty() {
+                    return Ok(FieldType::Sequence);
+                }
+                let index = field_index_path[0];
                 match sequence_field {
-                    SequenceField::Message(msgs) => {
-                        if index >= msgs.len() {
-                            return Err("Index out of bounds".to_string());
-                        }
-                        return msgs[index].get_field_type(&field_index_path[1..]);
-                    }
                     SequenceField::Float(v) => {
                         if index >= v.len() {
                             return Err("Index out of bounds".to_string());
@@ -1138,17 +1149,22 @@ impl GenericField {
                     _ => Err("Unsupported sequence field type".to_string()),
                 }
             }
-            GenericField::BoundedSequence(bounded_sequence_field) => {
-                if field_index_path.len() == 1 {
+            GenericField::BoundedSequence(BoundedSequenceField::Message(msgs, _)) => {
+                if field_index_path.is_empty() {
                     return Ok(FieldType::BoundedSequence);
                 }
+                let index = field_index_path[0];
+                if index >= msgs.len() {
+                    return Err("Index out of bounds".to_string());
+                }
+                return msgs[index].get_field_type(&field_index_path[1..]);
+            }
+            GenericField::BoundedSequence(bounded_sequence_field) => {
+                if field_index_path.is_empty() {
+                    return Ok(FieldType::BoundedSequence);
+                }
+                let index = field_index_path[0];
                 match bounded_sequence_field {
-                    BoundedSequenceField::Message(msgs, _) => {
-                        if index >= msgs.len() {
-                            return Err("Index out of bounds".to_string());
-                        }
-                        return msgs[index].get_field_type(&field_index_path[1..]);
-                    }
                     BoundedSequenceField::Float(v, _) => {
                         if index >= v.len() {
                             return Err("Index out of bounds".to_string());
@@ -1551,7 +1567,7 @@ impl GenericMessage {
 
     pub fn get_field_type(&self, field_index_path: &[usize]) -> Result<FieldType, String> {
         if field_index_path.is_empty() {
-            return Err("Field index path is empty".to_string());
+            return Ok(FieldType::Message);
         }
         let index = field_index_path[0];
         let field = self

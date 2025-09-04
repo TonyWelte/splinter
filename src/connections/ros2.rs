@@ -8,7 +8,6 @@ use crate::common::generic_message::{
 };
 use crate::connections::Connection;
 
-use rclrs::MessageTypeName;
 use rclrs::*;
 use rosidl_runtime_rs::Sequence;
 

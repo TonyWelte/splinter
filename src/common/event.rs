@@ -35,4 +35,6 @@ pub enum Event {
     NewHz(NewHzEvent),
     NewHzPlot(NewHzEvent),
     NewPublisher(NewPublisherEvent),
+    Error(String),
+    ClosePopup,
 }
