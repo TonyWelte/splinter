@@ -38,12 +38,19 @@ pub struct RawMessageState {
 
 impl RawMessageState {
     pub fn new(topic: String, connection: Rc<RefCell<ConnectionType>>) -> Self {
-        let message_type = connection
-            .borrow()
-            .get_topic_type(&topic)
-            .expect("Failed to get topic type");
         let message = Arc::new(Mutex::new(None));
         let message_copy = message.clone();
+
+        // Wait until the topic type is available or timeout after 1 second
+        let mut message_type_wait_time = 0;
+        while connection.borrow().get_topic_type(&topic).is_none() {
+            std::thread::sleep(std::time::Duration::from_millis(100));
+            message_type_wait_time += 100;
+            if message_type_wait_time >= 1000 {
+                break;
+            }
+        }
+
         connection
             .borrow_mut()
             .subscribe(

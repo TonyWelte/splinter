@@ -5,7 +5,7 @@ use enum_dispatch::enum_dispatch;
 use rclrs::NodeNameInfo;
 use ros2::ConnectionROS2;
 
-use crate::common::generic_message::{GenericMessage, MessageMetadata};
+use crate::common::generic_message::{GenericMessage, InterfaceType, MessageMetadata};
 
 use rclrs::MessageTypeName;
 
@@ -16,7 +16,7 @@ pub trait Connection {
     fn name(&self) -> &str;
 
     /// Get the list of topics in the connection.
-    fn list_topics(&self) -> Vec<(String, MessageTypeName)>;
+    fn list_topics(&self) -> Vec<(String, InterfaceType)>;
 
     /// Get the list of nodes in the connection.
     fn list_nodes(&self) -> Vec<NodeNameInfo>;

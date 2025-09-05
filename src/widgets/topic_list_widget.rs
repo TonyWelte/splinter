@@ -2,14 +2,14 @@ use ratatui::{
     crossterm::event::{Event as CrosstermEvent, KeyCode},
     prelude::{BlockExt, Buffer, Rect},
     style::{Style, Styled},
-    text::{Line, Span, Text},
+    text::{Line, Span},
     widgets::{Block, StatefulWidget, Widget},
 };
 
-use crate::{common::event::Event, common::style::SELECTED_STYLE, widgets::TuiWidget};
-
-// TODO(@TonyWelte): Remove dependency on rclrs in widgets module
-use rclrs::MessageTypeName;
+use crate::{
+    common::{event::Event, generic_message::InterfaceType, style::SELECTED_STYLE},
+    widgets::TuiWidget,
+};
 
 pub struct TopicListWidget<'a> {
     block: Option<Block<'a>>,
@@ -17,12 +17,12 @@ pub struct TopicListWidget<'a> {
 }
 
 pub struct TopicListWidgetState {
-    pub topics: Vec<(String, MessageTypeName)>,
+    pub topics: Vec<(String, InterfaceType)>,
     pub selected_index: usize,
 }
 
 impl TopicListWidgetState {
-    pub fn new(topics: Vec<(String, MessageTypeName)>, selected_index: Option<usize>) -> Self {
+    pub fn new(topics: Vec<(String, InterfaceType)>, selected_index: Option<usize>) -> Self {
         Self {
             topics,
             selected_index: selected_index.unwrap_or(0),
@@ -41,7 +41,7 @@ impl TopicListWidgetState {
         }
     }
 
-    pub fn update(&mut self, new_topics: Vec<(String, MessageTypeName)>) {
+    pub fn update(&mut self, new_topics: Vec<(String, InterfaceType)>) {
         if self.topics.is_empty() {
             self.topics = new_topics;
             self.selected_index = 0;
@@ -158,7 +158,7 @@ mod tests {
 
     #[track_caller]
     fn test_case_render<'a, Lines>(
-        topics: &Vec<(String, MessageTypeName)>,
+        topics: &Vec<(String, InterfaceType)>,
         selected: Option<usize>,
         expected: Lines,
     ) where
@@ -178,24 +178,15 @@ mod tests {
         let topics = vec![
             (
                 "topic1".to_string(),
-                MessageTypeName {
-                    package_name: "std_msgs".to_string(),
-                    type_name: "String".to_string(),
-                },
+                InterfaceType::new("std_msgs/msg/String"),
             ),
             (
                 "topic2".to_string(),
-                MessageTypeName {
-                    package_name: "sensor_msgs".to_string(),
-                    type_name: "Image".to_string(),
-                },
+                InterfaceType::new("sensor_msgs/msg/Image"),
             ),
             (
                 "topic3".to_string(),
-                MessageTypeName {
-                    package_name: "nav_msgs".to_string(),
-                    type_name: "Odometry".to_string(),
-                },
+                InterfaceType::new("nav_msgs/msg/Odometry"),
             ),
         ];
 
@@ -277,24 +268,15 @@ mod tests {
         let topics = vec![
             (
                 "topic1".to_string(),
-                MessageTypeName {
-                    package_name: "std_msgs".to_string(),
-                    type_name: "String".to_string(),
-                },
+                InterfaceType::new("std_msgs/msg/String"),
             ),
             (
                 "topic2".to_string(),
-                MessageTypeName {
-                    package_name: "sensor_msgs".to_string(),
-                    type_name: "Image".to_string(),
-                },
+                InterfaceType::new("sensor_msgs/msg/Image"),
             ),
             (
                 "topic3".to_string(),
-                MessageTypeName {
-                    package_name: "nav_msgs".to_string(),
-                    type_name: "Odometry".to_string(),
-                },
+                InterfaceType::new("nav_msgs/msg/Odometry"),
             ),
         ];
 

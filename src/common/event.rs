@@ -1,5 +1,6 @@
 use ratatui::crossterm::event::Event as CrosstermEvent;
-use rclrs::MessageTypeName;
+
+use crate::common::generic_message::InterfaceType;
 
 #[derive(Debug, Clone)]
 pub struct NewLineEvent {
@@ -11,7 +12,7 @@ pub struct NewLineEvent {
 #[derive(Debug, Clone)]
 pub struct NewTopicEvent {
     pub topic: String,
-    pub message_type: MessageTypeName,
+    pub message_type: InterfaceType,
 }
 
 #[derive(Debug, Clone)]
@@ -23,6 +24,7 @@ pub struct NewHzEvent {
 #[derive(Debug, Clone)]
 pub struct NewPublisherEvent {
     pub topic: String,
+    pub message_type: InterfaceType,
 }
 
 #[derive(Debug, Clone)]

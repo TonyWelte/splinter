@@ -1,10 +1,6 @@
-use clap::{Parser, Subcommand};
+use clap::{Args, Parser, Subcommand};
 use color_eyre::eyre::Result;
-
-use ros2tui::verbs::{
-    // mcap::{run as run_mcap, McapVerbArgs},
-    ros2::run as run_ros2,
-};
+use ros2tui::common::app::{App, AppArgs};
 
 #[derive(Debug, Parser)]
 #[command(name = "ros2tui")]
@@ -12,25 +8,62 @@ use ros2tui::verbs::{
 #[command(version, about)]
 struct CliArgs {
     #[command(subcommand)]
-    commands: Commands,
+    commands: Option<Commands>,
 }
 
 #[derive(Debug, Subcommand, Clone)]
 enum Commands {
-    // #[command(name = "mcap")]
-    // Mcap(McapVerbArgs),
-    #[command(name = "ros2")]
-    ROS2,
+    #[command(name = "topic")]
+    Topic(TopicArgs),
+    Node,
+}
+
+#[derive(Debug, Args, Clone)]
+struct TopicArgs {
+    #[command(subcommand)]
+    command: TopicCommands,
+}
+
+#[derive(Debug, Subcommand, Clone)]
+enum TopicCommands {
+    #[command(name = "list")]
+    List,
+    #[command(name = "echo")]
+    Echo { name: String },
+    #[command(name = "pub")]
+    Pub { name: String, message: String },
+    #[command(name = "hz")]
+    Hz { name: String },
+}
+
+pub fn run(app: App) -> color_eyre::eyre::Result<()> {
+    color_eyre::install()?;
+    let terminal = ratatui::init();
+    app.run(terminal)?;
+    ratatui::restore();
+
+    Ok(())
 }
 
 fn main() -> Result<()> {
     // Get file from CLI arguments
     let args = CliArgs::parse();
 
-    match args.commands {
-        // Commands::Mcap(mcap_args) => run_mcap(mcap_args)?,
-        Commands::ROS2 => run_ros2()?,
-    }
+    // Handle commands
+    let app = match args.commands {
+        Some(Commands::Topic(topic_args)) => match topic_args.command {
+            TopicCommands::List => App::new(AppArgs::TopicList),
+            TopicCommands::Echo { name } => App::new(AppArgs::RawMessage(name)),
+            TopicCommands::Pub { name, message } => {
+                App::new(AppArgs::TopicPublisher(name, message))
+            }
+            TopicCommands::Hz { name } => App::new(AppArgs::HzPlot(name)),
+        },
+        Some(Commands::Node) => App::new(AppArgs::NodeList),
+        None => App::default(),
+    };
+
+    run(app)?;
 
     Ok(())
 }

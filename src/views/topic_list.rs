@@ -105,6 +105,7 @@ impl TuiView for TopicListState {
                             }),
                             Action::Pub => Event::NewPublisher(NewPublisherEvent {
                                 topic: topic.clone(),
+                                message_type: type_name.clone(),
                             }),
                             Action::FrequencyPlot => Event::NewHz(NewHzEvent {
                                 topic: topic.clone(),

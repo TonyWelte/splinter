@@ -1,5 +1,5 @@
 use crossterm::event::{Event as CrosstermEvent, KeyCode, KeyEventKind};
-use ratatui::widgets::{BorderType, Paragraph, Widget};
+use ratatui::widgets::{BorderType, Paragraph, Widget, Wrap};
 
 use crate::{
     common::event::{Event, NewLineEvent},
@@ -31,12 +31,14 @@ impl ErrorPopup {
 
 impl ErrorPopup {
     pub fn render(&self, area: ratatui::layout::Rect, buf: &mut ratatui::buffer::Buffer) {
-        let error_popup_widget = Paragraph::new(self.message.clone()).block(
-            ratatui::widgets::Block::default()
-                .title("Error")
-                .borders(ratatui::widgets::Borders::ALL)
-                .border_type(BorderType::Rounded),
-        );
+        let error_popup_widget = Paragraph::new(self.message.clone())
+            .wrap(Wrap { trim: true })
+            .block(
+                ratatui::widgets::Block::default()
+                    .title("Error")
+                    .borders(ratatui::widgets::Borders::ALL)
+                    .border_type(BorderType::Rounded),
+            );
         error_popup_widget.render(area, buf);
     }
 }

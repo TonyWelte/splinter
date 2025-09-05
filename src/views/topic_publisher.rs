@@ -10,7 +10,7 @@ use rclrs::*;
 use crate::{
     common::{
         event::Event,
-        generic_message::{AnyTypeMutableRef, GenericMessage, Length},
+        generic_message::{AnyTypeMutableRef, GenericMessage, InterfaceType, Length},
         generic_message_selector::{get_field_category, FieldCategory, GenericMessageSelector},
         style::HEADER_STYLE,
     },
@@ -35,10 +35,14 @@ pub struct TopicPublisherState {
 }
 
 impl TopicPublisherState {
-    pub fn new(topic: String, connection: Rc<RefCell<ConnectionType>>) -> Self {
+    pub fn new(
+        topic: String,
+        topic_type: InterfaceType,
+        connection: Rc<RefCell<ConnectionType>>,
+    ) -> Self {
         let message_type = MessageTypeName {
-            package_name: "test_msgs".to_string(),
-            type_name: "BoundedSequences".to_string(),
+            package_name: topic_type.package_name.clone(),
+            type_name: topic_type.type_name.clone(),
         };
         let message = DynamicMessage::new(message_type.clone()).expect("Failed to create message");
         let generic_message = GenericMessage::from(message.view());

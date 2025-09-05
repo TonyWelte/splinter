@@ -4,7 +4,7 @@ use std::thread::{spawn, JoinHandle};
 use std::time::SystemTime;
 
 use crate::common::generic_message::{
-    ArrayField, GenericField, GenericMessage, MessageMetadata, SimpleField,
+    ArrayField, GenericField, GenericMessage, InterfaceType, MessageMetadata, SimpleField,
 };
 use crate::connections::Connection;
 
@@ -247,7 +247,7 @@ impl Connection for ConnectionROS2 {
     }
 
     /// Get the type of the connection.
-    fn list_topics(&self) -> Vec<(String, MessageTypeName)> {
+    fn list_topics(&self) -> Vec<(String, InterfaceType)> {
         self.node
             .get_topic_names_and_types()
             .unwrap()
@@ -255,13 +255,7 @@ impl Connection for ConnectionROS2 {
             .map(|(name, types)| {
                 let first_type = types
                     .first()
-                    .map(|type_name| {
-                        let parts: Vec<&str> = type_name.split('/').collect();
-                        MessageTypeName {
-                            package_name: parts.get(0).unwrap_or(&"").to_string(),
-                            type_name: parts.get(2).unwrap_or(&"").to_string(),
-                        }
-                    })
+                    .map(|type_name| InterfaceType::new(&type_name))
                     .unwrap();
                 (name, first_type)
             })

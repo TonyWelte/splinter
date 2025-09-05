@@ -11,6 +11,20 @@ pub struct InterfaceType {
     pub type_name: String,
 }
 
+impl InterfaceType {
+    pub fn new(full_type: &str) -> Self {
+        let parts: Vec<&str> = full_type.split('/').collect();
+        if parts.len() != 3 {
+            panic!("Invalid type format");
+        }
+        Self {
+            package_name: parts[0].to_string(),
+            catergory: parts[1].to_string(),
+            type_name: parts[2].to_string(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum SimpleField {
     Float(f32),
