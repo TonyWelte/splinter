@@ -121,14 +121,14 @@ impl TuiView for RawMessageState {
                     self.select_up();
                     Event::None
                 }
-                KeyCode::Char('l') | KeyCode::Right => {
-                    self.select_right();
-                    Event::None
-                }
-                KeyCode::Char('h') | KeyCode::Left => {
-                    self.select_left();
-                    Event::None
-                }
+                // KeyCode::Char('l') | KeyCode::Right => {
+                //     self.select_right();
+                //     Event::None
+                // }
+                // KeyCode::Char('h') | KeyCode::Left => {
+                //     self.select_left();
+                //     Event::None
+                // }
                 KeyCode::Char('g') => {
                     todo!("Wait for double g");
                 }
@@ -175,6 +175,15 @@ impl TuiView for RawMessageState {
 
     fn name(&self) -> String {
         format!("Raw Message - {}", self.topic)
+    }
+
+    fn get_help_text(&self) -> String {
+        "Raw Message View Help:\n\
+        - 'j' or ↓: Move down in the message fields.\n\
+        - 'k' or ↑: Move up in the message fields.\n\
+        - 'G': Jump to the last field in the message.\n\
+        - 'Enter': Create a new plot for the selected primitive field."
+            .to_string()
     }
 }
 

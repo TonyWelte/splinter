@@ -31,4 +31,6 @@ pub trait TuiView {
     fn handle_event(&mut self, event: Event) -> Event;
 
     fn name(&self) -> String;
+
+    fn get_help_text(&self) -> String;
 }

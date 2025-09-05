@@ -126,6 +126,16 @@ impl TuiView for TopicListState {
     fn name(&self) -> String {
         "Topics".to_string()
     }
+
+    fn get_help_text(&self) -> String {
+        "Topic List View Help:\n\
+        - 'j' or ↓: Move down in the topic list.\n\
+        - 'k' or ↑: Move up in the topic list.\n\
+        - 'l' or →: Switch to the next action (Echo, Pub, Hz).\n\
+        - 'h' or ←: Switch to the previous action (Echo, Pub, Hz).\n\
+        - 'Enter': Execute the selected action on the highlighted topic."
+            .to_string()
+    }
 }
 
 impl TopicList {

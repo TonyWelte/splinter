@@ -151,6 +151,13 @@ impl TuiView for HzPlotState {
     fn name(&self) -> String {
         format!("Frequency - {}s - window: 10 msg", self.max_duration)
     }
+
+    fn get_help_text(&self) -> String {
+        "Hz Plot View Help:\n\
+        - 'h' or ←: Increase the time window for the frequency plot.\n\
+        - 'l' or →: Decrease the time window for the frequency plot."
+            .to_string()
+    }
 }
 
 impl HzPlotWidget {

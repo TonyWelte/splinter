@@ -1,18 +1,32 @@
 use crossterm::event::{Event as CrosstermEvent, KeyCode, KeyEventKind};
-use ratatui::widgets::{BorderType, Paragraph, Widget, Wrap};
+use ratatui::widgets::{BorderType, Clear, Paragraph, Widget, Wrap};
 
 use crate::{
-    common::event::{Event, NewLineEvent},
+    common::{
+        event::{Event, NewLineEvent},
+        style::HEADER_STYLE,
+    },
     widgets::select_view_widget::SelectViewWidget,
 };
 
-pub struct ErrorPopup {
+pub struct TextPopup {
+    title: String,
     message: String,
 }
 
-impl ErrorPopup {
-    pub fn new(message: String) -> Self {
-        Self { message }
+impl TextPopup {
+    pub fn error(message: String) -> Self {
+        Self {
+            title: "Error".to_string(),
+            message,
+        }
+    }
+
+    pub fn info(message: String) -> Self {
+        Self {
+            title: "Info".to_string(),
+            message,
+        }
     }
 
     pub fn handle_event(&mut self, event: Event) -> Event {
@@ -20,22 +34,21 @@ impl ErrorPopup {
             if key_event.kind != KeyEventKind::Press {
                 return event;
             }
-            match key_event.code {
-                KeyCode::Enter | KeyCode::Esc => return Event::ClosePopup,
-                _ => {}
-            }
+            return Event::ClosePopup;
         }
         return event;
     }
 }
 
-impl ErrorPopup {
+impl TextPopup {
     pub fn render(&self, area: ratatui::layout::Rect, buf: &mut ratatui::buffer::Buffer) {
+        Clear.render(area, buf);
         let error_popup_widget = Paragraph::new(self.message.clone())
             .wrap(Wrap { trim: true })
             .block(
                 ratatui::widgets::Block::default()
-                    .title("Error")
+                    .title(self.title.clone())
+                    .border_style(HEADER_STYLE)
                     .borders(ratatui::widgets::Borders::ALL)
                     .border_type(BorderType::Rounded),
             );

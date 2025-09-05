@@ -9,7 +9,7 @@ use crate::common::generic_message::InterfaceType;
 use crate::common::style::SELECTED_STYLE;
 use crate::connections::ros2::ConnectionROS2;
 use crate::connections::ConnectionType;
-use crate::popups::error_popup::ErrorPopup;
+use crate::popups::text_popup::TextPopup;
 use crate::popups::PopupView;
 use crate::popups::{add_hz_popup::AddHzState, add_line_popup::AddLineState};
 use crate::views::hz_plot::{HzPlotState, HzPlotWidget};
@@ -175,6 +175,15 @@ impl App {
                         }
                         return;
                     }
+                    KeyCode::Char('?') => {
+                        if let Some(active_view) = self.widgets.get(self.active_widget_index) {
+                            let mut help_text = active_view.get_help_text();
+                            help_text.push_str("\n\n");
+                            help_text.push_str(&self.get_help_test());
+                            self.popup_view = PopupView::Error(TextPopup::info(help_text));
+                        }
+                        return;
+                    }
                     _ => {}
                 }
             }
@@ -268,11 +277,21 @@ impl App {
                 self.popup_view = PopupView::None;
             }
             Event::Error(err_msg) => {
-                self.popup_view = PopupView::Error(ErrorPopup::new(err_msg));
+                self.popup_view = PopupView::Error(TextPopup::error(err_msg));
             }
             Event::Key(_) => {}
             Event::None => {}
         }
+    }
+
+    fn get_help_test(&self) -> String {
+        "App Help:\n\
+        - 'Tab': Switch to the next panel.\n\
+        - 'Shift+Tab': Switch to the previous panel.\n\
+        - 'q' or 'Esc': Exit the application.\n\
+        - 'x': Close the current panel (if multiple panels are open).\n\
+        - '?': Show this help message."
+            .to_string()
     }
 }
 

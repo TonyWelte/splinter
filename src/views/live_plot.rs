@@ -170,6 +170,13 @@ impl TuiView for LivePlotState {
     fn name(&self) -> String {
         format!("Live Data - {}s", self.max_duration)
     }
+
+    fn get_help_text(&self) -> String {
+        "Live Plot View Help:\n\
+        - 'h' or ←: Increase the time window for the live plot.\n\
+        - 'l' or →: Decrease the time window for the live plot."
+            .to_string()
+    }
 }
 
 impl LivePlotWidget {

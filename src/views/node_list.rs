@@ -243,6 +243,15 @@ impl TuiView for NodeListState {
     fn name(&self) -> String {
         "Nodes".to_string()
     }
+
+    fn get_help_text(&self) -> String {
+        "Node List View Help:\n\
+        - 'j' or ↓: Move down in the node list or details.\n\
+        - 'k' or ↑: Move up in the node list or details.\n\
+        - 'l' or →: Switch to details view.\n\
+        - 'h' or ←: Switch back to node list view."
+            .to_string()
+    }
 }
 
 impl NodeListWidget {

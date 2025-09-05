@@ -291,6 +291,18 @@ impl TuiView for TopicPublisherState {
     fn name(&self) -> String {
         format!("Topic Publisher - {}", self.topic)
     }
+
+    fn get_help_text(&self) -> String {
+        "Topic Publisher View Help:\n\
+        - 'j' or ↓: Move down in the message fields.\n\
+        - 'k' or ↑: Move up in the message fields.\n\
+        - 'l' or →: Increase size of sequence field.\n\
+        - 'h' or ←: Decrease size of sequence field.\n\
+        - 'p': Publish the current message (only when not editing).\n\
+        - 'Enter': Toggle edit mode for primitive fields and commit changes when exiting edit mode.\n\
+        - 'Backspace': Remove last character from the field content when editing."
+            .to_string()
+    }
 }
 
 impl TopicPublisherWidget {
