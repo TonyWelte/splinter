@@ -174,7 +174,7 @@ mod tests {
     #[track_caller]
     fn test_case_render<'a, Lines>(
         topics: &Vec<(String, InterfaceType)>,
-        selected: Option<usize>,
+        selected: usize,
         expected: Lines,
     ) where
         Lines: IntoIterator,
@@ -207,7 +207,7 @@ mod tests {
 
         test_case_render(
             &topics,
-            None,
+            0,
             [
                 Line::from("topic1                         std_msgs/msg/String")
                     .style(SELECTED_STYLE),
@@ -225,25 +225,7 @@ mod tests {
 
         test_case_render(
             &topics,
-            Some(0),
-            [
-                Line::from("topic1                         std_msgs/msg/String")
-                    .style(SELECTED_STYLE),
-                "topic2                       sensor_msgs/msg/Image".into(),
-                "topic3                       nav_msgs/msg/Odometry".into(),
-                "                                                  ".into(),
-                "                                                  ".into(),
-                "                                                  ".into(),
-                "                                                  ".into(),
-                "                                                  ".into(),
-                "                                                  ".into(),
-                "                                                  ".into(),
-            ],
-        );
-
-        test_case_render(
-            &topics,
-            Some(1),
+            1,
             [
                 "topic1                         std_msgs/msg/String".into(),
                 Line::from("topic2                       sensor_msgs/msg/Image")
@@ -261,7 +243,7 @@ mod tests {
 
         test_case_render(
             &topics,
-            Some(2),
+            2,
             [
                 "topic1                         std_msgs/msg/String".into(),
                 "topic2                       sensor_msgs/msg/Image".into(),
@@ -295,7 +277,7 @@ mod tests {
             ),
         ];
 
-        let mut state = TopicListWidgetState::new(topics.clone(), None);
+        let mut state = TopicListWidgetState::new(topics.clone(), 0);
         let area = Rect::new(0, 0, 50, 10);
         let mut buffer = Buffer::empty(area);
         let widget = TopicListWidget::new().block(Block::bordered().title("List"));

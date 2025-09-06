@@ -53,7 +53,13 @@ pub fn get_field_category(message: &GenericMessage, field_path: &[usize]) -> Opt
         }
         GenericField::Array(array_value) => match array_value {
             ArrayField::Message(inner_msgs) => {
-                return get_field_category(&inner_msgs[1], &field_path[2..]);
+                if field_path[1] >= inner_msgs.len() {
+                    return None;
+                }
+                if field_path.len() == 2 {
+                    return Some(FieldCategory::Message);
+                }
+                return get_field_category(&inner_msgs[field_path[1]], &field_path[2..]);
             }
             _ => {
                 if field_path.len() == 2 && field_path[1] < array_value.len() {
@@ -401,30 +407,34 @@ mod tests {
         let mut selection = vec![];
         selection = msg_selection.down(&selection); // header
         assert_eq!(selection, vec![0]);
+        selection = msg_selection.down(&selection); // header.stamp
+        assert_eq!(selection, vec![0, 0]);
+        selection = msg_selection.down(&selection); // header.stamp.sec
+        assert_eq!(selection, vec![0, 0, 0]);
+        selection = msg_selection.down(&selection); // header.stamp.nanosec
+        assert_eq!(selection, vec![0, 0, 1]);
+        selection = msg_selection.down(&selection); // header.frame_id
+        assert_eq!(selection, vec![0, 1]);
         selection = msg_selection.down(&selection); // child_frame_id
         assert_eq!(selection, vec![1]);
         selection = msg_selection.down(&selection); // pose
         assert_eq!(selection, vec![2]);
-        selection = msg_selection.right(&selection); // pose.pose
+        selection = msg_selection.down(&selection); // pose.pose
         assert_eq!(selection, vec![2, 0]);
-        selection = msg_selection.right(&selection); // pose.pose.position
+        selection = msg_selection.down(&selection); // pose.pose.position
         assert_eq!(selection, vec![2, 0, 0]);
-        selection = msg_selection.down(&selection); // pose.pose.orientation
-        assert_eq!(selection, vec![2, 0, 1]);
-        selection = msg_selection.right(&selection); // pose.pose.orientation.x
-        assert_eq!(selection, vec![2, 0, 1, 0]);
-        selection = msg_selection.right(&selection); // No deeper field, so no change
-        assert_eq!(selection, vec![2, 0, 1, 0]);
 
-        selection = vec![2, 0]; // pose.pose
-        selection = msg_selection.down(&selection); // pose.covariance
-        assert_eq!(selection, vec![2, 1]);
-        selection = msg_selection.right(&selection); // pose.covariance.0
+        selection = vec![2, 1];
+        selection = msg_selection.down(&selection); // pose.covariance.0
         assert_eq!(selection, vec![2, 1, 0]);
+        selection = msg_selection.down(&selection); // pose.covariance.1
+        assert_eq!(selection, vec![2, 1, 1]);
+        selection = msg_selection.down(&selection); // pose.covariance.2
+        assert_eq!(selection, vec![2, 1, 2]);
 
         selection = vec![2, 1, 35]; // pose.covariance.35
         selection = msg_selection.down(&selection); // pose.covariance.35
-        assert_eq!(selection, vec![2, 1, 35]);
+        assert_eq!(selection, vec![3]);
     }
 
     #[test]
@@ -475,13 +485,19 @@ mod tests {
 
         let msg_selection = GenericMessageSelector::new(&generic_message);
         let mut selection = vec![2, 0, 1, 0]; // pose.pose.orientation.x
-        selection = msg_selection.left(&selection); // pose.pose.orientation
+        selection = msg_selection.up(&selection); // pose.pose.orientation
         assert_eq!(selection, vec![2, 0, 1]);
-        selection = msg_selection.left(&selection); // pose.pose
+        selection = msg_selection.up(&selection); // pose.pose.position.z
+        assert_eq!(selection, vec![2, 0, 0, 2]);
+        selection = msg_selection.up(&selection); // pose.pose.position.y
+        assert_eq!(selection, vec![2, 0, 0, 1]);
+        selection = msg_selection.up(&selection); // pose.pose.position.x
+        assert_eq!(selection, vec![2, 0, 0, 0]);
+        selection = msg_selection.up(&selection); // pose.pose.position
+        assert_eq!(selection, vec![2, 0, 0]);
+        selection = msg_selection.up(&selection); // pose.pose
         assert_eq!(selection, vec![2, 0]);
-        selection = msg_selection.left(&selection); // pose
+        selection = msg_selection.up(&selection); // pose
         assert_eq!(selection, vec![2]);
-        selection = msg_selection.left(&selection); // header
-        assert_eq!(selection, vec![]);
     }
 }

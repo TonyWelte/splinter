@@ -4,7 +4,7 @@ version = 4
 
 [[package]]
 name = "action_msgs"
-version = "2.0.2"
+version = "2.4.2"
 dependencies = [
  "builtin_interfaces",
  "rosidl_runtime_rs",
@@ -370,7 +370,7 @@ dependencies = [
 
 [[package]]
 name = "builtin_interfaces"
-version = "2.0.2"
+version = "2.4.2"
 dependencies = [
  "rosidl_runtime_rs",
 ]
@@ -1007,9 +1007,9 @@ checksum = "4271d37baee1b8c7e4b708028c57d816cf9d2434acb33a549475f78c181f6253"
 
 [[package]]
 name = "glob"
-version = "0.3.2"
+version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a8d1add55171497b4705a648c6b583acafb01d58050a51727785f0b2c8e0a2b2"
+checksum = "0cc23270f6e1808e30a928bdc84dea0b9b4136a8bc82338574f23baf47bbd280"
 
 [[package]]
 name = "gloo-timers"
@@ -1968,7 +1968,7 @@ dependencies = [
 
 [[package]]
 name = "service_msgs"
-version = "2.0.2"
+version = "2.4.2"
 dependencies = [
  "builtin_interfaces",
  "rosidl_runtime_rs",
@@ -2075,7 +2075,7 @@ checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 
 [[package]]
 name = "std_msgs"
-version = "5.3.6"
+version = "5.8.2"
 dependencies = [
  "builtin_interfaces",
  "rosidl_runtime_rs",
@@ -2212,7 +2212,7 @@ dependencies = [
 
 [[package]]
 name = "test_msgs"
-version = "2.0.2"
+version = "2.4.2"
 dependencies = [
  "action_msgs",
  "builtin_interfaces",
@@ -2405,7 +2405,7 @@ checksum = "1fc81956842c57dac11422a97c3b8195a1ff727f06e85c84ed2e8aa277c9a0fd"
 
 [[package]]
 name = "unique_identifier_msgs"
-version = "2.5.0"
+version = "2.8.1"
 dependencies = [
  "rosidl_runtime_rs",
 ]
@@ -2864,16 +2864,12 @@ dependencies = [
 
 [[patch.unused]]
 name = "example_interfaces"
-version = "0.12.0"
+version = "0.14.1"
 
 [[patch.unused]]
 name = "rcl_interfaces"
-version = "2.0.2"
-
-[[patch.unused]]
-name = "ros2tui"
-version = "0.1.0"
+version = "2.4.2"
 
 [[patch.unused]]
 name = "rosgraph_msgs"
-version = "2.0.2"
+version = "2.4.2"

@@ -85,6 +85,83 @@ impl<'a> ValueWidget<'a> {
             }
         }
     }
+
+    // TODO: Avoid code duplication with height()
+    pub fn selection_height(&self, width: u16) -> u16 {
+        if let Some(selection) = self.selection {
+            if selection.is_empty() {
+                return 1;
+            }
+
+            match &self.value {
+                GenericField::Simple(SimpleField::Message(inner_message)) => {
+                    MessageWidget::new(inner_message)
+                        .with_selection(&selection)
+                        .selection_height(width.saturating_sub(2))
+                        + 1
+                }
+                GenericField::Simple(_) => 1,
+                GenericField::Array(ArrayField::Message(inner_messages)) => {
+                    let mut height = 1; // +1 for the field name
+                    for (i, inner_message) in inner_messages.iter().enumerate() {
+                        if i != selection[0] {
+                            height +=
+                                MessageWidget::new(inner_message).height(width.saturating_sub(2));
+                        } else {
+                            height += MessageWidget::new(inner_message)
+                                .with_selection(&selection[1..])
+                                .selection_height(width.saturating_sub(2));
+                            break;
+                        }
+                    }
+                    height
+                }
+                GenericField::Array(array_value) => {
+                    ArrayWidget::new(self.name, array_value).height(width)
+                }
+                GenericField::Sequence(SequenceField::Message(inner_messages)) => {
+                    let mut height = 1; // +1 for the field name
+                    for (i, inner_message) in inner_messages.iter().enumerate() {
+                        if i != selection[0] {
+                            height += MessageWidget::new(inner_message).height(width);
+                        } else {
+                            height += MessageWidget::new(inner_message)
+                                .with_selection(&selection[1..])
+                                .selection_height(width);
+                            break;
+                        }
+                    }
+                    height
+                }
+                GenericField::Sequence(sequence_value) => {
+                    SequenceWidget::new(self.name, sequence_value).height(width)
+                    // +1 for the field name
+                    // -2 for the indentation
+                }
+                GenericField::BoundedSequence(BoundedSequenceField::Message(inner_messages, _)) => {
+                    let mut height = 1; // +1 for the field name
+                    for (i, inner_message) in inner_messages.iter().enumerate() {
+                        if i != selection[0] {
+                            height += MessageWidget::new(inner_message).height(width);
+                        } else {
+                            height += MessageWidget::new(inner_message)
+                                .with_selection(&selection[1..])
+                                .selection_height(width);
+                            break;
+                        }
+                    }
+                    height
+                }
+                GenericField::BoundedSequence(sequence_value) => {
+                    BoundedSequenceWidget::new(self.name, sequence_value).height(width)
+                    // +1 for the field name
+                    // -2 for the indentation
+                }
+            }
+        } else {
+            return 0;
+        }
+    }
 }
 
 impl<'a> Widget for ValueWidget<'a> {

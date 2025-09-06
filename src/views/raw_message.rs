@@ -7,7 +7,7 @@ use std::{
 use ratatui::{
     prelude::{Buffer, Rect},
     text::Line,
-    widgets::{Block, BorderType, Paragraph, Widget},
+    widgets::{Block, BorderType, Paragraph, StatefulWidget, Widget},
 };
 
 use crate::{
@@ -20,7 +20,7 @@ use crate::{
     connections::{Connection, ConnectionType},
     // generic_message::{GenericField, GenericMessage},
     views::TuiView,
-    widgets::message_widget::MessageWidget,
+    widgets::message_widget::{MessageWidget, MessageWidgetState},
 };
 
 use crossterm::event::{Event as CrosstermEvent, KeyCode, KeyEventKind};
@@ -34,6 +34,7 @@ pub struct RawMessageState {
     index: usize,
     connection: Rc<RefCell<ConnectionType>>,
     selected_fields: Vec<usize>,
+    message_widget_state: MessageWidgetState,
 }
 
 impl RawMessageState {
@@ -68,6 +69,7 @@ impl RawMessageState {
             index: 0,
             connection,
             selected_fields: Vec::new(),
+            message_widget_state: MessageWidgetState::new().auto_scroll(),
         };
         object
     }
@@ -213,7 +215,7 @@ impl RawMessageWidget {
             let message_widget = MessageWidget::new(message)
                 .with_selection(&state.selected_fields)
                 .block(block);
-            Widget::render(message_widget, area, buf);
+            StatefulWidget::render(message_widget, area, buf, &mut state.message_widget_state);
         } else {
             let paragraph = Paragraph::new("No message available").block(block);
             Widget::render(paragraph, area, buf);
