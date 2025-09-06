@@ -19,13 +19,15 @@ pub struct TopicListWidget<'a> {
 pub struct TopicListWidgetState {
     pub topics: Vec<(String, InterfaceType)>,
     pub selected_index: usize,
+    scroll_offset: usize,
 }
 
 impl TopicListWidgetState {
-    pub fn new(topics: Vec<(String, InterfaceType)>, selected_index: Option<usize>) -> Self {
+    pub fn new(topics: Vec<(String, InterfaceType)>, selected_index: usize) -> Self {
         Self {
             topics,
-            selected_index: selected_index.unwrap_or(0),
+            selected_index,
+            scroll_offset: 0,
         }
     }
 
@@ -105,8 +107,21 @@ impl<'a> StatefulWidget for TopicListWidget<'a> {
 
         let inner_area = self.block.inner_if_some(area);
 
+        // Update scroll offset to ensure the selected item is visible
+        if state.selected_index.saturating_sub(state.scroll_offset) >= inner_area.height as usize {
+            state.scroll_offset = state.selected_index + 1 - inner_area.height as usize;
+        } else if state.selected_index < state.scroll_offset {
+            state.scroll_offset = state.selected_index;
+        }
+
         // Iterate through all elements in the `items` and stylize them.
-        for (i, (topic_name, topic_type)) in state.topics.iter().enumerate() {
+        for (i, (topic_name, topic_type)) in
+            state.topics.iter().enumerate().skip(state.scroll_offset)
+        {
+            if inner_area.height as usize <= i - state.scroll_offset {
+                break;
+            }
+
             let available_width = inner_area.width as usize;
             let remaining_space = available_width.saturating_sub(
                 topic_name.len()
@@ -117,7 +132,7 @@ impl<'a> StatefulWidget for TopicListWidget<'a> {
 
             let item_area = Rect {
                 x: inner_area.x,
-                y: inner_area.y + i as u16,
+                y: inner_area.y + (i.saturating_sub(state.scroll_offset)) as u16,
                 width: inner_area.width,
                 height: 1,
             };

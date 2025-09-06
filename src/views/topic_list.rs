@@ -63,10 +63,7 @@ impl TopicListState {
         let topics = connection.borrow().list_topics();
         Self {
             connection,
-            state: TopicListWidgetState {
-                topics,
-                selected_index: 0,
-            },
+            state: TopicListWidgetState::new(topics, 0),
             action: Action::Echo,
         }
     }
