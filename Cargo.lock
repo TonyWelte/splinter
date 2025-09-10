@@ -1834,29 +1834,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2b15c43186be67a4fd63bee50d0303afffcef381492ebe2c5d87f324e1b8815c"
 
 [[package]]
-name = "ros2tui"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "cdr",
- "clap",
- "color-eyre",
- "crossterm",
- "enum_dispatch",
- "futures",
- "indexmap",
- "mcap",
- "memmap2",
- "ratatui",
- "rclrs",
- "rosidl_runtime_rs",
- "serde",
- "std_msgs",
- "test_msgs",
- "tokio",
-]
-
-[[package]]
 name = "rosidl_runtime_rs"
 version = "0.4.2"
 dependencies = [
@@ -2065,6 +2042,29 @@ checksum = "4f5fd57c80058a56cf5c777ab8a126398ece8e442983605d280a44ce79d0edef"
 dependencies = [
  "libc",
  "windows-sys 0.52.0",
+]
+
+[[package]]
+name = "splinter"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "cdr",
+ "clap",
+ "color-eyre",
+ "crossterm",
+ "enum_dispatch",
+ "futures",
+ "indexmap",
+ "mcap",
+ "memmap2",
+ "ratatui",
+ "rclrs",
+ "rosidl_runtime_rs",
+ "serde",
+ "std_msgs",
+ "test_msgs",
+ "tokio",
 ]
 
 [[package]]

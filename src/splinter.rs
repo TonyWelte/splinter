@@ -1,9 +1,9 @@
 use clap::{Args, Parser, Subcommand};
 use color_eyre::eyre::Result;
-use ros2tui::common::app::{App, AppArgs};
+use splinter::common::app::{App, AppArgs};
 
 #[derive(Debug, Parser)]
-#[command(name = "ros2tui")]
+#[command(name = "splinter")]
 #[command(about = "A TUI for ROS2")]
 #[command(version, about)]
 struct CliArgs {

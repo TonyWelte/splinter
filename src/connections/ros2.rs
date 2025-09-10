@@ -26,7 +26,7 @@ impl ConnectionROS2 {
         let context = Context::default_from_env().unwrap();
         let mut executor = context.create_basic_executor();
         let node = executor
-            .create_node("ros2tui".start_parameter_services(false))
+            .create_node("splinter".start_parameter_services(false))
             .unwrap();
         ConnectionROS2 {
             node,

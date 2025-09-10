@@ -24,7 +24,7 @@ TODO: Add animation
 Run the following command to install Splinter automatically:
 
 ```sh
-curl https://raw.githubusercontent.com/TonyWelte/splinter/refs/heads/develop/tools/ros2tui_install.sh | bash
+curl https://raw.githubusercontent.com/TonyWelte/splinter/refs/heads/develop/tools/splinter_install.sh | bash
 ```
 
 **What the script does:**

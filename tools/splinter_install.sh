@@ -39,8 +39,8 @@ cargo install cargo-ament-build
 
 # Setup workspace
 echo "Setting up workspace and cloning dependencies..."
-mkdir -p ./ros2tui_ws
-cd ./ros2tui_ws
+mkdir -p ./splinter_ws
+cd ./splinter_ws
 mkdir -p src
 
 # Install colcon plugins for Rust
@@ -48,9 +48,9 @@ echo "Installing colcon plugins for Rust..."
 pip install --break-system-packages git+https://github.com/colcon/colcon-cargo.git
 pip install --break-system-packages git+https://github.com/colcon/colcon-ros-cargo.git
 
-# Clone ros2_rust and ros2tui
-git clone -b develop https://github.com/Tonywelte/ros2tui.git src/ros2tui || true
-vcs import src < src/ros2tui/tools/packages.repos
+# Clone ros2_rust and splinter
+git clone -b develop https://github.com/Tonywelte/splinter.git src/splinter || true
+vcs import src < src/splinter/tools/packages.repos
 
 # Import dependencies using the detected ROS_DISTRO
 vcs import src < src/ros2_rust/ros2_rust_${ROS_DISTRO}.repos
@@ -58,10 +58,10 @@ vcs import src < src/ros2_rust/ros2_rust_${ROS_DISTRO}.repos
 # Build the workspace
 echo "Building the workspace..."
 source /opt/ros/$ROS_DISTRO/setup.bash
-colcon build --packages-up-to ros2tui
+colcon build --packages-up-to splinter
 
 # Source the workspace
 echo "To use this workspace, run:"
 echo "source $(pwd)/install/setup.bash"
 
-echo "Installation complete! Please source the workspace and virtual environment to start using ros2tui."
+echo "Installation complete! Please source the workspace to start using splinter."

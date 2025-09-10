@@ -362,7 +362,7 @@ impl Widget for &mut App {
 /// Rendering logic for the app
 impl App {
     fn render_header(area: Rect, buf: &mut Buffer) {
-        Paragraph::new("ros2tui - MCAP Viewer")
+        Paragraph::new("Splinter - ROS2 TUI")
             .bold()
             .centered()
             .render(area, buf);
