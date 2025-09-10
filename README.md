@@ -40,6 +40,7 @@ curl https://raw.githubusercontent.com/TonyWelte/splinter/refs/heads/develop/too
 | Feature                     | Notes                                  |
 | --------------------------- | -------------------------------------- |
 | Search/Filter topics/nodes  | Improve usability for large workspaces |
+| Partial rendering           | Only render on change                  |
 | Parameters (List, Get, Set) | Full parameter management              |
 
 ### Upcoming Features

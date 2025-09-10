@@ -11,16 +11,13 @@ use ratatui::{
     prelude::{Buffer, Rect, Style, Stylize},
     symbols::Marker,
     text::Line,
-    widgets::{Axis, Block, BorderType, Chart, Dataset, GraphType, Widget, LegendPosition},
+    widgets::{Axis, Block, BorderType, Chart, Dataset, GraphType, LegendPosition, Widget},
 };
-use rclrs::*;
 
 use crate::{
     common::{
         event::Event,
-        generic_message::{
-            AnyTypeRef, GenericField, GenericMessage, Length, MessageMetadata, SimpleField,
-        },
+        generic_message::{AnyTypeRef, GenericMessage, Length, MessageMetadata},
         style::HEADER_STYLE,
     },
     connections::{Connection, ConnectionType},
@@ -34,9 +31,8 @@ pub struct LivePlotWidget;
 
 pub struct GraphLineState {
     topic: String,
-    selected_fields: Vec<usize>,
     field_name: String,
-    connection: Rc<RefCell<ConnectionType>>,
+    _connection: Rc<RefCell<ConnectionType>>,
     plot: Arc<Mutex<Vec<(f64, f64)>>>, // Stores the plots for each field
 }
 
@@ -54,7 +50,6 @@ impl LivePlotState {
     ) -> Self {
         let plot = Arc::new(Mutex::new(Vec::new()));
         let plot_copy = plot.clone();
-        let selected_fields_copy = selected_fields.clone();
         connection
             .borrow_mut()
             .subscribe(
@@ -66,7 +61,7 @@ impl LivePlotState {
                         .duration_since(SystemTime::UNIX_EPOCH)
                         .unwrap()
                         .as_secs_f64();
-                    let value = get_field(&msg, &selected_fields_copy).unwrap();
+                    let value = get_field(&msg, &selected_fields).unwrap();
                     mut_plot.push((stamp, value));
                 },
             )
@@ -74,9 +69,8 @@ impl LivePlotState {
         Self {
             lines: vec![GraphLineState {
                 topic,
-                selected_fields,
                 field_name,
-                connection,
+                _connection: connection,
                 plot,
             }],
             max_duration: 10.0, // Default maximum duration for the plot
@@ -111,9 +105,8 @@ impl LivePlotState {
             .expect("Failed to subscribe to topic");
         self.lines.push(GraphLineState {
             topic,
-            selected_fields,
             field_name,
-            connection,
+            _connection: connection,
             plot,
         });
     }
@@ -233,11 +226,7 @@ impl LivePlotWidget {
             .enumerate()
             .map(|(i, (line, plot))| {
                 Dataset::default()
-                    .name(format!(
-                        "{} {}",
-                        line.topic,
-                        line.field_name
-                    ))
+                    .name(format!("{} {}", line.topic, line.field_name))
                     .marker(Marker::Braille)
                     .graph_type(GraphType::Line)
                     .style(Style::default().fg(match i % 6 {

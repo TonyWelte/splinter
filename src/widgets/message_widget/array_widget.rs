@@ -1,7 +1,7 @@
 use ratatui::{
     buffer::Buffer,
     layout::Rect,
-    style::{self, Color, Modifier, Style},
+    style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::Widget,
 };

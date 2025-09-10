@@ -26,7 +26,7 @@ pub struct TopicPublisherWidget;
 
 pub struct TopicPublisherState {
     topic: String,
-    connection: Rc<RefCell<ConnectionType>>,
+    _connection: Rc<RefCell<ConnectionType>>,
     publisher: Box<dyn Fn(&GenericMessage)>,
     message: GenericMessage,
     selected_fields: Vec<usize>,
@@ -52,7 +52,7 @@ impl TopicPublisherState {
             .expect("Failed to subscribe to topic");
         Self {
             topic,
-            connection,
+            _connection: connection,
             publisher,
             message: generic_message,
             selected_fields: Vec::new(),

@@ -429,7 +429,7 @@ pub enum GenericField {
 }
 
 impl GenericField {
-    pub fn get_deep_index(&self, field_index_path: &[usize]) -> Result<AnyTypeRef, String> {
+    pub fn get_deep_index(&'_ self, field_index_path: &[usize]) -> Result<AnyTypeRef<'_>, String> {
         match self {
             GenericField::Simple(SimpleField::Message(inner_message)) => {
                 if field_index_path.is_empty() {
@@ -461,7 +461,7 @@ impl GenericField {
                     SimpleField::BoundedString(v) => Ok(AnyTypeRef::String(v)),
                     SimpleField::WString(v) => Ok(AnyTypeRef::String(v)),
                     SimpleField::BoundedWString(v) => Ok(AnyTypeRef::String(v)),
-                    SimpleField::Message(v) => Err("Message not supported".to_string()),
+                    SimpleField::Message(_) => Err("Message not supported".to_string()),
                 }
             }
             GenericField::Array(array_field) => {
@@ -731,9 +731,9 @@ impl GenericField {
     }
 
     pub fn get_mut_deep_index(
-        &mut self,
+        &'_ mut self,
         field_index_path: &[usize],
-    ) -> Result<AnyTypeMutableRef, String> {
+    ) -> Result<AnyTypeMutableRef<'_>, String> {
         match self {
             GenericField::Simple(SimpleField::Message(inner_message)) => {
                 if field_index_path.is_empty() {
@@ -1280,7 +1280,8 @@ impl GenericField {
                 if field_index_path.len() == 1 {
                     return Ok(format!("[{}]", field_index));
                 }
-                return Ok(format!("[{}].", field_index) + &msgs[field_index].get_field_name(&field_index_path[1..])?);
+                return Ok(format!("[{}].", field_index)
+                    + &msgs[field_index].get_field_name(&field_index_path[1..])?);
             }
             GenericField::Array(array_field) => {
                 let array_len = array_field.len();
@@ -1297,7 +1298,8 @@ impl GenericField {
                 if field_index_path.len() == 1 {
                     return Ok(format!("[{}]", field_index));
                 }
-                return Ok(format!("[{}].", field_index) + &msgs[field_index].get_field_name(&field_index_path[1..])?);
+                return Ok(format!("[{}].", field_index)
+                    + &msgs[field_index].get_field_name(&field_index_path[1..])?);
             }
             GenericField::Sequence(sequence_field) => {
                 let seq_len = sequence_field.len();
@@ -1314,7 +1316,8 @@ impl GenericField {
                 if field_index_path.len() == 1 {
                     return Ok(format!("[{}]", field_index));
                 }
-                return Ok(format!("[{}].", field_index) + &msgs[field_index].get_field_name(&field_index_path[1..])?);
+                return Ok(format!("[{}].", field_index)
+                    + &msgs[field_index].get_field_name(&field_index_path[1..])?);
             }
             GenericField::BoundedSequence(sequence_field) => {
                 let seq_len = sequence_field.len();
@@ -1621,9 +1624,9 @@ impl GenericMessage {
     }
 
     pub fn get_mut_deep_index(
-        &mut self,
+        &'_ mut self,
         field_index_path: &[usize],
-    ) -> Result<AnyTypeMutableRef, String> {
+    ) -> Result<AnyTypeMutableRef<'_>, String> {
         if field_index_path.is_empty() {
             return Err("Field index path is empty".to_string());
         }
@@ -1636,7 +1639,7 @@ impl GenericMessage {
         field.get_mut_deep_index(&field_index_path[1..])
     }
 
-    pub fn get_deep_index(&self, field_index_path: &[usize]) -> Result<AnyTypeRef, String> {
+    pub fn get_deep_index(&'_ self, field_index_path: &[usize]) -> Result<AnyTypeRef<'_>, String> {
         if field_index_path.is_empty() {
             return Err("Field index path is empty".to_string());
         }
@@ -1722,7 +1725,7 @@ mod tests {
 
     #[test]
     fn test_get_field_name() {
-        let mut message = DynamicMessage::new("nav_msgs/msg/Odometry".try_into().unwrap()).unwrap();
+        let message = DynamicMessage::new("nav_msgs/msg/Odometry".try_into().unwrap()).unwrap();
 
         let generic_message = GenericMessage::from(message.view());
 
@@ -1730,7 +1733,7 @@ mod tests {
         assert_eq!(field_name, "header");
         let field_name_empty = generic_message.get_field_name(&[]).unwrap();
         assert_eq!(field_name_empty, "");
-        let field_name= generic_message.get_field_name(&[1]).unwrap();
+        let field_name = generic_message.get_field_name(&[1]).unwrap();
         assert_eq!(field_name, "child_frame_id");
         let field_name = generic_message.get_field_name(&[0, 0]).unwrap();
         assert_eq!(field_name, "header.stamp");

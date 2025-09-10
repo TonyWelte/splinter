@@ -1,11 +1,10 @@
 use std::{cell::RefCell, rc::Rc};
 
 use ratatui::{
-    layout::{Constraint, Layout},
     prelude::{Buffer, Rect},
-    style::{Color, Style},
-    text::{Line, Span, Text},
-    widgets::{Block, BorderType, List, ListItem, StatefulWidget, Widget},
+    style::Style,
+    text::{Line, Span},
+    widgets::{Block, BorderType, StatefulWidget},
 };
 
 use crossterm::event::{Event as CrosstermEvent, KeyCode, KeyEventKind};
@@ -22,9 +21,6 @@ use crate::{
         TuiWidget,
     },
 };
-
-// TODO(@TonyWelte): Remove dependency on rclrs in widgets module
-use rclrs::MessageTypeName;
 
 pub struct TopicList;
 

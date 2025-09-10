@@ -1,13 +1,10 @@
-use crossterm::event::{Event as CrosstermEvent, KeyCode, KeyEventKind};
+use crossterm::event::{Event as CrosstermEvent, KeyEventKind};
 use ratatui::widgets::{BorderType, Clear, Paragraph, Widget, Wrap};
 
-use crate::{
-    common::{
-        event::{Event, NewLineEvent},
+use crate::common::{
+        event::Event,
         style::HEADER_STYLE,
-    },
-    widgets::select_view_widget::SelectViewWidget,
-};
+    };
 
 pub struct TextPopup {
     title: String,

@@ -3,9 +3,7 @@ use ratatui::{
     widgets::{Block, StatefulWidget, Widget},
 };
 
-use crate::common::generic_message::{
-    ArrayField, BoundedSequenceField, GenericMessage, SequenceField, SimpleField,
-};
+use crate::common::generic_message::GenericMessage;
 
 mod array_widget;
 mod bounded_sequence_widget;

@@ -30,8 +30,7 @@ pub struct RawMessageWidget;
 pub struct RawMessageState {
     pub topic: String,
     pub message: Arc<Mutex<Option<GenericMessage>>>,
-    index: usize,
-    connection: Rc<RefCell<ConnectionType>>,
+    _connection: Rc<RefCell<ConnectionType>>,
     selected_fields: Vec<usize>,
     message_widget_state: MessageWidgetState,
 }
@@ -64,8 +63,7 @@ impl RawMessageState {
         let object = Self {
             topic: topic.clone(),
             message,
-            index: 0,
-            connection,
+            _connection: connection,
             selected_fields: Vec::new(),
             message_widget_state: MessageWidgetState::new().auto_scroll(),
         };
@@ -157,7 +155,11 @@ impl TuiView for RawMessageState {
                             return Event::NewLine(NewLineEvent {
                                 topic: self.topic.clone(),
                                 field: self.selected_fields.clone(),
-                                field_name: message.as_ref().unwrap().get_field_name(&self.selected_fields).unwrap_or_else(|_| "this is a bug".to_string()),
+                                field_name: message
+                                    .as_ref()
+                                    .unwrap()
+                                    .get_field_name(&self.selected_fields)
+                                    .unwrap_or_else(|_| "this is a bug".to_string()),
                                 view: None,
                             });
                         }
@@ -202,20 +204,20 @@ impl RawMessageWidget {
 
             block = if state.selected_fields.is_empty() {
                 block.title(
+                    Line::raw(format!(" Raw Message {} (no field selected) ", state.topic))
+                        .centered(),
+                )
+            } else {
+                block.title(
                     Line::raw(format!(
-                        " Raw Message {} (no field selected) ",
-                        state.topic
+                        " Raw Message {} {} ",
+                        state.topic,
+                        message
+                            .get_field_name(&state.selected_fields)
+                            .unwrap_or_else(|_| "".to_string())
                     ))
                     .centered(),
                 )
-            } else{ block.title(
-                Line::raw(format!(
-                    " Raw Message {} {} ",
-                    state.topic,
-                    message.get_field_name(&state.selected_fields).unwrap_or_else(|_| "".to_string())
-                ))
-                .centered(),
-            )
             };
 
             let message_widget = MessageWidget::new(message)
@@ -223,13 +225,7 @@ impl RawMessageWidget {
                 .block(block);
             StatefulWidget::render(message_widget, area, buf, &mut state.message_widget_state);
         } else {
-            block = block.title(
-                Line::raw(format!(
-                    " Raw Message {} ",
-                    state.topic
-                ))
-                .centered(),
-            );
+            block = block.title(Line::raw(format!(" Raw Message {} ", state.topic)).centered());
 
             let paragraph = Paragraph::new("No message available").block(block);
             Widget::render(paragraph, area, buf);

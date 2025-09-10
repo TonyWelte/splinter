@@ -12,12 +12,11 @@ use ratatui::{
     text::Line,
     widgets::{Axis, Block, Chart, Dataset, GraphType, Widget},
 };
-use rclrs::*;
 
 use crate::{
     common::{
         event::Event,
-        generic_message::{GenericField, GenericMessage, MessageMetadata, SimpleField},
+        generic_message::{GenericMessage, MessageMetadata},
         style::HEADER_STYLE,
     },
     connections::{Connection, ConnectionType},
@@ -47,7 +46,7 @@ impl HzLineState {
 }
 
 pub struct HzPlotState {
-    connection: Rc<RefCell<ConnectionType>>,
+    _connection: Rc<RefCell<ConnectionType>>,
     lines: Vec<Arc<Mutex<HzLineState>>>,
     max_duration: f64, // Maximum duration for the plot
 }
@@ -86,7 +85,7 @@ impl HzPlotState {
         Self {
             lines: vec![line_state_copy],
             max_duration: 10.0, // Default maximum duration for the plot
-            connection,
+            _connection: connection,
         }
     }
 
