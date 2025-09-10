@@ -286,6 +286,38 @@ impl<'a> Widget for ArrayWidget<'a> {
     }
 }
 
+impl AsStrVec for ArrayField {
+    fn as_str_iter(&self) -> Vec<String> {
+        match self {
+            ArrayField::Float(values) => values.iter().map(|v| format!("{}", v)).collect(),
+            ArrayField::Double(values) => values.iter().map(|v| format!("{}", v)).collect(),
+            ArrayField::LongDouble(_) => vec![],
+            ArrayField::Char(values) => values.iter().map(|v| format!("{}", v)).collect(),
+            ArrayField::WChar(values) => values.iter().map(|v| format!("{}", v)).collect(),
+            ArrayField::Boolean(values) => values.iter().map(|v| format!("{}", v)).collect(),
+            ArrayField::Octet(values) => values.iter().map(|v| format!("{}", v)).collect(),
+            ArrayField::Uint8(values) => values.iter().map(|v| format!("{}", v)).collect(),
+            ArrayField::Int8(values) => values.iter().map(|v| format!("{}", v)).collect(),
+            ArrayField::Uint16(values) => values.iter().map(|v| format!("{}", v)).collect(),
+            ArrayField::Int16(values) => values.iter().map(|v| format!("{}", v)).collect(),
+            ArrayField::Uint32(values) => values.iter().map(|v| format!("{}", v)).collect(),
+            ArrayField::Int32(values) => values.iter().map(|v| format!("{}", v)).collect(),
+            ArrayField::Uint64(values) => values.iter().map(|v| format!("{}", v)).collect(),
+            ArrayField::Int64(values) => values.iter().map(|v| format!("{}", v)).collect(),
+            ArrayField::String(values) => values.iter().map(|v| format!("\"{}\"", v)).collect(),
+            ArrayField::BoundedString(values) => {
+                values.iter().map(|v| format!("\"{}\"", v)).collect()
+            }
+            ArrayField::WString(values) => values.iter().map(|v| format!("\"{}\"", v)).collect(),
+            ArrayField::BoundedWString(values) => {
+                values.iter().map(|v| format!("\"{}\"", v)).collect()
+            }
+            _ => vec![],
+        }
+    }
+}
+
+
 #[cfg(test)]
 mod tests {
     use indexmap::IndexMap;

@@ -30,7 +30,6 @@ pub struct RawMessageWidget;
 pub struct RawMessageState {
     pub topic: String,
     pub message: Arc<Mutex<Option<GenericMessage>>>,
-    raw_messages: Vec<Vec<u8>>, // TODO(@TonyWelte): Find a way to avoid copying the messages
     index: usize,
     connection: Rc<RefCell<ConnectionType>>,
     selected_fields: Vec<usize>,
@@ -65,7 +64,6 @@ impl RawMessageState {
         let object = Self {
             topic: topic.clone(),
             message,
-            raw_messages: Vec::new(),
             index: 0,
             connection,
             selected_fields: Vec::new(),
@@ -139,10 +137,8 @@ impl TuiView for RawMessageState {
                     Event::None
                 }
                 KeyCode::Enter => {
-                    match self
-                        .message
-                        .lock()
-                        .unwrap()
+                    let message = self.message.lock().unwrap();
+                    match message
                         .as_ref()
                         .unwrap()
                         .get_field_type(&self.selected_fields)
@@ -161,6 +157,7 @@ impl TuiView for RawMessageState {
                             return Event::NewLine(NewLineEvent {
                                 topic: self.topic.clone(),
                                 field: self.selected_fields.clone(),
+                                field_name: message.as_ref().unwrap().get_field_name(&self.selected_fields).unwrap_or_else(|_| "this is a bug".to_string()),
                                 view: None,
                             });
                         }
@@ -191,16 +188,7 @@ impl TuiView for RawMessageState {
 
 impl RawMessageWidget {
     pub fn render(area: Rect, buf: &mut Buffer, state: &mut RawMessageState) {
-        let block = Block::bordered()
-            .title(
-                Line::raw(format!(
-                    "Raw Message ({}/{}) {:?}",
-                    state.index + 1,
-                    state.raw_messages.len(),
-                    state.selected_fields
-                ))
-                .centered(),
-            )
+        let mut block = Block::bordered()
             .border_style(HEADER_STYLE)
             .border_type(BorderType::Rounded);
 
@@ -212,11 +200,37 @@ impl RawMessageWidget {
                 }
             }
 
+            block = if state.selected_fields.is_empty() {
+                block.title(
+                    Line::raw(format!(
+                        " Raw Message {} (no field selected) ",
+                        state.topic
+                    ))
+                    .centered(),
+                )
+            } else{ block.title(
+                Line::raw(format!(
+                    " Raw Message {} {} ",
+                    state.topic,
+                    message.get_field_name(&state.selected_fields).unwrap_or_else(|_| "".to_string())
+                ))
+                .centered(),
+            )
+            };
+
             let message_widget = MessageWidget::new(message)
                 .with_selection(&state.selected_fields)
                 .block(block);
             StatefulWidget::render(message_widget, area, buf, &mut state.message_widget_state);
         } else {
+            block = block.title(
+                Line::raw(format!(
+                    " Raw Message {} ",
+                    state.topic
+                ))
+                .centered(),
+            );
+
             let paragraph = Paragraph::new("No message available").block(block);
             Widget::render(paragraph, area, buf);
         }

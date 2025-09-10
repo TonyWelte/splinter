@@ -6,6 +6,7 @@ use crate::common::generic_message::InterfaceType;
 pub struct NewLineEvent {
     pub topic: String,
     pub field: Vec<usize>,
+    pub field_name: String,
     pub view: Option<usize>,
 }
 

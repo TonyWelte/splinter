@@ -7,10 +7,11 @@ use std::{
 };
 
 use ratatui::{
+    layout::Constraint,
     prelude::{Buffer, Rect, Style, Stylize},
     symbols::Marker,
     text::Line,
-    widgets::{Axis, Block, BorderType, Chart, Dataset, GraphType, Widget},
+    widgets::{Axis, Block, BorderType, Chart, Dataset, GraphType, Widget, LegendPosition},
 };
 use rclrs::*;
 
@@ -34,6 +35,7 @@ pub struct LivePlotWidget;
 pub struct GraphLineState {
     topic: String,
     selected_fields: Vec<usize>,
+    field_name: String,
     connection: Rc<RefCell<ConnectionType>>,
     plot: Arc<Mutex<Vec<(f64, f64)>>>, // Stores the plots for each field
 }
@@ -47,6 +49,7 @@ impl LivePlotState {
     pub fn new(
         topic: String,
         selected_fields: Vec<usize>,
+        field_name: String,
         connection: Rc<RefCell<ConnectionType>>,
     ) -> Self {
         let plot = Arc::new(Mutex::new(Vec::new()));
@@ -72,6 +75,7 @@ impl LivePlotState {
             lines: vec![GraphLineState {
                 topic,
                 selected_fields,
+                field_name,
                 connection,
                 plot,
             }],
@@ -83,6 +87,7 @@ impl LivePlotState {
         &mut self,
         topic: String,
         selected_fields: Vec<usize>,
+        field_name: String,
         connection: Rc<RefCell<ConnectionType>>,
     ) {
         let plot = Arc::new(Mutex::new(Vec::new()));
@@ -107,6 +112,7 @@ impl LivePlotState {
         self.lines.push(GraphLineState {
             topic,
             selected_fields,
+            field_name,
             connection,
             plot,
         });
@@ -228,14 +234,11 @@ impl LivePlotWidget {
             .map(|(i, (line, plot))| {
                 Dataset::default()
                     .name(format!(
-                        "{} {:?}",
+                        "{} {}",
                         line.topic,
-                        line.selected_fields
-                            .iter()
-                            .map(|idx| idx.to_string())
-                            .collect::<Vec<_>>()
+                        line.field_name
                     ))
-                    .marker(Marker::Dot)
+                    .marker(Marker::Braille)
                     .graph_type(GraphType::Line)
                     .style(Style::default().fg(match i % 6 {
                         0 => ratatui::style::Color::Red,
@@ -277,6 +280,8 @@ impl LivePlotWidget {
             .x_axis(x_axis)
             .y_axis(y_axis)
             .show_grid(true)
+            .legend_position(Some(LegendPosition::TopRight))
+            .hidden_legend_constraints((Constraint::Min(0), Constraint::Min(0)))
             .block(block);
 
         Widget::render(chart, area, buf);

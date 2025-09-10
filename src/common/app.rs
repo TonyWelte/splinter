@@ -188,19 +188,18 @@ impl App {
                 }
             }
             Event::NewLine(new_graph_event) => {
+                let topic = new_graph_event.topic;
+                let field = new_graph_event.field;
+                let field_name = new_graph_event.field_name;
                 if new_graph_event.view.is_some() {
-                    let topic = new_graph_event.topic;
-                    let field = new_graph_event.field;
                     let view = new_graph_event.view.unwrap();
                     let connection = self.connection.clone();
                     if let Some(Views::LivePlot(live_plot_state)) = self.widgets.get_mut(view) {
-                        live_plot_state.add_graph_line(topic, field, connection);
+                        live_plot_state.add_graph_line(topic, field, field_name, connection);
                         self.active_widget_index = view;
                     }
                     return;
                 }
-                let topic = new_graph_event.topic;
-                let field = new_graph_event.field;
                 let candidate_views: Vec<(usize, String)> = self
                     .widgets
                     .iter()
@@ -211,14 +210,15 @@ impl App {
                     })
                     .collect();
                 self.popup_view =
-                    PopupView::AddLine(AddLineState::new(topic, field, candidate_views));
+                    PopupView::AddLine(AddLineState::new(topic, field, field_name, candidate_views));
                 return;
             }
             Event::NewLinePlot(new_graph_event) => {
                 let topic = new_graph_event.topic;
                 let field = new_graph_event.field;
+                let field_name = new_graph_event.field_name;
                 let connection = self.connection.clone();
-                let live_plot_state = LivePlotState::new(topic, field, connection);
+                let live_plot_state = LivePlotState::new(topic, field, field_name, connection);
                 let widget = Views::LivePlot(live_plot_state);
                 self.widgets.push(widget);
                 self.active_widget_index = self.widgets.len() - 1;

@@ -9,15 +9,17 @@ use crate::{
 pub struct AddLineState {
     topic: String,
     field: Vec<usize>,
+    field_name: String,
     views: Vec<(usize, String)>,
     selected: usize,
 }
 
 impl AddLineState {
-    pub fn new(topic: String, field: Vec<usize>, candidate_views: Vec<(usize, String)>) -> Self {
+    pub fn new(topic: String, field: Vec<usize>, field_name: String, candidate_views: Vec<(usize, String)>) -> Self {
         Self {
             topic,
             field,
+            field_name,
             views: candidate_views,
             selected: 0,
         }
@@ -44,12 +46,14 @@ impl AddLineState {
                         return Event::NewLinePlot(NewLineEvent {
                             topic: self.topic.clone(),
                             field: self.field.clone(),
+                            field_name: self.field_name.clone(),
                             view: None,
                         });
                     } else {
                         return Event::NewLine(NewLineEvent {
                             topic: self.topic.clone(),
                             field: self.field.clone(),
+                            field_name: self.field_name.clone(),
                             view: Some(self.views[self.selected].0),
                         });
                     }

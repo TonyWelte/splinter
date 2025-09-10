@@ -1256,6 +1256,76 @@ impl GenericField {
             }
         }
     }
+    pub fn get_field_name(&self, field_index_path: &[usize]) -> Result<String, String> {
+        if field_index_path.is_empty() {
+            return Ok(String::new());
+        }
+
+        let field_index = field_index_path[0];
+        let field_name = match self {
+            GenericField::Simple(SimpleField::Message(inner_message)) => {
+                return inner_message.get_field_name(&field_index_path);
+            }
+            GenericField::Simple(_) => {
+                if field_index_path.len() > 0 {
+                    return Err("Field is not a message type".to_string());
+                }
+                return Ok(String::new());
+            }
+            GenericField::Array(ArrayField::Message(msgs)) => {
+                let array_len = msgs.len();
+                if field_index >= array_len {
+                    return Err("Index out of bounds for array field".to_string());
+                }
+                if field_index_path.len() == 1 {
+                    return Ok(format!("[{}]", field_index));
+                }
+                return Ok(format!("[{}].", field_index) + &msgs[field_index].get_field_name(&field_index_path[1..])?);
+            }
+            GenericField::Array(array_field) => {
+                let array_len = array_field.len();
+                if field_index >= array_len {
+                    return Err("Index out of bounds for array field".to_string());
+                }
+                format!("[{}]", field_index)
+            }
+            GenericField::Sequence(SequenceField::Message(msgs)) => {
+                let seq_len = msgs.len();
+                if field_index >= seq_len {
+                    return Err("Index out of bounds for sequence field".to_string());
+                }
+                if field_index_path.len() == 1 {
+                    return Ok(format!("[{}]", field_index));
+                }
+                return Ok(format!("[{}].", field_index) + &msgs[field_index].get_field_name(&field_index_path[1..])?);
+            }
+            GenericField::Sequence(sequence_field) => {
+                let seq_len = sequence_field.len();
+                if field_index >= seq_len {
+                    return Err("Index out of bounds for sequence field".to_string());
+                }
+                format!("[{}]", field_index)
+            }
+            GenericField::BoundedSequence(BoundedSequenceField::Message(msgs, _)) => {
+                let seq_len = msgs.len();
+                if field_index >= seq_len {
+                    return Err("Index out of bounds for sequence field".to_string());
+                }
+                if field_index_path.len() == 1 {
+                    return Ok(format!("[{}]", field_index));
+                }
+                return Ok(format!("[{}].", field_index) + &msgs[field_index].get_field_name(&field_index_path[1..])?);
+            }
+            GenericField::BoundedSequence(sequence_field) => {
+                let seq_len = sequence_field.len();
+                if field_index >= seq_len {
+                    return Err("Index out of bounds for sequence field".to_string());
+                }
+                format!("[{}]", field_index)
+            }
+        };
+        Ok(field_name)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -1593,6 +1663,30 @@ impl GenericMessage {
         field.get_field_type(&field_index_path[1..])
     }
 
+    pub fn get_field_name(&self, field_index_path: &[usize]) -> Result<String, String> {
+        if field_index_path.is_empty() {
+            return Ok("".to_string());
+        }
+        let index = field_index_path[0];
+        let (field_name, field) = self
+            .fields
+            .get_index(index)
+            .ok_or_else(|| "Index out of bounds".to_string())?;
+
+        if field_index_path.len() == 1 {
+            return Ok(field_name.clone());
+        }
+
+        let sub_field_name = field.get_field_name(&field_index_path[1..])?;
+        if sub_field_name.is_empty() {
+            Ok(field_name.clone())
+        } else if sub_field_name.starts_with('[') {
+            Ok(format!("{}{}", field_name, sub_field_name))
+        } else {
+            Ok(format!("{}.{}", field_name, sub_field_name))
+        }
+    }
+
     pub fn field_count(&self) -> usize {
         self.fields.len()
     }
@@ -1624,5 +1718,27 @@ mod tests {
             generic_message["data"],
             GenericField::Simple(SimpleField::String("Hello, ROS2!".to_string()))
         );
+    }
+
+    #[test]
+    fn test_get_field_name() {
+        let mut message = DynamicMessage::new("nav_msgs/msg/Odometry".try_into().unwrap()).unwrap();
+
+        let generic_message = GenericMessage::from(message.view());
+
+        let field_name = generic_message.get_field_name(&[0]).unwrap();
+        assert_eq!(field_name, "header");
+        let field_name_empty = generic_message.get_field_name(&[]).unwrap();
+        assert_eq!(field_name_empty, "");
+        let field_name= generic_message.get_field_name(&[1]).unwrap();
+        assert_eq!(field_name, "child_frame_id");
+        let field_name = generic_message.get_field_name(&[0, 0]).unwrap();
+        assert_eq!(field_name, "header.stamp");
+        let field_name = generic_message.get_field_name(&[0, 1, 0]);
+        assert_eq!(field_name, Err("Field is not a message type".to_string()));
+        let field_name = generic_message.get_field_name(&[2, 1]).unwrap();
+        assert_eq!(field_name, "pose.covariance");
+        let field_name = generic_message.get_field_name(&[2, 1, 6]).unwrap();
+        assert_eq!(field_name, "pose.covariance[6]");
     }
 }

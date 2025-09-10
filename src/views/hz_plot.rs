@@ -205,7 +205,7 @@ impl HzPlotWidget {
             .map(|(i, (line, plot))| {
                 Dataset::default()
                     .name(format!("{}", line.lock().unwrap().topic,))
-                    .marker(Marker::Dot)
+                    .marker(Marker::Braille)
                     .graph_type(GraphType::Line)
                     .style(Style::default().fg(match i % 6 {
                         0 => ratatui::style::Color::Red,

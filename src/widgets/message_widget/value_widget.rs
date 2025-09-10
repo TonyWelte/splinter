@@ -5,6 +5,8 @@ use ratatui::{
     widgets::Widget,
 };
 
+use std::fmt;
+
 use crate::{
     common::{
         generic_message::{
@@ -191,12 +193,25 @@ impl<'a> Widget for ValueWidget<'a> {
 
         match &self.value {
             GenericField::Simple(SimpleField::Message(inner_message)) => {
+                let type_string = format!(
+                    "{}/{}/{}",  
+                    inner_message.type_name().package_name,
+                    inner_message.type_name().catergory,
+                    inner_message.type_name().type_name
+                );
                 buf.set_stringn(
                     area.x,
                     area.y,
-                    format!("{}: ", self.name),
+                    format!("{}:", self.name),
                     area.width as usize - area.x as usize,
                     style,
+                );
+                buf.set_stringn(
+                    area.x + self.name.len() as u16 + 2,
+                    area.y,
+                    format!("{}", type_string),
+                    area.width as usize - area.x as usize,
+                    Style::default().fg(Color::DarkGray),
                 );
                 let mut inner_widget = MessageWidget::new(inner_message);
                 if let Some(selection) = self.selection {
@@ -335,6 +350,33 @@ impl<'a> Widget for ValueWidget<'a> {
     }
 }
 
+impl fmt::Display for SimpleField {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            SimpleField::Float(value) => write!(f, "{}", value),
+            SimpleField::Double(value) => write!(f, "{}", value),
+            SimpleField::LongDouble(value) => write!(f, "{:?}", value), // TODO: Handle LongDouble display properly
+            SimpleField::Char(value) => write!(f, "'{}'", value),
+            SimpleField::WChar(value) => write!(f, "'{}'", value),
+            SimpleField::Boolean(value) => write!(f, "{}", value),
+            SimpleField::Octet(value) => write!(f, "{}", value),
+            SimpleField::Uint8(value) => write!(f, "{}", value),
+            SimpleField::Int8(value) => write!(f, "{}", value),
+            SimpleField::Uint16(value) => write!(f, "{}", value),
+            SimpleField::Int16(value) => write!(f, "{}", value),
+            SimpleField::Uint32(value) => write!(f, "{}", value),
+            SimpleField::Int32(value) => write!(f, "{}", value),
+            SimpleField::Uint64(value) => write!(f, "{}", value),
+            SimpleField::Int64(value) => write!(f, "{}", value),
+            SimpleField::String(value) => write!(f, "\"{}\"", value),
+            SimpleField::BoundedString(value) => write!(f, "\"{}\"", value),
+            SimpleField::WString(value) => write!(f, "\"{}\"", value),
+            SimpleField::BoundedWString(value) => write!(f, "\"{}\"", value),
+            SimpleField::Message(_) => write!(f, "<message>"),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use indexmap::IndexMap;
@@ -411,6 +453,39 @@ mod tests {
 
         let expected = Buffer::with_lines(["simple_field: 42    "]);
 
+        assert_eq!(buf, expected);
+    }
+
+    #[test]
+    fn test_render_message_field() {
+        let inner_message = GenericMessage::new(
+            InterfaceType {
+                package_name: "test_pkg".to_string(),
+                catergory: "msg".to_string(),
+                type_name: "InnerMessage".to_string(),
+            },
+            IndexMap::from([
+                (
+                    "field1".to_string(),
+                    GenericField::Simple(SimpleField::Int32(1)),
+                ),
+                (
+                    "field2".to_string(),
+                    GenericField::Simple(SimpleField::String("test".to_string())),
+                ),
+            ]),
+        );
+        let message_field = GenericField::Simple(SimpleField::Message(inner_message));
+        let value_widget = ValueWidget::new("message_field", &message_field);
+        let mut buf = Buffer::empty(Rect::new(0, 0, 50, 3));
+        value_widget.render(Rect::new(0, 0, 50, 3), &mut buf);
+        let expected = Buffer::with_lines([
+            "message_field: test_pkg/msg/InnerMessage          ",
+            "  field1: 1                                       ",
+            "  field2: \"test\"                                  ",
+        ]);
+        // Reset the style for comparison
+        buf.set_style(buf.area, Style::reset()); // Not testing style here
         assert_eq!(buf, expected);
     }
 }

@@ -290,6 +290,71 @@ impl<'a> Widget for BoundedSequenceWidget<'a> {
     }
 }
 
+impl AsStrVec for BoundedSequenceField {
+    fn as_str_iter(&self) -> Vec<String> {
+        match self {
+            BoundedSequenceField::Float(values, _) => {
+                values.iter().map(|v| format!("{}", v)).collect()
+            }
+            BoundedSequenceField::Double(values, _) => {
+                values.iter().map(|v| format!("{}", v)).collect()
+            }
+            BoundedSequenceField::LongDouble(_, _) => vec![],
+            BoundedSequenceField::Char(values, _) => {
+                values.iter().map(|v| format!("{}", v)).collect()
+            }
+            BoundedSequenceField::WChar(values, _) => {
+                values.iter().map(|v| format!("{}", v)).collect()
+            }
+            BoundedSequenceField::Boolean(values, _) => {
+                values.iter().map(|v| format!("{}", v)).collect()
+            }
+            BoundedSequenceField::Octet(values, _) => {
+                values.iter().map(|v| format!("{}", v)).collect()
+            }
+            BoundedSequenceField::Uint8(values, _) => {
+                values.iter().map(|v| format!("{}", v)).collect()
+            }
+            BoundedSequenceField::Int8(values, _) => {
+                values.iter().map(|v| format!("{}", v)).collect()
+            }
+            BoundedSequenceField::Uint16(values, _) => {
+                values.iter().map(|v| format!("{}", v)).collect()
+            }
+            BoundedSequenceField::Int16(values, _) => {
+                values.iter().map(|v| format!("{}", v)).collect()
+            }
+            BoundedSequenceField::Uint32(values, _) => {
+                values.iter().map(|v| format!("{}", v)).collect()
+            }
+            BoundedSequenceField::Int32(values, _) => {
+                values.iter().map(|v| format!("{}", v)).collect()
+            }
+            BoundedSequenceField::Uint64(values, _) => {
+                values.iter().map(|v| format!("{}", v)).collect()
+            }
+            BoundedSequenceField::Int64(values, _) => {
+                values.iter().map(|v| format!("{}", v)).collect()
+            }
+            BoundedSequenceField::String(values, _) => {
+                values.iter().map(|v| format!("\"{}\"", v)).collect()
+            }
+            BoundedSequenceField::BoundedString(values, _) => {
+                values.iter().map(|v| format!("\"{}\"", v)).collect()
+            }
+            BoundedSequenceField::WString(values, _) => {
+                values.iter().map(|v| format!("\"{}\"", v)).collect()
+            }
+            BoundedSequenceField::BoundedWString(values, _) => {
+                values.iter().map(|v| format!("\"{}\"", v)).collect()
+            }
+            BoundedSequenceField::Message(_, _) => {
+                panic!("Sequence of messages cannot be converted to string vector")
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use indexmap::IndexMap;

@@ -286,6 +286,39 @@ impl<'a> Widget for SequenceWidget<'a> {
     }
 }
 
+impl AsStrVec for SequenceField {
+    fn as_str_iter(&self) -> Vec<String> {
+        match self {
+            SequenceField::Float(values) => values.iter().map(|v| format!("{}", v)).collect(),
+            SequenceField::Double(values) => values.iter().map(|v| format!("{}", v)).collect(),
+            SequenceField::LongDouble(_) => vec![],
+            SequenceField::Char(values) => values.iter().map(|v| format!("{}", v)).collect(),
+            SequenceField::WChar(values) => values.iter().map(|v| format!("{}", v)).collect(),
+            SequenceField::Boolean(values) => values.iter().map(|v| format!("{}", v)).collect(),
+            SequenceField::Octet(values) => values.iter().map(|v| format!("{}", v)).collect(),
+            SequenceField::Uint8(values) => values.iter().map(|v| format!("{}", v)).collect(),
+            SequenceField::Int8(values) => values.iter().map(|v| format!("{}", v)).collect(),
+            SequenceField::Uint16(values) => values.iter().map(|v| format!("{}", v)).collect(),
+            SequenceField::Int16(values) => values.iter().map(|v| format!("{}", v)).collect(),
+            SequenceField::Uint32(values) => values.iter().map(|v| format!("{}", v)).collect(),
+            SequenceField::Int32(values) => values.iter().map(|v| format!("{}", v)).collect(),
+            SequenceField::Uint64(values) => values.iter().map(|v| format!("{}", v)).collect(),
+            SequenceField::Int64(values) => values.iter().map(|v| format!("{}", v)).collect(),
+            SequenceField::String(values) => values.iter().map(|v| format!("\"{}\"", v)).collect(),
+            SequenceField::BoundedString(values) => {
+                values.iter().map(|v| format!("\"{}\"", v)).collect()
+            }
+            SequenceField::WString(values) => values.iter().map(|v| format!("\"{}\"", v)).collect(),
+            SequenceField::BoundedWString(values) => {
+                values.iter().map(|v| format!("\"{}\"", v)).collect()
+            }
+            SequenceField::Message(_) => {
+                panic!("Sequence of messages cannot be converted to string vector")
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use indexmap::IndexMap;
