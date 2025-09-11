@@ -358,7 +358,7 @@ impl Connection for ConnectionROS2 {
     ) -> Result<Box<dyn Fn(&GenericMessage)>, String> {
         let publisher = self
             .node
-            .create_dynamic_publisher(message_type.clone(), topic)
+            .create_dynamic_publisher(message_type.clone(), topic.reliable().transient_local())
             .map_err(|e| format!("Failed to create publisher: {}", e))?;
 
         let publish_fn = move |msg: &GenericMessage| {

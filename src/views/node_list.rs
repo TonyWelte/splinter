@@ -285,6 +285,11 @@ impl NodeListWidget {
             .iter()
             .enumerate()
             .map(|(i, node_item)| {
+                let namespace = if node_item.node_name.namespace.ends_with('/') {
+                    node_item.node_name.namespace.clone()
+                } else {
+                    format!("{}/", node_item.node_name.namespace)
+                };
                 let node_full_name = format!(
                     "{}{}",
                     node_item.node_name.namespace, node_item.node_name.name
