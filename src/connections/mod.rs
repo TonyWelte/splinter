@@ -2,12 +2,24 @@ use std::collections::HashMap;
 
 use enum_dispatch::enum_dispatch;
 
-use rclrs::NodeNameInfo;
 use ros2::ConnectionROS2;
 
 use crate::common::generic_message::{GenericMessage, InterfaceType, MessageMetadata};
 
 use rclrs::MessageTypeName;
+use rclrs::NodeNameInfo;
+
+pub enum Parameters {
+    Bool(bool),
+    Integer(i64),
+    Double(f64),
+    String(String),
+    ByteArray(Vec<u8>),
+    BoolArray(Vec<bool>),
+    IntegerArray(Vec<i64>),
+    DoubleArray(Vec<f64>),
+    StringArray(Vec<String>),
+}
 
 type PublisherFunc = dyn Fn(&GenericMessage);
 
@@ -57,6 +69,11 @@ pub trait Connection {
         &self,
         node_name: &NodeNameInfo,
     ) -> Result<HashMap<String, Vec<String>>, String>;
+
+    fn get_parameters_by_node(
+        &self,
+        node_name: &NodeNameInfo,
+    ) -> Result<HashMap<String, Parameters>, String>;
 }
 
 #[enum_dispatch]

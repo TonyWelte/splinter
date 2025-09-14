@@ -1599,6 +1599,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "rcl_interfaces"
+version = "2.4.2"
+dependencies = [
+ "builtin_interfaces",
+ "rosidl_runtime_rs",
+ "service_msgs",
+]
+
+[[package]]
 name = "rclrs"
 version = "0.4.1"
 dependencies = [
@@ -1868,6 +1877,7 @@ dependencies = [
  "enum_dispatch",
  "indexmap",
  "ratatui",
+ "rcl_interfaces",
  "rclrs",
  "rosidl_runtime_rs",
  "std_msgs",
@@ -2627,10 +2637,6 @@ checksum = "5c573471f125075647d03df72e026074b7203790d41351cd6edc96f46bcccd36"
 [[patch.unused]]
 name = "example_interfaces"
 version = "0.14.1"
-
-[[patch.unused]]
-name = "rcl_interfaces"
-version = "2.4.2"
 
 [[patch.unused]]
 name = "rosgraph_msgs"

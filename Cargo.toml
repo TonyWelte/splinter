@@ -12,6 +12,7 @@ clap = { version = "4.5.40", features = ["derive"] }
 
 rclrs = { version = "*", features = ["dyn_msg"] }
 rosidl_runtime_rs = "*"
+rcl_interfaces = "*"
 
 indexmap = "2.11.1"
 enum_dispatch = "0.3.13"

@@ -1,4 +1,8 @@
-use std::{cell::RefCell, collections::BTreeMap, rc::Rc};
+use std::{
+    cell::RefCell,
+    collections::{BTreeMap, HashMap},
+    rc::Rc,
+};
 
 use ratatui::{
     layout::{Constraint, Layout},
@@ -17,7 +21,7 @@ use crate::{
         event::Event,
         style::{HEADER_STYLE, SELECTED_STYLE},
     },
-    connections::{Connection, ConnectionType},
+    connections::{Connection, ConnectionType, Parameters},
     views::TuiView,
 };
 
@@ -28,7 +32,7 @@ struct NodeDetails {
     subscribers: BTreeMap<String, Vec<String>>,
     clients: BTreeMap<String, Vec<String>>,
     services: BTreeMap<String, Vec<String>>,
-    parameters: Option<Vec<String>>,
+    parameters: Option<HashMap<String, Parameters>>,
 }
 
 impl NodeDetails {
@@ -110,7 +114,7 @@ impl NodeListState {
                     .unwrap_or_default()
                     .into_iter()
                     .collect(),
-                parameters: None, // Parameters can be fetched if needed
+                parameters: None, // Parameters will be fetched on demand
             })
             .collect()
     }
@@ -223,7 +227,13 @@ impl TuiView for NodeListState {
                 KeyCode::Char('l') | KeyCode::Right => {
                     if self.active_section == NodeListSections::List {
                         self.active_section = NodeListSections::Details;
-                        if let Some(selected_node) = self.nodes.get(self.selected_node) {
+                        if let Some(selected_node) = self.nodes.get_mut(self.selected_node) {
+                            selected_node.parameters.get_or_insert_with(|| {
+                                self.connection
+                                    .borrow()
+                                    .get_parameters_by_node(&selected_node.node_name)
+                                    .unwrap_or_default()
+                            });
                             if selected_node.count() > 0 {
                                 self.selected_node_details = Some(0);
                             } else {
@@ -396,7 +406,7 @@ impl NodeListWidget {
             }
             if let Some(params) = &selected_node.parameters {
                 details_items.push(ListItem::new(Text::from("Parameters:")));
-                for param in params {
+                for (param_name, param_value) in params {
                     let style = if let Some(details_index) = state.selected_node_details {
                         if details_index == details_count {
                             SELECTED_STYLE
@@ -408,7 +418,7 @@ impl NodeListWidget {
                     };
                     details_count += 1;
                     details_items
-                        .push(ListItem::new(Text::from(format!("  {}", param))).style(style));
+                        .push(ListItem::new(Text::from(format!("  {}", param_name))).style(style));
                 }
             } else {
                 details_items.push(ListItem::new(Text::from("Parameters:")));
