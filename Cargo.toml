@@ -16,6 +16,7 @@ nucleo-matcher = "0.3.1"
 
 rclrs = { version = "*", features = ["dyn_msg"] }
 rosidl_runtime_rs = "*"
+rcl_interfaces = "*"
 
 std_msgs = "*"
 test_msgs = "*"

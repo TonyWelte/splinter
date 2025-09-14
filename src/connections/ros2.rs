@@ -1,15 +1,20 @@
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::thread::{spawn, JoinHandle};
 use std::time::SystemTime;
 
 use crate::common::generic_message::{
     ArrayField, GenericField, GenericMessage, InterfaceType, MessageMetadata, SimpleField,
 };
-use crate::connections::Connection;
+use crate::connections::{Connection, Parameters};
 
 use rclrs::*;
 use rosidl_runtime_rs::Sequence;
+
+use rcl_interfaces::srv::{
+    GetParameters, GetParameters_Request, GetParameters_Response, ListParameters,
+    ListParameters_Request, ListParameters_Response,
+};
 
 pub struct ConnectionROS2 {
     // Fields for the ROS2 connection
@@ -371,5 +376,264 @@ impl Connection for ConnectionROS2 {
             publisher.publish(msg.into()).unwrap();
         };
         Ok(Box::new(publish_fn))
+    }
+
+    fn get_parameters_by_node(
+        &self,
+        node_name: &NodeNameInfo,
+    ) -> Result<HashMap<String, Parameters>, String> {
+        let namespace = if node_name.namespace.is_empty() {
+            "/".to_string()
+        } else {
+            node_name.namespace.clone()
+        };
+
+        // Executor
+        let mut executor = Context::default_from_env()
+            .map_err(|_| "Error creating context")?
+            .create_basic_executor();
+
+        // Get parameters list
+        let service_name = format!("{}{}/list_parameters", namespace, &node_name.name);
+        let client = self
+            .node
+            .create_client::<ListParameters>(&service_name)
+            .map_err(|_| format!("Failed to create client for sevice: {}", &service_name))?;
+
+        client
+            .service_is_ready()
+            .map_err(|_| format!("Service not available for sevice: {}", &service_name))?;
+
+        let response = Arc::new(Mutex::new(Option::<ListParameters_Response>::None));
+        let response_clone = Arc::clone(&response);
+
+        let promise = executor.commands().run(async move {
+            client.notify_on_service_ready().await.unwrap();
+
+            let request = ListParameters_Request {
+                prefixes: vec![],
+                depth: ListParameters_Request::DEPTH_RECURSIVE,
+            };
+
+            // TODO(@TonyWelte): Handle error
+            let response: ListParameters_Response =
+                client.call(&request).unwrap().await.unwrap();
+
+            response_clone.lock().unwrap().replace(response);
+        });
+
+        executor
+            .spin(
+                SpinOptions::new()
+                    .until_promise_resolved(promise)
+                    .timeout(std::time::Duration::from_millis(100)),
+            )
+            .first_error()
+            .map_err(|_| format!("Error when running service: {}", &service_name))?;
+
+        let response = response.lock().unwrap().take();
+
+        let param_names = response
+            .ok_or(format!("Service call failed to service: {}", &service_name))?
+            .result
+            .names;
+
+        // Get parameter values
+        let service_name = format!("{}{}/get_parameters", namespace, &node_name.name);
+        let client = self
+            .node
+            .create_client::<GetParameters>(&service_name)
+            .map_err(|_| format!("Failed to create client for node: {}", node_name.name))?;
+
+        let response = Arc::new(Mutex::new(Option::<GetParameters_Response>::None));
+        let response_clone = Arc::clone(&response);
+
+        let request = GetParameters_Request {
+            names: param_names.clone(),
+        };
+
+        let promise = executor.commands().run(async move {
+            client.notify_on_service_ready().await.unwrap();
+
+            // TODO: Handle error
+            let response: GetParameters_Response = client.call(&request).unwrap().await.unwrap();
+
+            response_clone.lock().unwrap().replace(response);
+        });
+
+        executor
+            .spin(
+                SpinOptions::new()
+                    .until_promise_resolved(promise)
+                    .timeout(std::time::Duration::from_millis(100)),
+            )
+            .first_error()
+            .map_err(|_| format!("Error when running service: {}", &service_name))?;
+
+        let response = response.lock().unwrap().take();
+
+        let parameters = response.ok_or("Service call failed")?;
+        let mut params_map = HashMap::new();
+        for (name, value) in param_names.iter().zip(parameters.values.iter()) {
+            match value.type_ {
+                rcl_interfaces::msg::ParameterType::PARAMETER_BOOL => {
+                    params_map.insert(name.clone(), Parameters::Bool(value.bool_value));
+                }
+                rcl_interfaces::msg::ParameterType::PARAMETER_INTEGER => {
+                    params_map.insert(name.clone(), Parameters::Integer(value.integer_value));
+                }
+                rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE => {
+                    params_map.insert(name.clone(), Parameters::Double(value.double_value));
+                }
+                rcl_interfaces::msg::ParameterType::PARAMETER_STRING => {
+                    params_map.insert(name.clone(), Parameters::String(value.string_value.clone()));
+                }
+                rcl_interfaces::msg::ParameterType::PARAMETER_BYTE_ARRAY => {
+                    params_map.insert(
+                        name.clone(),
+                        Parameters::ByteArray(value.byte_array_value.clone()),
+                    );
+                }
+                rcl_interfaces::msg::ParameterType::PARAMETER_BOOL_ARRAY => {
+                    params_map.insert(
+                        name.clone(),
+                        Parameters::BoolArray(value.bool_array_value.clone()),
+                    );
+                }
+                rcl_interfaces::msg::ParameterType::PARAMETER_INTEGER_ARRAY => {
+                    params_map.insert(
+                        name.clone(),
+                        Parameters::IntegerArray(value.integer_array_value.clone()),
+                    );
+                }
+                rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE_ARRAY => {
+                    params_map.insert(
+                        name.clone(),
+                        Parameters::DoubleArray(value.double_array_value.clone()),
+                    );
+                }
+                rcl_interfaces::msg::ParameterType::PARAMETER_STRING_ARRAY => {
+                    params_map.insert(
+                        name.clone(),
+                        Parameters::StringArray(
+                            value
+                                .string_array_value
+                                .iter()
+                                .map(|s| s.to_string())
+                                .collect(),
+                        ),
+                    );
+                }
+                _ => {
+                    eprintln!("Unknown parameter type for parameter: {}", name);
+                }
+            }
+        }
+
+        Ok(params_map)
+    }
+
+    fn set_parameter_by_node(
+        &mut self,
+        node_name: &NodeNameInfo,
+        parameter_name: &str,
+        parameter: Parameters,
+    ) -> Result<(), String> {
+        // Executor
+        let mut executor = Context::default_from_env()
+            .map_err(|_| "Error creating context")?
+            .create_basic_executor();
+
+        let namespace = if node_name.namespace.is_empty() {
+            "/".to_string()
+        } else {
+            node_name.namespace.clone()
+        };
+
+        // Set parameter
+        let service_name = format!("{}{}/set_parameters", namespace, &node_name.name);
+        let client = self
+            .node
+            .create_client::<rcl_interfaces::srv::SetParameters>(&service_name)
+            .map_err(|_| format!("Failed to create client for sevice: {}", &service_name))?;
+
+        client
+            .service_is_ready()
+            .map_err(|_| format!("Service not available for sevice: {}", &service_name))?;
+
+        let response = Arc::new(Mutex::new(
+            Option::<rcl_interfaces::srv::SetParameters_Response>::None,
+        ));
+        let response_clone = Arc::clone(&response);
+
+        let request = rcl_interfaces::srv::SetParameters_Request {
+            parameters: vec![rcl_interfaces::msg::Parameter {
+                name: parameter_name.to_string(),
+                value: match parameter {
+                    Parameters::Bool(v) => rcl_interfaces::msg::ParameterValue {
+                        type_: rcl_interfaces::msg::ParameterType::PARAMETER_BOOL,
+                        bool_value: v,
+                        ..Default::default()
+                    },
+                    Parameters::Integer(v) => rcl_interfaces::msg::ParameterValue {
+                        type_: rcl_interfaces::msg::ParameterType::PARAMETER_INTEGER,
+                        integer_value: v,
+                        ..Default::default()
+                    },
+                    Parameters::Double(v) => rcl_interfaces::msg::ParameterValue {
+                        type_: rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE,
+                        double_value: v,
+                        ..Default::default()
+                    },
+                    Parameters::String(v) => rcl_interfaces::msg::ParameterValue {
+                        type_: rcl_interfaces::msg::ParameterType::PARAMETER_STRING,
+                        string_value: v,
+                        ..Default::default()
+                    },
+                    Parameters::ByteArray(v) => rcl_interfaces::msg::ParameterValue {
+                        type_: rcl_interfaces::msg::ParameterType::PARAMETER_BYTE_ARRAY,
+                        byte_array_value: v,
+                        ..Default::default()
+                    },
+                    Parameters::BoolArray(v) => rcl_interfaces::msg::ParameterValue {
+                        type_: rcl_interfaces::msg::ParameterType::PARAMETER_BOOL_ARRAY,
+                        bool_array_value: v,
+                        ..Default::default()
+                    },
+                    Parameters::IntegerArray(v) => rcl_interfaces::msg::ParameterValue {
+                        type_: rcl_interfaces::msg::ParameterType::PARAMETER_INTEGER_ARRAY,
+                        integer_array_value: v,
+                        ..Default::default()
+                    },
+                    Parameters::DoubleArray(v) => rcl_interfaces::msg::ParameterValue {
+                        type_: rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE_ARRAY,
+                        double_array_value: v,
+                        ..Default::default()
+                    },
+                    Parameters::StringArray(v) => rcl_interfaces::msg::ParameterValue {
+                        type_: rcl_interfaces::msg::ParameterType::PARAMETER_STRING_ARRAY,
+                        string_array_value: v.iter().map(|s| s.to_string()).collect(),
+                        ..Default::default()
+                    },
+                },
+            }],
+        };
+
+        let promise = executor.commands().run(async move {
+            client.notify_on_service_ready().await.unwrap();
+
+            let response = client.call(&request).unwrap().await.unwrap();
+            response_clone.lock().unwrap().replace(response);
+        });
+
+        executor
+            .spin(
+                SpinOptions::new()
+                    .until_promise_resolved(promise)
+                    .timeout(std::time::Duration::from_millis(100)),
+            )
+            .first_error()
+            .map_err(|_| format!("Error when running service: {}", &service_name))?;
+        Ok(())
     }
 }

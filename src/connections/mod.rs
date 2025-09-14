@@ -1,13 +1,43 @@
 use std::collections::HashMap;
+use std::fmt::Display;
 
 use enum_dispatch::enum_dispatch;
 
-use rclrs::NodeNameInfo;
 use ros2::ConnectionROS2;
 
 use crate::common::generic_message::{GenericMessage, InterfaceType, MessageMetadata};
 
 use rclrs::MessageTypeName;
+use rclrs::NodeNameInfo;
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Parameters {
+    Bool(bool),
+    Integer(i64),
+    Double(f64),
+    String(String),
+    ByteArray(Vec<u8>),
+    BoolArray(Vec<bool>),
+    IntegerArray(Vec<i64>),
+    DoubleArray(Vec<f64>),
+    StringArray(Vec<String>),
+}
+
+impl Display for Parameters {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Parameters::Bool(v) => write!(f, "{}", v),
+            Parameters::Integer(v) => write!(f, "{}", v),
+            Parameters::Double(v) => write!(f, "{}", v),
+            Parameters::String(v) => write!(f, "{}", v),
+            Parameters::ByteArray(v) => write!(f, "{:?}", v),
+            Parameters::BoolArray(v) => write!(f, "{:?}", v),
+            Parameters::IntegerArray(v) => write!(f, "{:?}", v),
+            Parameters::DoubleArray(v) => write!(f, "{:?}", v),
+            Parameters::StringArray(v) => write!(f, "{:?}", v),
+        }
+    }
+}
 
 type PublisherFunc = dyn Fn(&GenericMessage);
 
@@ -57,6 +87,18 @@ pub trait Connection {
         &self,
         node_name: &NodeNameInfo,
     ) -> Result<HashMap<String, Vec<String>>, String>;
+
+    fn get_parameters_by_node(
+        &self,
+        node_name: &NodeNameInfo,
+    ) -> Result<HashMap<String, Parameters>, String>;
+
+    fn set_parameter_by_node(
+        &mut self,
+        node_name: &NodeNameInfo,
+        parameter_name: &str,
+        parameter: Parameters,
+    ) -> Result<(), String>;
 }
 
 #[enum_dispatch]

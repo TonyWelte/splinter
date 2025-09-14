@@ -3,6 +3,14 @@ use std::{sync::Arc, thread, time::Duration};
 
 // Node publishing all test_msgs types
 struct DevNode {
+    param_bool: OptionalParameter<bool>,
+    param_integer: OptionalParameter<i64>,
+    param_double: OptionalParameter<f64>,
+    param_string: OptionalParameter<Arc<str>>,
+    param_bools: OptionalParameter<Arc<[bool]>>,
+    param_integers: OptionalParameter<Arc<[i64]>>,
+    param_doubles: OptionalParameter<Arc<[f64]>>,
+    param_strings: OptionalParameter<Arc<[Arc<str>]>>,
     publisher_empty: Arc<PublisherState<test_msgs::msg::Empty>>,
     publisher_bounded_plain_sequences: Arc<PublisherState<test_msgs::msg::BoundedPlainSequences>>,
     publisher_bounded_sequences: Arc<PublisherState<test_msgs::msg::BoundedSequences>>,
@@ -23,6 +31,51 @@ impl DevNode {
     fn new(executor: &Executor) -> Result<Self, RclrsError> {
         let node = executor.create_node("dev_node").unwrap();
 
+        let param_bool = node
+            .declare_parameter("param_bool")
+            .default(true)
+            .optional()
+            .unwrap();
+        let param_integer = node
+            .declare_parameter("param_integer")
+            .default(42)
+            .optional()
+            .unwrap();
+        let param_double = node
+            .declare_parameter("param_double")
+            .default(3.14)
+            .optional()
+            .unwrap();
+        let param_string = node
+            .declare_parameter::<Arc<str>>("param_string")
+            .default(Arc::from("hello world"))
+            .optional()
+            .unwrap();
+        let param_bools = node
+            .declare_parameter::<Arc<[bool]>>("param_bools")
+            .default(Arc::from([true, false, true]))
+            .optional()
+            .unwrap();
+        let param_integers = node
+            .declare_parameter::<Arc<[i64]>>("param_integers")
+            .default(Arc::from([1, 2, 3, 4, 5]))
+            .optional()
+            .unwrap();
+        let param_doubles = node
+            .declare_parameter::<Arc<[f64]>>("param_doubles")
+            .default(Arc::from([1.1, 2.2, 3.3]))
+            .optional()
+            .unwrap();
+        let param_strings = node
+            .declare_parameter::<Arc<[Arc<str>]>>("param_strings")
+            .default(Arc::from([
+                Arc::from("foo"),
+                Arc::from("bar"),
+                Arc::from("baz"),
+            ]))
+            .optional()
+            .unwrap();
+
         let publisher_empty = node.create_publisher("empty").unwrap();
         let publisher_bounded_plain_sequences =
             node.create_publisher("bounded_plain_sequences").unwrap();
@@ -41,6 +94,14 @@ impl DevNode {
         let publisher_sinusoid = node.create_publisher("sinusoid").unwrap();
 
         Ok(Self {
+            param_bool,
+            param_integer,
+            param_double,
+            param_string,
+            param_bools,
+            param_integers,
+            param_doubles,
+            param_strings,
             publisher_empty,
             publisher_bounded_plain_sequences,
             publisher_bounded_sequences,
@@ -67,8 +128,24 @@ impl DevNode {
             .publish(test_msgs::msg::BoundedSequences::default())?;
         self.publisher_strings
             .publish(test_msgs::msg::Strings::default())?;
-        self.publisher_basic_types
-            .publish(test_msgs::msg::BasicTypes::default())?;
+
+        let basic_msg = test_msgs::msg::BasicTypes {
+            bool_value: self.param_bool.get().unwrap_or(false),
+            byte_value: 0,
+            char_value: 0,
+            float32_value: self.param_double.get().unwrap_or(0.0) as f32,
+            float64_value: self.param_double.get().unwrap_or(0.0),
+            int8_value: self.param_integer.get().unwrap_or(0) as i8,
+            int16_value: self.param_integer.get().unwrap_or(0) as i16,
+            int32_value: self.param_integer.get().unwrap_or(0) as i32,
+            int64_value: self.param_integer.get().unwrap_or(0),
+            uint8_value: self.param_integer.get().unwrap_or(0) as u8,
+            uint16_value: self.param_integer.get().unwrap_or(0) as u16,
+            uint32_value: self.param_integer.get().unwrap_or(0) as u32,
+            uint64_value: self.param_integer.get().unwrap_or(0) as u64,
+        };
+        self.publisher_basic_types.publish(basic_msg)?;
+
         self.publisher_arrays
             .publish(test_msgs::msg::Arrays::default())?;
         self.publisher_multi_nested

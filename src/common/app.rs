@@ -86,6 +86,19 @@ impl Default for App {
     }
 }
 
+fn check_ctrl_c(event: &CrosstermEvent) -> bool {
+    if let CrosstermEvent::Key(key_event) = event {
+        if key_event.code == KeyCode::Char('c')
+            && key_event
+                .modifiers
+                .contains(crossterm::event::KeyModifiers::CONTROL)
+        {
+            return true;
+        }
+    }
+    false
+}
+
 impl App {
     pub fn new(args: AppArgs) -> Self {
         let should_exit = false;
@@ -145,6 +158,10 @@ impl App {
             if let Ok(is_event_available) = event::poll(Duration::from_millis(100)) {
                 if is_event_available {
                     let event = event::read()?;
+                    if check_ctrl_c(&event) {
+                        self.should_exit = true;
+                        continue;
+                    }
                     self.handle_event(Event::Key(event));
                 } else {
                     self.handle_event(Event::None);
