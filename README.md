@@ -54,14 +54,14 @@ curl https://raw.githubusercontent.com/TonyWelte/splinter/refs/heads/develop/too
 
 ### Long Term Plan
 
-| Feature                                   | Notes                         |
-| ----------------------------------------- | ----------------------------- |
-| New Connections: Foxglove bridge          | Remote visualization support  |
-| New Connections: Rosbridge                | Web-based ROS2 interaction    |
-| New Connections: Multi-connection support | Manage multiple ROS2 networks |
-| Services                                  | List and call ROS2 services   |
-| GenericMessage (non-copying)              | Optimize memory usage         |
-| Grid view                                 | Customizable widget layouts   |
+| Feature                                   | Notes                                           |
+| ----------------------------------------- | ----------------------------------------------- |
+| New Connections: Foxglove bridge          | Remote visualization support                    |
+| New Connections: Rosbridge                | Web-based ROS2 interaction                      |
+| New Connections: Multi-connection support | Manage multiple ROS2 connections simultaneously |
+| Services                                  | List and call ROS2 services                     |
+| GenericMessage (non-copying)              | Optimize memory usage                           |
+| Grid view                                 | Customizable widget layouts                     |
 
 ## Why Rust ?
 

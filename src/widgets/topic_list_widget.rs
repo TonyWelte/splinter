@@ -1,7 +1,7 @@
 use ratatui::{
     crossterm::event::{Event as CrosstermEvent, KeyCode},
     prelude::{BlockExt, Buffer, Rect},
-    style::{Style, Styled},
+    style::{Color, Style, Styled},
     text::{Line, Span},
     widgets::{Block, StatefulWidget, Widget},
 };
@@ -16,53 +16,113 @@ pub struct TopicListWidget<'a> {
     overlay: Option<Line<'a>>,
 }
 
+enum TopicListWidgetMode {
+    Normal,
+    Search,
+}
+
 pub struct TopicListWidgetState {
-    pub topics: Vec<(String, InterfaceType)>,
+    pub filtered_topics: Vec<(String, InterfaceType)>,
     pub selected_index: usize,
     scroll_offset: usize,
+
+    pub filter: Option<String>,
+    all_topics: Vec<(String, InterfaceType)>,
+
+    mode: TopicListWidgetMode,
 }
 
 impl TopicListWidgetState {
     pub fn new(topics: Vec<(String, InterfaceType)>, selected_index: usize) -> Self {
         Self {
-            topics,
+            filtered_topics: topics.clone(),
             selected_index,
             scroll_offset: 0,
+            filter: None,
+            all_topics: topics,
+            mode: TopicListWidgetMode::Normal,
         }
     }
 
     pub fn next_topic(&mut self) {
-        if !self.topics.is_empty() {
-            self.selected_index = (self.selected_index + 1) % self.topics.len();
+        if !self.filtered_topics.is_empty() {
+            self.selected_index = (self.selected_index + 1) % self.filtered_topics.len();
         }
     }
 
     pub fn previous_topic(&mut self) {
-        if !self.topics.is_empty() {
-            self.selected_index = (self.selected_index + self.topics.len() - 1) % self.topics.len();
+        if !self.filtered_topics.is_empty() {
+            self.selected_index =
+                (self.selected_index + self.filtered_topics.len() - 1) % self.filtered_topics.len();
         }
     }
 
     pub fn update(&mut self, new_topics: Vec<(String, InterfaceType)>) {
-        if self.topics.is_empty() {
-            self.topics = new_topics;
+        let new_filtered_topics = if let Some(filter) = &self.filter {
+            new_topics
+                .iter()
+                .filter(|(topic, _)| topic.contains(filter))
+                .cloned()
+                .collect()
+        } else {
+            new_topics.clone()
+        };
+
+        if self.all_topics.is_empty() {
+            self.all_topics = new_topics;
+            self.filtered_topics = new_filtered_topics;
             self.selected_index = 0;
-        } else if new_topics != self.topics {
-            let selected_topic = self.topics.get(self.selected_index).unwrap().0.clone();
-            let new_index = new_topics
+        } else if new_topics != self.all_topics {
+            let selected_topic = self
+                .filtered_topics
+                .get(self.selected_index)
+                .unwrap()
+                .0
+                .clone();
+            let new_index = &new_filtered_topics
                 .iter()
                 .position(|topic| topic.0 == selected_topic)
                 .unwrap_or(0);
-            self.topics = new_topics;
-            self.selected_index = new_index;
+            self.filtered_topics = new_filtered_topics;
+            self.selected_index = *new_index;
         }
     }
-}
 
-impl TuiWidget for TopicListWidgetState {
-    fn handle_event(&mut self, event: Event) -> Event {
+    fn update_filtered(&mut self) {
+        if let Some(filter) = &self.filter {
+            let selected_topic = self
+                .filtered_topics
+                .get(self.selected_index)
+                .map(|(topic, _)| topic.clone());
+
+            self.filtered_topics = self
+                .all_topics
+                .iter()
+                .filter(|(topic, _)| topic.contains(filter))
+                .cloned()
+                .collect();
+
+            if let Some(selected_topic) = selected_topic {
+                self.selected_index = self
+                    .filtered_topics
+                    .iter()
+                    .position(|(topic, _)| *topic == selected_topic)
+                    .unwrap_or(0);
+            } else {
+                self.selected_index = 0;
+            }
+        } else {
+            self.filtered_topics = self.all_topics.clone();
+        }
+    }
+
+    pub fn handle_event_in_normal(&mut self, event: Event) -> Event {
         match event {
             Event::Key(CrosstermEvent::Key(key)) => match key.code {
+                KeyCode::Char('/') => {
+                    self.mode = TopicListWidgetMode::Search;
+                    Event::None
+                }
                 KeyCode::Char('j') | KeyCode::Down => {
                     self.next_topic();
                     Event::None
@@ -74,6 +134,47 @@ impl TuiWidget for TopicListWidgetState {
                 _ => event,
             },
             _ => event,
+        }
+    }
+
+    pub fn handle_event_in_search(&mut self, event: Event) -> Event {
+        match event {
+            Event::Key(CrosstermEvent::Key(key)) => match key.code {
+                KeyCode::Esc => {
+                    self.mode = TopicListWidgetMode::Normal;
+                    Event::None
+                }
+                KeyCode::Char(c) => {
+                    if let Some(filter) = &mut self.filter {
+                        filter.push(c);
+                    } else {
+                        self.filter = Some(c.to_string());
+                    }
+                    self.update_filtered();
+                    Event::None
+                }
+                KeyCode::Backspace => {
+                    if let Some(filter) = &mut self.filter {
+                        filter.pop();
+                        if filter.is_empty() {
+                            self.filter = None;
+                        }
+                    }
+                    self.update_filtered();
+                    Event::None
+                }
+                _ => event,
+            },
+            _ => event,
+        }
+    }
+}
+
+impl TuiWidget for TopicListWidgetState {
+    fn handle_event(&mut self, event: Event) -> Event {
+        match self.mode {
+            TopicListWidgetMode::Normal => self.handle_event_in_normal(event),
+            TopicListWidgetMode::Search => self.handle_event_in_search(event),
         }
     }
 }
@@ -115,8 +216,11 @@ impl<'a> StatefulWidget for TopicListWidget<'a> {
         }
 
         // Iterate through all elements in the `items` and stylize them.
-        for (i, (topic_name, topic_type)) in
-            state.topics.iter().enumerate().skip(state.scroll_offset)
+        for (i, (topic_name, topic_type)) in state
+            .filtered_topics
+            .iter()
+            .enumerate()
+            .skip(state.scroll_offset)
         {
             if inner_area.height as usize <= i - state.scroll_offset {
                 break;
@@ -161,6 +265,35 @@ impl<'a> StatefulWidget for TopicListWidget<'a> {
             if let Some(overlay) = &self.overlay {
                 overlay.render(item_area, buf);
             }
+        }
+
+        // Render filter at the bottom if in search mode
+        if let TopicListWidgetMode::Search = state.mode {
+            let overlay = Line::from_iter([
+                Span::raw("/"),
+                Span::raw(state.filter.as_deref().unwrap_or("")),
+                Span::raw(" ").style(Style::default().bg(Color::White)),
+                Span::raw(
+                    " ".repeat(
+                        inner_area
+                            .width
+                            .saturating_sub(
+                                (2 + state.filter.clone().map_or_else(|| 0, |f| f.len()))
+                                    .try_into()
+                                    .unwrap(),
+                            )
+                            .min(inner_area.width)
+                            .into(),
+                    ),
+                ),
+            ]);
+            let overlay_area = Rect {
+                x: inner_area.x,
+                y: inner_area.y + inner_area.height.saturating_sub(1),
+                width: inner_area.width,
+                height: 1,
+            };
+            overlay.render(overlay_area, buf);
         }
     }
 }

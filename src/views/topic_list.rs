@@ -89,7 +89,7 @@ impl TuiView for TopicListState {
                 }
                 KeyCode::Enter => {
                     if let Some((topic, type_name)) =
-                        self.state.topics.get(self.state.selected_index)
+                        self.state.filtered_topics.get(self.state.selected_index)
                     {
                         match self.action {
                             Action::Echo => Event::NewMessageView(NewTopicEvent {
