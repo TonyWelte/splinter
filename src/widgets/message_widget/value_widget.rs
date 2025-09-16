@@ -194,7 +194,7 @@ impl<'a> Widget for ValueWidget<'a> {
         match &self.value {
             GenericField::Simple(SimpleField::Message(inner_message)) => {
                 let type_string = format!(
-                    "{}/{}/{}",  
+                    "{}/{}/{}",
                     inner_message.type_name().package_name,
                     inner_message.type_name().catergory,
                     inner_message.type_name().type_name

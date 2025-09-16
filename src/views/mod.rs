@@ -33,4 +33,7 @@ pub trait TuiView {
     fn name(&self) -> String;
 
     fn get_help_text(&self) -> String;
+
+    // Return true if the view needs to be redrawn since the last call
+    fn needs_redraw(&mut self) -> bool;
 }

@@ -1,14 +1,12 @@
 use crossterm::event::{Event as CrosstermEvent, KeyEventKind};
 use ratatui::widgets::{BorderType, Clear, Paragraph, Widget, Wrap};
 
-use crate::common::{
-        event::Event,
-        style::HEADER_STYLE,
-    };
+use crate::common::{event::Event, style::HEADER_STYLE};
 
 pub struct TextPopup {
     title: String,
     message: String,
+    needs_redraw: bool,
 }
 
 impl TextPopup {
@@ -16,6 +14,7 @@ impl TextPopup {
         Self {
             title: "Error".to_string(),
             message,
+            needs_redraw: true,
         }
     }
 
@@ -23,6 +22,7 @@ impl TextPopup {
         Self {
             title: "Info".to_string(),
             message,
+            needs_redraw: true,
         }
     }
 
@@ -34,6 +34,15 @@ impl TextPopup {
             return Event::ClosePopup;
         }
         return event;
+    }
+
+    pub fn needs_redraw(&mut self) -> bool {
+        if self.needs_redraw {
+            self.needs_redraw = false;
+            true
+        } else {
+            false
+        }
     }
 }
 

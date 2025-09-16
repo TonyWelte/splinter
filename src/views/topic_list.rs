@@ -52,6 +52,8 @@ pub struct TopicListState {
     connection: Rc<RefCell<ConnectionType>>,
     state: TopicListWidgetState,
     action: Action,
+
+    needs_redraw: bool,
 }
 
 impl TopicListState {
@@ -61,6 +63,7 @@ impl TopicListState {
             connection,
             state: TopicListWidgetState::new(topics, 0),
             action: Action::Echo,
+            needs_redraw: true,
         }
     }
 
@@ -73,6 +76,8 @@ impl TopicListState {
 
 impl TuiView for TopicListState {
     fn handle_event(&mut self, event: Event) -> Event {
+        self.update();
+
         let event = self.state.handle_event(event);
         if let Event::Key(CrosstermEvent::Key(key_event)) = event {
             if key_event.kind != KeyEventKind::Press {
@@ -81,10 +86,12 @@ impl TuiView for TopicListState {
             match key_event.code {
                 KeyCode::Char('l') | KeyCode::Right => {
                     self.action = self.action.next();
+                    self.needs_redraw = true;
                     Event::None
                 }
                 KeyCode::Char('h') | KeyCode::Left => {
                     self.action = self.action.previous();
+                    self.needs_redraw = true;
                     Event::None
                 }
                 KeyCode::Enter => {
@@ -129,12 +136,19 @@ impl TuiView for TopicListState {
         - 'Enter': Execute the selected action on the highlighted topic."
             .to_string()
     }
+
+    fn needs_redraw(&mut self) -> bool {
+        if (self.state.needs_redraw()) || self.needs_redraw {
+            self.needs_redraw = false;
+            true
+        } else {
+            false
+        }
+    }
 }
 
 impl TopicList {
     pub fn render(area: Rect, buf: &mut Buffer, state: &mut TopicListState) {
-        state.update();
-
         let action_text = Line::from_iter([
             Span::raw(" Topic List - "),
             Span::styled(

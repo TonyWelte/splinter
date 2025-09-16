@@ -32,6 +32,7 @@ pub struct TopicPublisherState {
     selected_fields: Vec<usize>,
     is_editing: bool,
     field_content: String,
+    needs_redraw: bool,
 }
 
 impl TopicPublisherState {
@@ -58,19 +59,24 @@ impl TopicPublisherState {
             selected_fields: Vec::new(),
             is_editing: false,
             field_content: String::new(),
+            needs_redraw: true,
         }
     }
 
     pub fn select_next_field(&mut self) {
         self.selected_fields =
             GenericMessageSelector::new(&self.message).down(&self.selected_fields);
+        self.needs_redraw = true;
     }
 
     pub fn select_previous_field(&mut self) {
         self.selected_fields = GenericMessageSelector::new(&self.message).up(&self.selected_fields);
+        self.needs_redraw = true;
     }
 
     pub fn commit_edit(&mut self) -> Result<(), String> {
+        self.needs_redraw = true;
+
         // Update the message with the new field content
         let value = self
             .message
@@ -169,122 +175,143 @@ impl TopicPublisherState {
 
 impl TuiView for TopicPublisherState {
     fn handle_event(&mut self, event: Event) -> Event {
-        if let Event::Key(CrosstermEvent::Key(key_event)) = event {
-            if key_event.kind != crossterm::event::KeyEventKind::Press {
-                return event;
-            }
+        match event {
+            Event::Key(CrosstermEvent::Key(key_event)) => {
+                if key_event.kind != crossterm::event::KeyEventKind::Press {
+                    return event;
+                }
 
-            match key_event.code {
-                KeyCode::Char('p') => {
-                    if self.is_editing {
-                        self.field_content.push('p');
-                        Event::None
-                    } else {
-                        self.publisher.as_ref()(&self.message);
-                        Event::None
-                    }
-                }
-                KeyCode::Char('j') | KeyCode::Down => {
-                    if self.is_editing {
-                        self.field_content.push('j');
-                        Event::None
-                    } else {
-                        self.select_next_field();
-                        Event::None
-                    }
-                }
-                KeyCode::Char('k') | KeyCode::Up => {
-                    if self.is_editing {
-                        self.field_content.push('k');
-                        Event::None
-                    } else {
-                        self.select_previous_field();
-                        Event::None
-                    }
-                }
-                KeyCode::Char('h') | KeyCode::Left => {
-                    if self.is_editing {
-                        self.field_content.push('h');
-                        Event::None
-                    } else {
-                        if let Some(field) =
-                            self.message.get_mut_deep_index(&self.selected_fields).ok()
-                        {
-                            match field {
-                                AnyTypeMutableRef::Sequence(sequence_field) => {
-                                    sequence_field.resize(sequence_field.len().saturating_sub(1));
-                                }
-                                AnyTypeMutableRef::BoundedSequence(sequence_field) => {
-                                    sequence_field.resize(sequence_field.len().saturating_sub(1));
-                                }
-                                _ => {}
-                            }
+                match key_event.code {
+                    KeyCode::Char('p') => {
+                        if self.is_editing {
+                            self.field_content.push('p');
+                            self.needs_redraw = true;
+                            Event::None
+                        } else {
+                            self.publisher.as_ref()(&self.message);
+                            Event::None
                         }
-                        Event::None
                     }
-                }
-                KeyCode::Char('l') | KeyCode::Right => {
-                    if self.is_editing {
-                        self.field_content.push('l');
-                        Event::None
-                    } else {
-                        if let Some(field) =
-                            self.message.get_mut_deep_index(&self.selected_fields).ok()
-                        {
-                            match field {
-                                AnyTypeMutableRef::Sequence(sequence_field) => {
-                                    sequence_field.resize(sequence_field.len() + 1);
-                                }
-                                AnyTypeMutableRef::BoundedSequence(sequence_field) => {
-                                    sequence_field.resize(sequence_field.len() + 1);
-                                }
-                                _ => {}
-                            }
+                    KeyCode::Char('j') | KeyCode::Down => {
+                        if self.is_editing {
+                            self.field_content.push('j');
+                            self.needs_redraw = true;
+                            Event::None
+                        } else {
+                            self.select_next_field();
+                            Event::None
                         }
-                        Event::None
                     }
-                }
-                KeyCode::Backspace => {
-                    if self.is_editing {
-                        self.field_content.pop();
-                        Event::None
-                    } else {
-                        event
+                    KeyCode::Char('k') | KeyCode::Up => {
+                        if self.is_editing {
+                            self.field_content.push('k');
+                            self.needs_redraw = true;
+                            Event::None
+                        } else {
+                            self.select_previous_field();
+                            Event::None
+                        }
                     }
-                }
-                KeyCode::Enter => {
-                    if self.is_editing {
-                        // Update the message with the new field content
-                        self.is_editing = false;
-                        self.commit_edit().unwrap_or_else(|e| {
-                            eprintln!("Failed to commit edit: {}", e);
-                        });
-                        self.field_content.clear();
-                        Event::None
-                    } else {
-                        if get_field_category(&self.message, &self.selected_fields)
-                            == Some(FieldCategory::Base)
-                        {
-                            self.is_editing = true;
-                            self.field_content.clear();
+                    KeyCode::Char('h') | KeyCode::Left => {
+                        self.needs_redraw = true;
+                        if self.is_editing {
+                            self.field_content.push('h');
+                            Event::None
+                        } else {
+                            if let Some(field) =
+                                self.message.get_mut_deep_index(&self.selected_fields).ok()
+                            {
+                                match field {
+                                    AnyTypeMutableRef::Sequence(sequence_field) => {
+                                        sequence_field
+                                            .resize(sequence_field.len().saturating_sub(1));
+                                    }
+                                    AnyTypeMutableRef::BoundedSequence(sequence_field) => {
+                                        sequence_field
+                                            .resize(sequence_field.len().saturating_sub(1));
+                                    }
+                                    _ => {}
+                                }
+                            }
+                            Event::None
+                        }
+                    }
+                    KeyCode::Char('l') | KeyCode::Right => {
+                        self.needs_redraw = true;
+                        if self.is_editing {
+                            self.field_content.push('l');
+                            Event::None
+                        } else {
+                            if let Some(field) =
+                                self.message.get_mut_deep_index(&self.selected_fields).ok()
+                            {
+                                match field {
+                                    AnyTypeMutableRef::Sequence(sequence_field) => {
+                                        sequence_field.resize(sequence_field.len() + 1);
+                                    }
+                                    AnyTypeMutableRef::BoundedSequence(sequence_field) => {
+                                        sequence_field.resize(sequence_field.len() + 1);
+                                    }
+                                    _ => {}
+                                }
+                            }
+                            Event::None
+                        }
+                    }
+                    KeyCode::Backspace => {
+                        if self.is_editing {
+                            self.needs_redraw = true;
+                            self.field_content.pop();
                             Event::None
                         } else {
                             event
                         }
                     }
-                }
-                KeyCode::Char(c) => {
-                    if self.is_editing {
-                        self.field_content.push(c);
-                        Event::None
-                    } else {
-                        event
+                    KeyCode::Enter => {
+                        if self.is_editing {
+                            // Update the message with the new field content
+                            self.is_editing = false;
+                            self.commit_edit().unwrap_or_else(|e| {
+                                eprintln!("Failed to commit edit: {}", e);
+                            });
+                            self.field_content.clear();
+                            self.needs_redraw = true;
+                            Event::None
+                        } else {
+                            if get_field_category(&self.message, &self.selected_fields)
+                                == Some(FieldCategory::Base)
+                            {
+                                self.is_editing = true;
+                                self.field_content.clear();
+                                self.needs_redraw = true;
+                                Event::None
+                            } else {
+                                event
+                            }
+                        }
                     }
+                    KeyCode::Char(c) => {
+                        if self.is_editing {
+                            self.field_content.push(c);
+                            self.needs_redraw = true;
+                            Event::None
+                        } else {
+                            event
+                        }
+                    }
+                    _ => event,
                 }
-                _ => event,
             }
-        } else {
-            event
+            Event::Key(_) => event,
+            Event::None => event,
+            Event::NewMessageView(_) => event,
+            Event::NewLine(_) => event,
+            Event::NewLinePlot(_) => event,
+            Event::NewHz(_) => event,
+            Event::NewHzPlot(_) => event,
+            Event::NewPublisher(_) => event,
+            Event::Error(_) => event,
+            Event::ClosePopup => event,
         }
     }
 
@@ -302,6 +329,14 @@ impl TuiView for TopicPublisherState {
         - 'Enter': Toggle edit mode for primitive fields and commit changes when exiting edit mode.\n\
         - 'Backspace': Remove last character from the field content when editing."
             .to_string()
+    }
+
+    fn needs_redraw(&mut self) -> bool {
+        if self.needs_redraw {
+            self.needs_redraw = false;
+            return true;
+        }
+        false
     }
 }
 

@@ -12,16 +12,24 @@ pub struct AddLineState {
     field_name: String,
     views: Vec<(usize, String)>,
     selected: usize,
+
+    needs_redraw: bool,
 }
 
 impl AddLineState {
-    pub fn new(topic: String, field: Vec<usize>, field_name: String, candidate_views: Vec<(usize, String)>) -> Self {
+    pub fn new(
+        topic: String,
+        field: Vec<usize>,
+        field_name: String,
+        candidate_views: Vec<(usize, String)>,
+    ) -> Self {
         Self {
             topic,
             field,
             field_name,
             views: candidate_views,
             selected: 0,
+            needs_redraw: true,
         }
     }
 
@@ -33,12 +41,14 @@ impl AddLineState {
             match key_event.code {
                 KeyCode::Char('k') | KeyCode::Up => {
                     self.selected = self.selected.saturating_sub(1);
+                    self.needs_redraw = true;
                     return Event::None;
                 }
                 KeyCode::Char('j') | KeyCode::Down => {
                     if self.selected < self.views.len() {
                         self.selected = self.selected + 1;
                     }
+                    self.needs_redraw = true;
                     return Event::None;
                 }
                 KeyCode::Enter => {
@@ -59,12 +69,21 @@ impl AddLineState {
                     }
                 }
                 KeyCode::Esc => {
-                    return Event::None;
+                    return Event::ClosePopup;
                 }
                 _ => {}
             }
         }
         return event;
+    }
+
+    pub fn needs_redraw(&mut self) -> bool {
+        if self.needs_redraw {
+            self.needs_redraw = false;
+            true
+        } else {
+            false
+        }
     }
 }
 

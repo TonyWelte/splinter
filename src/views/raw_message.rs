@@ -1,7 +1,7 @@
 use std::{
     cell::RefCell,
     rc::Rc,
-    sync::{Arc, Mutex},
+    sync::{atomic::AtomicBool, Arc, Mutex},
 };
 
 use ratatui::{
@@ -33,12 +33,15 @@ pub struct RawMessageState {
     _connection: Rc<RefCell<ConnectionType>>,
     selected_fields: Vec<usize>,
     message_widget_state: MessageWidgetState,
+    needs_redraw: Arc<AtomicBool>,
 }
 
 impl RawMessageState {
     pub fn new(topic: String, connection: Rc<RefCell<ConnectionType>>) -> Self {
         let message = Arc::new(Mutex::new(None));
         let message_copy = message.clone();
+        let needs_redraw = Arc::new(AtomicBool::new(true));
+        let needs_redraw_copy = needs_redraw.clone();
 
         // Wait until the topic type is available or timeout after 1 second
         let mut message_type_wait_time = 0;
@@ -56,6 +59,7 @@ impl RawMessageState {
                 &topic,
                 move |msg: GenericMessage, _msg_info: MessageMetadata| {
                     let mut mut_message = message_copy.lock().unwrap();
+                    needs_redraw_copy.store(true, std::sync::atomic::Ordering::Relaxed);
                     *mut_message = Some(msg);
                 },
             )
@@ -66,20 +70,28 @@ impl RawMessageState {
             _connection: connection,
             selected_fields: Vec::new(),
             message_widget_state: MessageWidgetState::new().auto_scroll(),
+            needs_redraw,
         };
         object
+    }
+
+    fn set_needs_redraw(&self) {
+        self.needs_redraw
+            .store(true, std::sync::atomic::Ordering::Relaxed);
     }
 
     pub fn select_down(&mut self) {
         if let Some(message) = self.message.lock().unwrap().as_ref() {
             self.selected_fields =
                 GenericMessageSelector::new(&message).down(&self.selected_fields);
+            self.set_needs_redraw();
         }
     }
 
     pub fn select_up(&mut self) {
         if let Some(message) = self.message.lock().unwrap().as_ref() {
             self.selected_fields = GenericMessageSelector::new(&message).up(&self.selected_fields);
+            self.set_needs_redraw();
         }
     }
 
@@ -87,6 +99,7 @@ impl RawMessageState {
         if let Some(message) = self.message.lock().unwrap().as_ref() {
             self.selected_fields =
                 GenericMessageSelector::new(&message).left(&self.selected_fields);
+            self.set_needs_redraw();
         }
     }
 
@@ -94,12 +107,14 @@ impl RawMessageState {
         if let Some(message) = self.message.lock().unwrap().as_ref() {
             self.selected_fields =
                 GenericMessageSelector::new(&message).right(&self.selected_fields);
+            self.set_needs_redraw();
         }
     }
 
     pub fn select_last(&mut self) {
         if let Some(message) = self.message.lock().unwrap().as_ref() {
             self.selected_fields = GenericMessageSelector::new(&message).last_field_path();
+            self.set_needs_redraw();
         }
     }
 }
@@ -185,6 +200,15 @@ impl TuiView for RawMessageState {
         - 'G': Jump to the last field in the message.\n\
         - 'Enter': Create a new plot for the selected primitive field."
             .to_string()
+    }
+
+    fn needs_redraw(&mut self) -> bool {
+        if self.needs_redraw.load(std::sync::atomic::Ordering::Relaxed) {
+            self.needs_redraw
+                .store(false, std::sync::atomic::Ordering::Relaxed);
+            return true;
+        }
+        false
     }
 }
 

@@ -30,6 +30,8 @@ pub struct TopicListWidgetState {
     all_topics: Vec<(String, InterfaceType)>,
 
     mode: TopicListWidgetMode,
+
+    needs_redraw: bool,
 }
 
 impl TopicListWidgetState {
@@ -41,12 +43,14 @@ impl TopicListWidgetState {
             filter: None,
             all_topics: topics,
             mode: TopicListWidgetMode::Normal,
+            needs_redraw: true,
         }
     }
 
     pub fn next_topic(&mut self) {
         if !self.filtered_topics.is_empty() {
             self.selected_index = (self.selected_index + 1) % self.filtered_topics.len();
+            self.needs_redraw = true;
         }
     }
 
@@ -54,6 +58,7 @@ impl TopicListWidgetState {
         if !self.filtered_topics.is_empty() {
             self.selected_index =
                 (self.selected_index + self.filtered_topics.len() - 1) % self.filtered_topics.len();
+            self.needs_redraw = true;
         }
     }
 
@@ -68,10 +73,11 @@ impl TopicListWidgetState {
             new_topics.clone()
         };
 
-        if self.all_topics.is_empty() {
+        if self.all_topics.is_empty() && !new_topics.is_empty() {
             self.all_topics = new_topics;
             self.filtered_topics = new_filtered_topics;
             self.selected_index = 0;
+            self.needs_redraw = true;
         } else if new_topics != self.all_topics {
             let selected_topic = self
                 .filtered_topics
@@ -83,8 +89,10 @@ impl TopicListWidgetState {
                 .iter()
                 .position(|topic| topic.0 == selected_topic)
                 .unwrap_or(0);
+            self.all_topics = new_topics;
             self.filtered_topics = new_filtered_topics;
             self.selected_index = *new_index;
+            self.needs_redraw = true;
         }
     }
 
@@ -121,6 +129,7 @@ impl TopicListWidgetState {
             Event::Key(CrosstermEvent::Key(key)) => match key.code {
                 KeyCode::Char('/') => {
                     self.mode = TopicListWidgetMode::Search;
+                    self.needs_redraw = true;
                     Event::None
                 }
                 KeyCode::Char('j') | KeyCode::Down => {
@@ -140,8 +149,9 @@ impl TopicListWidgetState {
     pub fn handle_event_in_search(&mut self, event: Event) -> Event {
         match event {
             Event::Key(CrosstermEvent::Key(key)) => match key.code {
-                KeyCode::Esc => {
+                KeyCode::Esc | KeyCode::Enter => {
                     self.mode = TopicListWidgetMode::Normal;
+                    self.needs_redraw = true;
                     Event::None
                 }
                 KeyCode::Char(c) => {
@@ -150,6 +160,7 @@ impl TopicListWidgetState {
                     } else {
                         self.filter = Some(c.to_string());
                     }
+                    self.needs_redraw = true;
                     self.update_filtered();
                     Event::None
                 }
@@ -160,12 +171,22 @@ impl TopicListWidgetState {
                             self.filter = None;
                         }
                     }
+                    self.needs_redraw = true;
                     self.update_filtered();
                     Event::None
                 }
                 _ => event,
             },
             _ => event,
+        }
+    }
+
+    pub fn needs_redraw(&mut self) -> bool {
+        if self.needs_redraw {
+            self.needs_redraw = false;
+            true
+        } else {
+            false
         }
     }
 }
@@ -268,17 +289,21 @@ impl<'a> StatefulWidget for TopicListWidget<'a> {
         }
 
         // Render filter at the bottom if in search mode
-        if let TopicListWidgetMode::Search = state.mode {
+        if state.filter.is_some() || matches!(state.mode, TopicListWidgetMode::Search) {
+            let cursor_style = match state.mode {
+                TopicListWidgetMode::Search => Style::default().bg(Color::White),
+                _ => Style::default(),
+            };
             let overlay = Line::from_iter([
                 Span::raw("/"),
                 Span::raw(state.filter.as_deref().unwrap_or("")),
-                Span::raw(" ").style(Style::default().bg(Color::White)),
+                Span::raw(" ").style(cursor_style),
                 Span::raw(
                     " ".repeat(
                         inner_area
                             .width
                             .saturating_sub(
-                                (2 + state.filter.clone().map_or_else(|| 0, |f| f.len()))
+                                (2 + state.filter.as_deref().map_or_else(|| 0, |f| f.len()))
                                     .try_into()
                                     .unwrap(),
                             )

@@ -2,6 +2,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::time::Duration;
 
+use ratatui::text::Span;
 use ratatui::widgets::Tabs;
 
 use crate::common::event::Event;
@@ -35,6 +36,10 @@ use ratatui::{
     DefaultTerminal,
 };
 
+pub struct AppMetrics {
+    pub draw_count: u32,
+}
+
 pub struct App {
     should_exit: bool,
     pub connection: Rc<RefCell<ConnectionType>>,
@@ -42,6 +47,10 @@ pub struct App {
     active_widget_index: usize,
 
     popup_view: PopupView,
+
+    needs_redraw: bool,
+
+    metrics: AppMetrics,
 }
 
 pub enum AppArgs {
@@ -87,6 +96,8 @@ impl App {
             widgets: vec![view],
             active_widget_index: 0,
             popup_view: PopupView::None,
+            needs_redraw: true,
+            metrics: AppMetrics { draw_count: 0 },
         }
     }
 
@@ -101,16 +112,33 @@ impl App {
             widgets: vec![Views::TopicList(topic_list), Views::NodeList(node_list)],
             active_widget_index: 0,
             popup_view: PopupView::None,
+            needs_redraw: true,
+            metrics: AppMetrics { draw_count: 0 },
         }
     }
 
     pub fn run(mut self, mut terminal: DefaultTerminal) -> Result<()> {
         while !self.should_exit {
-            terminal.draw(|frame| frame.render_widget(&mut self, frame.area()))?;
+            let popup_needs_redraw = match &mut self.popup_view {
+                PopupView::None => false,
+                PopupView::AddLine(state) => state.needs_redraw(),
+                PopupView::AddHz(state) => state.needs_redraw(),
+                PopupView::Error(state) => state.needs_redraw(),
+            };
+            if self.widgets[self.active_widget_index].needs_redraw()
+                || self.needs_redraw
+                || popup_needs_redraw
+            {
+                self.needs_redraw = false;
+                self.metrics.draw_count += 1;
+                terminal.draw(|frame| frame.render_widget(&mut self, frame.area()))?;
+            }
             if let Ok(is_event_available) = event::poll(Duration::from_millis(100)) {
                 if is_event_available {
                     let event = event::read()?;
                     self.handle_event(Event::Key(event));
+                } else {
+                    self.handle_event(Event::None);
                 }
             }
         }
@@ -144,6 +172,9 @@ impl App {
         };
 
         match event {
+            Event::Key(CrosstermEvent::Resize(_, _)) => {
+                self.needs_redraw = true;
+            }
             Event::Key(CrosstermEvent::Key(key_event)) => {
                 if key_event.kind != KeyEventKind::Press {
                     return;
@@ -160,11 +191,13 @@ impl App {
                                 self.active_widget_index -= 1;
                             }
                         }
+                        self.needs_redraw = true;
                         return;
                     }
                     KeyCode::Tab => {
                         self.active_widget_index =
                             (self.active_widget_index + 1) % self.widgets.len();
+                        self.needs_redraw = true;
                         return;
                     }
                     KeyCode::BackTab => {
@@ -173,6 +206,7 @@ impl App {
                         } else {
                             self.active_widget_index -= 1;
                         }
+                        self.needs_redraw = true;
                         return;
                     }
                     KeyCode::Char('?') => {
@@ -209,8 +243,12 @@ impl App {
                         _ => None,
                     })
                     .collect();
-                self.popup_view =
-                    PopupView::AddLine(AddLineState::new(topic, field, field_name, candidate_views));
+                self.popup_view = PopupView::AddLine(AddLineState::new(
+                    topic,
+                    field,
+                    field_name,
+                    candidate_views,
+                ));
                 return;
             }
             Event::NewLinePlot(new_graph_event) => {
@@ -275,6 +313,7 @@ impl App {
             }
             Event::ClosePopup => {
                 self.popup_view = PopupView::None;
+                self.needs_redraw = true;
             }
             Event::Error(err_msg) => {
                 self.popup_view = PopupView::Error(TextPopup::error(err_msg));
@@ -337,6 +376,19 @@ impl Widget for &mut App {
                 HzPlotWidget::render(widget_area, buf, hz_plot_state);
             }
         }
+
+        Span::raw(format!("Draw count: {}", self.metrics.draw_count))
+            .italic()
+            .into_right_aligned_line()
+            .render(
+                Rect {
+                    x: widget_area.x + widget_area.height - 1,
+                    y: widget_area.y,
+                    width: widget_area.width,
+                    height: 1,
+                },
+                buf,
+            );
 
         let popup_area = Rect {
             x: area.width / 4,

@@ -21,6 +21,7 @@ use crate::{
     views::TuiView,
 };
 
+#[derive(PartialEq)]
 struct NodeDetails {
     node_name: NodeNameInfo,
     publishers: BTreeMap<String, Vec<String>>,
@@ -54,6 +55,7 @@ pub struct NodeListState {
     selected_node: usize,
     selected_node_details: Option<usize>,
     active_section: NodeListSections,
+    needs_redraw: bool,
 }
 
 impl NodeListState {
@@ -64,6 +66,7 @@ impl NodeListState {
             selected_node: 0,
             selected_node_details: None,
             active_section: NodeListSections::List,
+            needs_redraw: true,
         };
         state.nodes = state.list_nodes_details();
         state
@@ -116,12 +119,14 @@ impl NodeListState {
         if !self.nodes.is_empty() {
             self.selected_node = (self.selected_node + 1) % self.nodes.len();
         }
+        self.needs_redraw = true;
     }
 
     pub fn previous_node(&mut self) {
         if !self.nodes.is_empty() {
             self.selected_node = (self.selected_node + self.nodes.len() - 1) % self.nodes.len();
         }
+        self.needs_redraw = true;
     }
 
     pub fn next_detail(&mut self) {
@@ -137,6 +142,7 @@ impl NodeListState {
                 self.selected_node_details = None;
             }
         }
+        self.needs_redraw = true;
     }
 
     pub fn previous_detail(&mut self) {
@@ -152,6 +158,7 @@ impl NodeListState {
                 self.selected_node_details = None;
             }
         }
+        self.needs_redraw = true;
     }
 
     pub fn update(&mut self) {
@@ -166,7 +173,8 @@ impl NodeListState {
         if self.nodes.is_empty() {
             self.nodes = new_nodes;
             self.selected_node = 0;
-        } else {
+            self.needs_redraw = true;
+        } else if self.nodes != new_nodes {
             let selected_node = self.nodes.get(self.selected_node).unwrap();
             let new_index = new_nodes
                 .iter()
@@ -177,12 +185,15 @@ impl NodeListState {
                 .unwrap_or(0);
             self.nodes = new_nodes;
             self.selected_node = new_index;
+            self.needs_redraw = true;
         }
     }
 }
 
 impl TuiView for NodeListState {
     fn handle_event(&mut self, event: Event) -> Event {
+        self.update();
+
         if let Event::Key(CrosstermEvent::Key(key_event)) = event {
             if key_event.kind != crossterm::event::KeyEventKind::Press {
                 return event;
@@ -221,6 +232,7 @@ impl TuiView for NodeListState {
                         } else {
                             self.selected_node_details = None;
                         }
+                        self.needs_redraw = true;
                         return Event::None;
                     }
                     event
@@ -229,6 +241,7 @@ impl TuiView for NodeListState {
                     if self.active_section == NodeListSections::Details {
                         self.active_section = NodeListSections::List;
                         self.selected_node_details = None;
+                        self.needs_redraw = true;
                         return Event::None;
                     }
                     event
@@ -252,12 +265,18 @@ impl TuiView for NodeListState {
         - 'h' or ←: Switch back to node list view."
             .to_string()
     }
+
+    fn needs_redraw(&mut self) -> bool {
+        if self.needs_redraw {
+            self.needs_redraw = false;
+            return true;
+        }
+        false
+    }
 }
 
 impl NodeListWidget {
     pub fn render(area: Rect, buf: &mut Buffer, state: &mut NodeListState) {
-        state.update();
-
         let layout = Layout::horizontal([Constraint::Fill(0), Constraint::Fill(0)]);
         let [list_area, details_area] = layout.areas(area);
 

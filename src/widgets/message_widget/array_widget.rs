@@ -317,7 +317,6 @@ impl AsStrVec for ArrayField {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use indexmap::IndexMap;

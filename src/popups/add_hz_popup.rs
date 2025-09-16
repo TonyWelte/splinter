@@ -10,6 +10,8 @@ pub struct AddHzState {
     topic: String,
     views: Vec<(usize, String)>,
     selected: usize,
+
+    needs_redraw: bool,
 }
 
 impl AddHzState {
@@ -18,6 +20,7 @@ impl AddHzState {
             topic,
             views: candidate_views,
             selected: 0,
+            needs_redraw: true,
         }
     }
 
@@ -29,12 +32,14 @@ impl AddHzState {
             match key_event.code {
                 KeyCode::Char('k') | KeyCode::Up => {
                     self.selected = self.selected.saturating_sub(1);
+                    self.needs_redraw = true;
                     return Event::None;
                 }
                 KeyCode::Char('j') | KeyCode::Down => {
                     if self.selected < self.views.len() {
                         self.selected = self.selected + 1;
                     }
+                    self.needs_redraw = true;
                     return Event::None;
                 }
                 KeyCode::Enter => {
@@ -49,14 +54,24 @@ impl AddHzState {
                             view: Some(self.views[self.selected].0),
                         });
                     }
+                    self.needs_redraw = true;
                 }
                 KeyCode::Esc => {
-                    return Event::None;
+                    return Event::ClosePopup;
                 }
                 _ => {}
             }
         }
         return event;
+    }
+
+    pub fn needs_redraw(&mut self) -> bool {
+        if self.needs_redraw {
+            self.needs_redraw = false;
+            true
+        } else {
+            false
+        }
     }
 }
 

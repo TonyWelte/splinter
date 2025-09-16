@@ -157,6 +157,10 @@ impl TuiView for HzPlotState {
         - 'l' or →: Decrease the time window for the frequency plot."
             .to_string()
     }
+
+    fn needs_redraw(&mut self) -> bool {
+        true
+    }
 }
 
 impl HzPlotWidget {

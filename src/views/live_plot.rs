@@ -176,6 +176,10 @@ impl TuiView for LivePlotState {
         - 'l' or →: Decrease the time window for the live plot."
             .to_string()
     }
+
+    fn needs_redraw(&mut self) -> bool {
+        true
+    }
 }
 
 impl LivePlotWidget {
