@@ -12,26 +12,43 @@ TODO: Add animation
 | **Nodes**  | List active nodes                                  |
 | **Plots**  | Multi-line plots, frequency plots                  |
 
-## Installing
+## Installation Guide
 
-### Requirements
+### Manual Installation
 
-- **ROS2**
-- **Rust/Cargo**
+1. **Set up ros2_rust**  
+    Follow the [installation instructions](https://github.com/ros2-rust/ros2_rust/tree/main?tab=readme-ov-file#sounds-great-how-can-i-try-this-out) for `ros2_rust`.
 
-### Quick Install
+2. **Clone the Splinter repository**  
+    Run the following command to clone the Splinter repository:
+    ```sh
+    git clone https://github.com/TonyWelte/splinter.git
+    ```
 
-Run the following command to install Splinter automatically:
+3. **Build the project**  
+    Use `colcon` to build Splinter:
+    ```sh
+    colcon build --packages-up-to splinter
+    ```
+
+### Quick Installation
+
+> [!WARNING]  
+> Review the script before running it. It may prompt for your password to install dependencies. On some systems, it requires running `pip` with the `--break-system-packages` flag.
+
+To quickly install Splinter, download and execute the installation script:
 
 ```sh
-curl https://raw.githubusercontent.com/TonyWelte/splinter/refs/heads/develop/tools/splinter_install.sh | bash
+curl -O https://raw.githubusercontent.com/TonyWelte/splinter/refs/heads/main/tools/splinter_install.sh
+chmod +x splinter_install.sh
+./splinter_install.sh
 ```
 
-**What the script does:**
+#### What the Script Does:
 
-- Checks for a sourced ROS2 environment.
-- Installs Rust (if missing) and required system packages.
-- Sets up a ROS2 workspace with ros2_rust and splinter, and builds the project.
+- Verifies that a ROS2 environment is sourced.
+- Installs Rust (if not already installed) and required system dependencies.
+- Creates a `splinter_ws` ROS2 workspace, sets up `ros2_rust` and Splinter, and builds the project.
 
 ## Roadmap
 
@@ -39,8 +56,7 @@ curl https://raw.githubusercontent.com/TonyWelte/splinter/refs/heads/develop/too
 
 | Feature                     | Notes                                  |
 | --------------------------- | -------------------------------------- |
-| Search/Filter topics/nodes  | Improve usability for large workspaces |
-| Partial rendering           | Only render on change                  |
+| Fuzzy search                | Improve usability for large workspaces |
 | Parameters (List, Get, Set) | Full parameter management              |
 
 ### Upcoming Features
@@ -56,6 +72,7 @@ curl https://raw.githubusercontent.com/TonyWelte/splinter/refs/heads/develop/too
 
 | Feature                                   | Notes                                           |
 | ----------------------------------------- | ----------------------------------------------- |
+| MCAP Reader                               | Navigate and visualize MCAP files               |
 | New Connections: Foxglove bridge          | Remote visualization support                    |
 | New Connections: Rosbridge                | Web-based ROS2 interaction                      |
 | New Connections: Multi-connection support | Manage multiple ROS2 connections simultaneously |
