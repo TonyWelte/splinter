@@ -9,6 +9,8 @@ use crate::common::generic_message::{GenericMessage, InterfaceType, MessageMetad
 
 use rclrs::MessageTypeName;
 
+type PublisherFunc = dyn Fn(&GenericMessage);
+
 // Connection trait
 #[enum_dispatch(ConnectionType)]
 pub trait Connection {
@@ -34,7 +36,7 @@ pub trait Connection {
         &mut self,
         topic: &str,
         message_type: &MessageTypeName,
-    ) -> Result<Box<dyn Fn(&GenericMessage)>, String>;
+    ) -> Result<Box<PublisherFunc>, String>;
 
     fn get_publisher_names_and_types_by_node(
         &self,

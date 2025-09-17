@@ -2635,3 +2635,7 @@ version = "2.4.2"
 [[patch.unused]]
 name = "rosgraph_msgs"
 version = "2.4.2"
+
+[[patch.unused]]
+name = "splinter"
+version = "0.1.0"

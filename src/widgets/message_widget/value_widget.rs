@@ -98,7 +98,7 @@ impl<'a> ValueWidget<'a> {
             match &self.value {
                 GenericField::Simple(SimpleField::Message(inner_message)) => {
                     MessageWidget::new(inner_message)
-                        .with_selection(&selection)
+                        .with_selection(selection)
                         .selection_height(width.saturating_sub(2))
                         + 1
                 }
@@ -161,7 +161,7 @@ impl<'a> ValueWidget<'a> {
                 }
             }
         } else {
-            return 0;
+            0
         }
     }
 }
@@ -209,7 +209,7 @@ impl<'a> Widget for ValueWidget<'a> {
                 buf.set_stringn(
                     area.x + self.name.len() as u16 + 2,
                     area.y,
-                    format!("{}", type_string),
+                    &type_string,
                     area.width as usize - area.x as usize,
                     Style::default().fg(Color::DarkGray),
                 );
@@ -234,7 +234,7 @@ impl<'a> Widget for ValueWidget<'a> {
                     style,
                 );
                 if let Some(edit) = self.edit {
-                    if !self.selection.is_none() && self.selection.unwrap().is_empty() {
+                    if self.selection.is_some() && self.selection.unwrap().is_empty() {
                         let is_edit_valid = match simple_value {
                             SimpleField::Float(_) => {
                                 edit.parse::<f32>().is_ok() && !edit.contains(' ')

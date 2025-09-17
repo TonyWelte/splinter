@@ -309,10 +309,7 @@ impl NodeListWidget {
                 } else {
                     format!("{}/", node_item.node_name.namespace)
                 };
-                let node_full_name = format!(
-                    "{}{}",
-                    node_item.node_name.namespace, node_item.node_name.name
-                );
+                let node_full_name = format!("{}{}", namespace, node_item.node_name.name);
                 let style = if i == state.selected_node {
                     if state.active_section == NodeListSections::List {
                         SELECTED_STYLE

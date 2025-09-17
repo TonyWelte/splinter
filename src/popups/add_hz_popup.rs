@@ -37,7 +37,7 @@ impl AddHzState {
                 }
                 KeyCode::Char('j') | KeyCode::Down => {
                     if self.selected < self.views.len() {
-                        self.selected = self.selected + 1;
+                        self.selected += 1;
                     }
                     self.needs_redraw = true;
                     return Event::None;
@@ -54,7 +54,6 @@ impl AddHzState {
                             view: Some(self.views[self.selected].0),
                         });
                     }
-                    self.needs_redraw = true;
                 }
                 KeyCode::Esc => {
                     return Event::ClosePopup;
@@ -62,7 +61,7 @@ impl AddHzState {
                 _ => {}
             }
         }
-        return event;
+        event
     }
 
     pub fn needs_redraw(&mut self) -> bool {

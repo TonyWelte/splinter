@@ -64,15 +64,15 @@ impl RawMessageState {
                 },
             )
             .expect("Failed to subscribe to topic");
-        let object = Self {
+        
+        Self {
             topic: topic.clone(),
             message,
             _connection: connection,
             selected_fields: Vec::new(),
             message_widget_state: MessageWidgetState::new().auto_scroll(),
             needs_redraw,
-        };
-        object
+        }
     }
 
     fn set_needs_redraw(&self) {
@@ -83,14 +83,14 @@ impl RawMessageState {
     pub fn select_down(&mut self) {
         if let Some(message) = self.message.lock().unwrap().as_ref() {
             self.selected_fields =
-                GenericMessageSelector::new(&message).down(&self.selected_fields);
+                GenericMessageSelector::new(message).down(&self.selected_fields);
             self.set_needs_redraw();
         }
     }
 
     pub fn select_up(&mut self) {
         if let Some(message) = self.message.lock().unwrap().as_ref() {
-            self.selected_fields = GenericMessageSelector::new(&message).up(&self.selected_fields);
+            self.selected_fields = GenericMessageSelector::new(message).up(&self.selected_fields);
             self.set_needs_redraw();
         }
     }
@@ -98,7 +98,7 @@ impl RawMessageState {
     pub fn select_left(&mut self) {
         if let Some(message) = self.message.lock().unwrap().as_ref() {
             self.selected_fields =
-                GenericMessageSelector::new(&message).left(&self.selected_fields);
+                GenericMessageSelector::new(message).left(&self.selected_fields);
             self.set_needs_redraw();
         }
     }
@@ -106,14 +106,14 @@ impl RawMessageState {
     pub fn select_right(&mut self) {
         if let Some(message) = self.message.lock().unwrap().as_ref() {
             self.selected_fields =
-                GenericMessageSelector::new(&message).right(&self.selected_fields);
+                GenericMessageSelector::new(message).right(&self.selected_fields);
             self.set_needs_redraw();
         }
     }
 
     pub fn select_last(&mut self) {
         if let Some(message) = self.message.lock().unwrap().as_ref() {
-            self.selected_fields = GenericMessageSelector::new(&message).last_field_path();
+            self.selected_fields = GenericMessageSelector::new(message).last_field_path();
             self.set_needs_redraw();
         }
     }
@@ -167,7 +167,7 @@ impl TuiView for RawMessageState {
                         | Ok(FieldType::Int32)
                         | Ok(FieldType::Uint64)
                         | Ok(FieldType::Int64) => {
-                            return Event::NewLine(NewLineEvent {
+                            Event::NewLine(NewLineEvent {
                                 topic: self.topic.clone(),
                                 field: self.selected_fields.clone(),
                                 field_name: message
@@ -176,7 +176,7 @@ impl TuiView for RawMessageState {
                                     .get_field_name(&self.selected_fields)
                                     .unwrap_or_else(|_| "this is a bug".to_string()),
                                 view: None,
-                            });
+                            })
                         }
                         Ok(_) => Event::Error("Cannot plot non-primitive field".to_string()),
                         Err(e) => Event::Error(format!("Failed to get field type: {}", e)),

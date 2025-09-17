@@ -33,7 +33,7 @@ impl TextPopup {
             }
             return Event::ClosePopup;
         }
-        return event;
+        event
     }
 
     pub fn needs_redraw(&mut self) -> bool {

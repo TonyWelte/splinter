@@ -28,6 +28,12 @@ pub struct MessageWidgetState {
     auto_scroll: bool,
 }
 
+impl Default for MessageWidgetState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MessageWidgetState {
     pub fn new() -> Self {
         Self {

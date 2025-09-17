@@ -180,6 +180,10 @@ pub enum FieldType {
 
 pub trait Length {
     fn len(&self) -> usize;
+
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
 }
 
 impl Length for ArrayField {
@@ -435,7 +439,7 @@ impl GenericField {
                 if field_index_path.is_empty() {
                     return Err("Field index path is empty".to_string());
                 }
-                return inner_message.get_deep_index(&field_index_path);
+                inner_message.get_deep_index(field_index_path)
             }
             GenericField::Simple(simple_field) => {
                 if !field_index_path.is_empty() {
@@ -472,82 +476,82 @@ impl GenericField {
                 match array_field {
                     ArrayField::Float(v) => v
                         .get(index)
-                        .map(|val| AnyTypeRef::Float(val))
+                        .map(AnyTypeRef::Float)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     ArrayField::Double(v) => v
                         .get(index)
-                        .map(|val| AnyTypeRef::Double(val))
+                        .map(AnyTypeRef::Double)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     ArrayField::LongDouble(_) => Err("LongDouble not supported".to_string()),
                     ArrayField::Char(v) => v
                         .get(index)
-                        .map(|val| AnyTypeRef::Uint8(val))
+                        .map(AnyTypeRef::Uint8)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     ArrayField::WChar(v) => v
                         .get(index)
-                        .map(|val| AnyTypeRef::Uint16(val))
+                        .map(AnyTypeRef::Uint16)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     ArrayField::Boolean(v) => v
                         .get(index)
-                        .map(|val| AnyTypeRef::Boolean(val))
+                        .map(AnyTypeRef::Boolean)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     ArrayField::Octet(v) => v
                         .get(index)
-                        .map(|val| AnyTypeRef::Uint8(val))
+                        .map(AnyTypeRef::Uint8)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     ArrayField::Uint8(v) => v
                         .get(index)
-                        .map(|val| AnyTypeRef::Uint8(val))
+                        .map(AnyTypeRef::Uint8)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     ArrayField::Int8(v) => v
                         .get(index)
-                        .map(|val| AnyTypeRef::Int8(val))
+                        .map(AnyTypeRef::Int8)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     ArrayField::Uint16(v) => v
                         .get(index)
-                        .map(|val| AnyTypeRef::Uint16(val))
+                        .map(AnyTypeRef::Uint16)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     ArrayField::Int16(v) => v
                         .get(index)
-                        .map(|val| AnyTypeRef::Int16(val))
+                        .map(AnyTypeRef::Int16)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     ArrayField::Uint32(v) => v
                         .get(index)
-                        .map(|val| AnyTypeRef::Uint32(val))
+                        .map(AnyTypeRef::Uint32)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     ArrayField::Int32(v) => v
                         .get(index)
-                        .map(|val| AnyTypeRef::Int32(val))
+                        .map(AnyTypeRef::Int32)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     ArrayField::Uint64(v) => v
                         .get(index)
-                        .map(|val| AnyTypeRef::Uint64(val))
+                        .map(AnyTypeRef::Uint64)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     ArrayField::Int64(v) => v
                         .get(index)
-                        .map(|val| AnyTypeRef::Int64(val))
+                        .map(AnyTypeRef::Int64)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     ArrayField::String(v) => v
                         .get(index)
-                        .map(|val| AnyTypeRef::String(val))
+                        .map(AnyTypeRef::String)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     ArrayField::BoundedString(v) => v
                         .get(index)
-                        .map(|val| AnyTypeRef::String(val))
+                        .map(AnyTypeRef::String)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     ArrayField::WString(v) => v
                         .get(index)
-                        .map(|val| AnyTypeRef::String(val))
+                        .map(AnyTypeRef::String)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     ArrayField::BoundedWString(v) => v
                         .get(index)
-                        .map(|val| AnyTypeRef::String(val))
+                        .map(AnyTypeRef::String)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     ArrayField::Message(v) => {
                         if index >= v.len() {
                             return Err("Index out of bounds".to_string());
                         }
-                        return v[index].get_deep_index(&field_index_path[1..]);
+                        v[index].get_deep_index(&field_index_path[1..])
                     }
                 }
             }
@@ -559,82 +563,82 @@ impl GenericField {
                 match sequence_field {
                     SequenceField::Float(v) => v
                         .get(index)
-                        .map(|val| AnyTypeRef::Float(val))
+                        .map(AnyTypeRef::Float)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     SequenceField::Double(v) => v
                         .get(index)
-                        .map(|val| AnyTypeRef::Double(val))
+                        .map(AnyTypeRef::Double)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     SequenceField::LongDouble(_) => Err("LongDouble not supported".to_string()),
                     SequenceField::Char(v) => v
                         .get(index)
-                        .map(|val| AnyTypeRef::Uint8(val))
+                        .map(AnyTypeRef::Uint8)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     SequenceField::WChar(v) => v
                         .get(index)
-                        .map(|val| AnyTypeRef::Uint16(val))
+                        .map(AnyTypeRef::Uint16)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     SequenceField::Boolean(v) => v
                         .get(index)
-                        .map(|val| AnyTypeRef::Boolean(val))
+                        .map(AnyTypeRef::Boolean)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     SequenceField::Octet(v) => v
                         .get(index)
-                        .map(|val| AnyTypeRef::Uint8(val))
+                        .map(AnyTypeRef::Uint8)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     SequenceField::Uint8(v) => v
                         .get(index)
-                        .map(|val| AnyTypeRef::Uint8(val))
+                        .map(AnyTypeRef::Uint8)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     SequenceField::Int8(v) => v
                         .get(index)
-                        .map(|val| AnyTypeRef::Int8(val))
+                        .map(AnyTypeRef::Int8)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     SequenceField::Uint16(v) => v
                         .get(index)
-                        .map(|val| AnyTypeRef::Uint16(val))
+                        .map(AnyTypeRef::Uint16)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     SequenceField::Int16(v) => v
                         .get(index)
-                        .map(|val| AnyTypeRef::Int16(val))
+                        .map(AnyTypeRef::Int16)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     SequenceField::Uint32(v) => v
                         .get(index)
-                        .map(|val| AnyTypeRef::Uint32(val))
+                        .map(AnyTypeRef::Uint32)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     SequenceField::Int32(v) => v
                         .get(index)
-                        .map(|val| AnyTypeRef::Int32(val))
+                        .map(AnyTypeRef::Int32)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     SequenceField::Uint64(v) => v
                         .get(index)
-                        .map(|val| AnyTypeRef::Uint64(val))
+                        .map(AnyTypeRef::Uint64)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     SequenceField::Int64(v) => v
                         .get(index)
-                        .map(|val| AnyTypeRef::Int64(val))
+                        .map(AnyTypeRef::Int64)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     SequenceField::String(v) => v
                         .get(index)
-                        .map(|val| AnyTypeRef::String(val))
+                        .map(AnyTypeRef::String)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     SequenceField::BoundedString(v) => v
                         .get(index)
-                        .map(|val| AnyTypeRef::String(val))
+                        .map(AnyTypeRef::String)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     SequenceField::WString(v) => v
                         .get(index)
-                        .map(|val| AnyTypeRef::String(val))
+                        .map(AnyTypeRef::String)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     SequenceField::BoundedWString(v) => v
                         .get(index)
-                        .map(|val| AnyTypeRef::String(val))
+                        .map(AnyTypeRef::String)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     SequenceField::Message(v) => {
                         if index >= v.len() {
                             return Err("Index out of bounds".to_string());
                         }
-                        return v[index].get_deep_index(&field_index_path[1..]);
+                        v[index].get_deep_index(&field_index_path[1..])
                     }
                 }
             }
@@ -646,84 +650,84 @@ impl GenericField {
                 match sequence_field {
                     BoundedSequenceField::Float(v, _) => v
                         .get(index)
-                        .map(|val| AnyTypeRef::Float(val))
+                        .map(AnyTypeRef::Float)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     BoundedSequenceField::Double(v, _) => v
                         .get(index)
-                        .map(|val| AnyTypeRef::Double(val))
+                        .map(AnyTypeRef::Double)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     BoundedSequenceField::LongDouble(_, _) => {
                         Err("LongDouble not supported".to_string())
                     }
                     BoundedSequenceField::Char(v, _) => v
                         .get(index)
-                        .map(|val| AnyTypeRef::Uint8(val))
+                        .map(AnyTypeRef::Uint8)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     BoundedSequenceField::WChar(v, _) => v
                         .get(index)
-                        .map(|val| AnyTypeRef::Uint16(val))
+                        .map(AnyTypeRef::Uint16)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     BoundedSequenceField::Boolean(v, _) => v
                         .get(index)
-                        .map(|val| AnyTypeRef::Boolean(val))
+                        .map(AnyTypeRef::Boolean)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     BoundedSequenceField::Octet(v, _) => v
                         .get(index)
-                        .map(|val| AnyTypeRef::Uint8(val))
+                        .map(AnyTypeRef::Uint8)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     BoundedSequenceField::Uint8(v, _) => v
                         .get(index)
-                        .map(|val| AnyTypeRef::Uint8(val))
+                        .map(AnyTypeRef::Uint8)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     BoundedSequenceField::Int8(v, _) => v
                         .get(index)
-                        .map(|val| AnyTypeRef::Int8(val))
+                        .map(AnyTypeRef::Int8)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     BoundedSequenceField::Uint16(v, _) => v
                         .get(index)
-                        .map(|val| AnyTypeRef::Uint16(val))
+                        .map(AnyTypeRef::Uint16)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     BoundedSequenceField::Int16(v, _) => v
                         .get(index)
-                        .map(|val| AnyTypeRef::Int16(val))
+                        .map(AnyTypeRef::Int16)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     BoundedSequenceField::Uint32(v, _) => v
                         .get(index)
-                        .map(|val| AnyTypeRef::Uint32(val))
+                        .map(AnyTypeRef::Uint32)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     BoundedSequenceField::Int32(v, _) => v
                         .get(index)
-                        .map(|val| AnyTypeRef::Int32(val))
+                        .map(AnyTypeRef::Int32)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     BoundedSequenceField::Uint64(v, _) => v
                         .get(index)
-                        .map(|val| AnyTypeRef::Uint64(val))
+                        .map(AnyTypeRef::Uint64)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     BoundedSequenceField::Int64(v, _) => v
                         .get(index)
-                        .map(|val| AnyTypeRef::Int64(val))
+                        .map(AnyTypeRef::Int64)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     BoundedSequenceField::String(v, _) => v
                         .get(index)
-                        .map(|val| AnyTypeRef::String(val))
+                        .map(AnyTypeRef::String)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     BoundedSequenceField::BoundedString(v, _) => v
                         .get(index)
-                        .map(|val| AnyTypeRef::String(val))
+                        .map(AnyTypeRef::String)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     BoundedSequenceField::WString(v, _) => v
                         .get(index)
-                        .map(|val| AnyTypeRef::String(val))
+                        .map(AnyTypeRef::String)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     BoundedSequenceField::BoundedWString(v, _) => v
                         .get(index)
-                        .map(|val| AnyTypeRef::String(val))
+                        .map(AnyTypeRef::String)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     BoundedSequenceField::Message(v, _) => {
                         if index >= v.len() {
                             return Err("Index out of bounds".to_string());
                         }
-                        return v[index].get_deep_index(&field_index_path[1..]);
+                        v[index].get_deep_index(&field_index_path[1..])
                     }
                 }
             }
@@ -739,7 +743,7 @@ impl GenericField {
                 if field_index_path.is_empty() {
                     return Err("Field index path is empty".to_string());
                 }
-                return inner_message.get_mut_deep_index(&field_index_path);
+                inner_message.get_mut_deep_index(field_index_path)
             }
             GenericField::Simple(simple_field) => {
                 if !field_index_path.is_empty() {
@@ -769,57 +773,57 @@ impl GenericField {
                 match array_field {
                     ArrayField::Float(v) => v
                         .get_mut(index)
-                        .map(|val| AnyTypeMutableRef::Float(val))
+                        .map(AnyTypeMutableRef::Float)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     ArrayField::Double(v) => v
                         .get_mut(index)
-                        .map(|val| AnyTypeMutableRef::Double(val))
+                        .map(AnyTypeMutableRef::Double)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     ArrayField::Boolean(v) => v
                         .get_mut(index)
-                        .map(|val| AnyTypeMutableRef::Boolean(val))
+                        .map(AnyTypeMutableRef::Boolean)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     ArrayField::Uint8(v) => v
                         .get_mut(index)
-                        .map(|val| AnyTypeMutableRef::Uint8(val))
+                        .map(AnyTypeMutableRef::Uint8)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     ArrayField::Int8(v) => v
                         .get_mut(index)
-                        .map(|val| AnyTypeMutableRef::Int8(val))
+                        .map(AnyTypeMutableRef::Int8)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     ArrayField::Uint16(v) => v
                         .get_mut(index)
-                        .map(|val| AnyTypeMutableRef::Uint16(val))
+                        .map(AnyTypeMutableRef::Uint16)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     ArrayField::Int16(v) => v
                         .get_mut(index)
-                        .map(|val| AnyTypeMutableRef::Int16(val))
+                        .map(AnyTypeMutableRef::Int16)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     ArrayField::Uint32(v) => v
                         .get_mut(index)
-                        .map(|val| AnyTypeMutableRef::Uint32(val))
+                        .map(AnyTypeMutableRef::Uint32)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     ArrayField::Int32(v) => v
                         .get_mut(index)
-                        .map(|val| AnyTypeMutableRef::Int32(val))
+                        .map(AnyTypeMutableRef::Int32)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     ArrayField::Uint64(v) => v
                         .get_mut(index)
-                        .map(|val| AnyTypeMutableRef::Uint64(val))
+                        .map(AnyTypeMutableRef::Uint64)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     ArrayField::Int64(v) => v
                         .get_mut(index)
-                        .map(|val| AnyTypeMutableRef::Int64(val))
+                        .map(AnyTypeMutableRef::Int64)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     ArrayField::String(v) => v
                         .get_mut(index)
-                        .map(|val| AnyTypeMutableRef::String(val))
+                        .map(AnyTypeMutableRef::String)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     ArrayField::Message(v) => {
                         if index >= v.len() {
                             return Err("Index out of bounds".to_string());
                         }
-                        return v[index].get_mut_deep_index(&field_index_path[1..]);
+                        v[index].get_mut_deep_index(&field_index_path[1..])
                     }
                     _ => Err("Unsupported array field type for mutable reference".to_string()),
                 }
@@ -832,57 +836,57 @@ impl GenericField {
                 match sequence_field {
                     SequenceField::Float(v) => v
                         .get_mut(index)
-                        .map(|val| AnyTypeMutableRef::Float(val))
+                        .map(AnyTypeMutableRef::Float)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     SequenceField::Double(v) => v
                         .get_mut(index)
-                        .map(|val| AnyTypeMutableRef::Double(val))
+                        .map(AnyTypeMutableRef::Double)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     SequenceField::Boolean(v) => v
                         .get_mut(index)
-                        .map(|val| AnyTypeMutableRef::Boolean(val))
+                        .map(AnyTypeMutableRef::Boolean)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     SequenceField::Uint8(v) => v
                         .get_mut(index)
-                        .map(|val| AnyTypeMutableRef::Uint8(val))
+                        .map(AnyTypeMutableRef::Uint8)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     SequenceField::Int8(v) => v
                         .get_mut(index)
-                        .map(|val| AnyTypeMutableRef::Int8(val))
+                        .map(AnyTypeMutableRef::Int8)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     SequenceField::Uint16(v) => v
                         .get_mut(index)
-                        .map(|val| AnyTypeMutableRef::Uint16(val))
+                        .map(AnyTypeMutableRef::Uint16)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     SequenceField::Int16(v) => v
                         .get_mut(index)
-                        .map(|val| AnyTypeMutableRef::Int16(val))
+                        .map(AnyTypeMutableRef::Int16)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     SequenceField::Uint32(v) => v
                         .get_mut(index)
-                        .map(|val| AnyTypeMutableRef::Uint32(val))
+                        .map(AnyTypeMutableRef::Uint32)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     SequenceField::Int32(v) => v
                         .get_mut(index)
-                        .map(|val| AnyTypeMutableRef::Int32(val))
+                        .map(AnyTypeMutableRef::Int32)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     SequenceField::Uint64(v) => v
                         .get_mut(index)
-                        .map(|val| AnyTypeMutableRef::Uint64(val))
+                        .map(AnyTypeMutableRef::Uint64)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     SequenceField::Int64(v) => v
                         .get_mut(index)
-                        .map(|val| AnyTypeMutableRef::Int64(val))
+                        .map(AnyTypeMutableRef::Int64)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     SequenceField::String(v) => v
                         .get_mut(index)
-                        .map(|val| AnyTypeMutableRef::String(val))
+                        .map(AnyTypeMutableRef::String)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     SequenceField::Message(v) => {
                         if index >= v.len() {
                             return Err("Index out of bounds".to_string());
                         }
-                        return v[index].get_mut_deep_index(&field_index_path[1..]);
+                        v[index].get_mut_deep_index(&field_index_path[1..])
                     }
                     _ => Err("Unsupported array field type for mutable reference".to_string()),
                 }
@@ -895,57 +899,57 @@ impl GenericField {
                 match sequence_field {
                     BoundedSequenceField::Float(v, _) => v
                         .get_mut(index)
-                        .map(|val| AnyTypeMutableRef::Float(val))
+                        .map(AnyTypeMutableRef::Float)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     BoundedSequenceField::Double(v, _) => v
                         .get_mut(index)
-                        .map(|val| AnyTypeMutableRef::Double(val))
+                        .map(AnyTypeMutableRef::Double)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     BoundedSequenceField::Boolean(v, _) => v
                         .get_mut(index)
-                        .map(|val| AnyTypeMutableRef::Boolean(val))
+                        .map(AnyTypeMutableRef::Boolean)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     BoundedSequenceField::Uint8(v, _) => v
                         .get_mut(index)
-                        .map(|val| AnyTypeMutableRef::Uint8(val))
+                        .map(AnyTypeMutableRef::Uint8)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     BoundedSequenceField::Int8(v, _) => v
                         .get_mut(index)
-                        .map(|val| AnyTypeMutableRef::Int8(val))
+                        .map(AnyTypeMutableRef::Int8)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     BoundedSequenceField::Uint16(v, _) => v
                         .get_mut(index)
-                        .map(|val| AnyTypeMutableRef::Uint16(val))
+                        .map(AnyTypeMutableRef::Uint16)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     BoundedSequenceField::Int16(v, _) => v
                         .get_mut(index)
-                        .map(|val| AnyTypeMutableRef::Int16(val))
+                        .map(AnyTypeMutableRef::Int16)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     BoundedSequenceField::Uint32(v, _) => v
                         .get_mut(index)
-                        .map(|val| AnyTypeMutableRef::Uint32(val))
+                        .map(AnyTypeMutableRef::Uint32)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     BoundedSequenceField::Int32(v, _) => v
                         .get_mut(index)
-                        .map(|val| AnyTypeMutableRef::Int32(val))
+                        .map(AnyTypeMutableRef::Int32)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     BoundedSequenceField::Uint64(v, _) => v
                         .get_mut(index)
-                        .map(|val| AnyTypeMutableRef::Uint64(val))
+                        .map(AnyTypeMutableRef::Uint64)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     BoundedSequenceField::Int64(v, _) => v
                         .get_mut(index)
-                        .map(|val| AnyTypeMutableRef::Int64(val))
+                        .map(AnyTypeMutableRef::Int64)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     BoundedSequenceField::String(v, _) => v
                         .get_mut(index)
-                        .map(|val| AnyTypeMutableRef::String(val))
+                        .map(AnyTypeMutableRef::String)
                         .ok_or_else(|| "Index out of bounds".to_string()),
                     BoundedSequenceField::Message(v, _) => {
                         if index >= v.len() {
                             return Err("Index out of bounds".to_string());
                         }
-                        return v[index].get_mut_deep_index(&field_index_path[1..]);
+                        v[index].get_mut_deep_index(&field_index_path[1..])
                     }
                     _ => Err("Unsupported array field type for mutable reference".to_string()),
                 }
@@ -959,7 +963,7 @@ impl GenericField {
                 if field_index_path.is_empty() {
                     return Ok(FieldType::Message);
                 }
-                return inner_message.get_field_type(&field_index_path);
+                inner_message.get_field_type(field_index_path)
             }
             GenericField::Simple(simple_field) => {
                 if !field_index_path.is_empty() {
@@ -989,7 +993,7 @@ impl GenericField {
                 if index >= msg.len() {
                     return Err("Index out of bounds".to_string());
                 }
-                return msg[index].get_field_type(&field_index_path[1..]);
+                msg[index].get_field_type(&field_index_path[1..])
             }
             GenericField::Array(array_field) => {
                 if field_index_path.is_empty() {
@@ -1001,73 +1005,73 @@ impl GenericField {
                         if index >= v.len() {
                             return Err("Index out of bounds".to_string());
                         }
-                        return Ok(FieldType::Float);
+                        Ok(FieldType::Float)
                     }
                     ArrayField::Double(v) => {
                         if index >= v.len() {
                             return Err("Index out of bounds".to_string());
                         }
-                        return Ok(FieldType::Double);
+                        Ok(FieldType::Double)
                     }
                     ArrayField::Boolean(v) => {
                         if index >= v.len() {
                             return Err("Index out of bounds".to_string());
                         }
-                        return Ok(FieldType::Boolean);
+                        Ok(FieldType::Boolean)
                     }
                     ArrayField::Uint8(v) => {
                         if index >= v.len() {
                             return Err("Index out of bounds".to_string());
                         }
-                        return Ok(FieldType::Uint8);
+                        Ok(FieldType::Uint8)
                     }
                     ArrayField::Int8(v) => {
                         if index >= v.len() {
                             return Err("Index out of bounds".to_string());
                         }
-                        return Ok(FieldType::Int8);
+                        Ok(FieldType::Int8)
                     }
                     ArrayField::Uint16(v) => {
                         if index >= v.len() {
                             return Err("Index out of bounds".to_string());
                         }
-                        return Ok(FieldType::Uint16);
+                        Ok(FieldType::Uint16)
                     }
                     ArrayField::Int16(v) => {
                         if index >= v.len() {
                             return Err("Index out of bounds".to_string());
                         }
-                        return Ok(FieldType::Int16);
+                        Ok(FieldType::Int16)
                     }
                     ArrayField::Uint32(v) => {
                         if index >= v.len() {
                             return Err("Index out of bounds".to_string());
                         }
-                        return Ok(FieldType::Uint32);
+                        Ok(FieldType::Uint32)
                     }
                     ArrayField::Int32(v) => {
                         if index >= v.len() {
                             return Err("Index out of bounds".to_string());
                         }
-                        return Ok(FieldType::Int32);
+                        Ok(FieldType::Int32)
                     }
                     ArrayField::Uint64(v) => {
                         if index >= v.len() {
                             return Err("Index out of bounds".to_string());
                         }
-                        return Ok(FieldType::Uint64);
+                        Ok(FieldType::Uint64)
                     }
                     ArrayField::Int64(v) => {
                         if index >= v.len() {
                             return Err("Index out of bounds".to_string());
                         }
-                        return Ok(FieldType::Int64);
+                        Ok(FieldType::Int64)
                     }
                     ArrayField::String(v) => {
                         if index >= v.len() {
                             return Err("Index out of bounds".to_string());
                         }
-                        return Ok(FieldType::String);
+                        Ok(FieldType::String)
                     }
                     _ => Err("Unsupported array field type".to_string()),
                 }
@@ -1080,7 +1084,7 @@ impl GenericField {
                 if index >= msgs.len() {
                     return Err("Index out of bounds".to_string());
                 }
-                return msgs[index].get_field_type(&field_index_path[1..]);
+                msgs[index].get_field_type(&field_index_path[1..])
             }
             GenericField::Sequence(sequence_field) => {
                 if field_index_path.is_empty() {
@@ -1092,73 +1096,73 @@ impl GenericField {
                         if index >= v.len() {
                             return Err("Index out of bounds".to_string());
                         }
-                        return Ok(FieldType::Float);
+                        Ok(FieldType::Float)
                     }
                     SequenceField::Double(v) => {
                         if index >= v.len() {
                             return Err("Index out of bounds".to_string());
                         }
-                        return Ok(FieldType::Double);
+                        Ok(FieldType::Double)
                     }
                     SequenceField::Boolean(v) => {
                         if index >= v.len() {
                             return Err("Index out of bounds".to_string());
                         }
-                        return Ok(FieldType::Boolean);
+                        Ok(FieldType::Boolean)
                     }
                     SequenceField::Uint8(v) => {
                         if index >= v.len() {
                             return Err("Index out of bounds".to_string());
                         }
-                        return Ok(FieldType::Uint8);
+                        Ok(FieldType::Uint8)
                     }
                     SequenceField::Int8(v) => {
                         if index >= v.len() {
                             return Err("Index out of bounds".to_string());
                         }
-                        return Ok(FieldType::Int8);
+                        Ok(FieldType::Int8)
                     }
                     SequenceField::Uint16(v) => {
                         if index >= v.len() {
                             return Err("Index out of bounds".to_string());
                         }
-                        return Ok(FieldType::Uint16);
+                        Ok(FieldType::Uint16)
                     }
                     SequenceField::Int16(v) => {
                         if index >= v.len() {
                             return Err("Index out of bounds".to_string());
                         }
-                        return Ok(FieldType::Int16);
+                        Ok(FieldType::Int16)
                     }
                     SequenceField::Uint32(v) => {
                         if index >= v.len() {
                             return Err("Index out of bounds".to_string());
                         }
-                        return Ok(FieldType::Uint32);
+                        Ok(FieldType::Uint32)
                     }
                     SequenceField::Int32(v) => {
                         if index >= v.len() {
                             return Err("Index out of bounds".to_string());
                         }
-                        return Ok(FieldType::Int32);
+                        Ok(FieldType::Int32)
                     }
                     SequenceField::Uint64(v) => {
                         if index >= v.len() {
                             return Err("Index out of bounds".to_string());
                         }
-                        return Ok(FieldType::Uint64);
+                        Ok(FieldType::Uint64)
                     }
                     SequenceField::Int64(v) => {
                         if index >= v.len() {
                             return Err("Index out of bounds".to_string());
                         }
-                        return Ok(FieldType::Int64);
+                        Ok(FieldType::Int64)
                     }
                     SequenceField::String(v) => {
                         if index >= v.len() {
                             return Err("Index out of bounds".to_string());
                         }
-                        return Ok(FieldType::String);
+                        Ok(FieldType::String)
                     }
                     _ => Err("Unsupported sequence field type".to_string()),
                 }
@@ -1171,7 +1175,7 @@ impl GenericField {
                 if index >= msgs.len() {
                     return Err("Index out of bounds".to_string());
                 }
-                return msgs[index].get_field_type(&field_index_path[1..]);
+                msgs[index].get_field_type(&field_index_path[1..])
             }
             GenericField::BoundedSequence(bounded_sequence_field) => {
                 if field_index_path.is_empty() {
@@ -1183,73 +1187,73 @@ impl GenericField {
                         if index >= v.len() {
                             return Err("Index out of bounds".to_string());
                         }
-                        return Ok(FieldType::Float);
+                        Ok(FieldType::Float)
                     }
                     BoundedSequenceField::Double(v, _) => {
                         if index >= v.len() {
                             return Err("Index out of bounds".to_string());
                         }
-                        return Ok(FieldType::Double);
+                        Ok(FieldType::Double)
                     }
                     BoundedSequenceField::Boolean(v, _) => {
                         if index >= v.len() {
                             return Err("Index out of bounds".to_string());
                         }
-                        return Ok(FieldType::Boolean);
+                        Ok(FieldType::Boolean)
                     }
                     BoundedSequenceField::Uint8(v, _) => {
                         if index >= v.len() {
                             return Err("Index out of bounds".to_string());
                         }
-                        return Ok(FieldType::Uint8);
+                        Ok(FieldType::Uint8)
                     }
                     BoundedSequenceField::Int8(v, _) => {
                         if index >= v.len() {
                             return Err("Index out of bounds".to_string());
                         }
-                        return Ok(FieldType::Int8);
+                        Ok(FieldType::Int8)
                     }
                     BoundedSequenceField::Uint16(v, _) => {
                         if index >= v.len() {
                             return Err("Index out of bounds".to_string());
                         }
-                        return Ok(FieldType::Uint16);
+                        Ok(FieldType::Uint16)
                     }
                     BoundedSequenceField::Int16(v, _) => {
                         if index >= v.len() {
                             return Err("Index out of bounds".to_string());
                         }
-                        return Ok(FieldType::Int16);
+                        Ok(FieldType::Int16)
                     }
                     BoundedSequenceField::Uint32(v, _) => {
                         if index >= v.len() {
                             return Err("Index out of bounds".to_string());
                         }
-                        return Ok(FieldType::Uint32);
+                        Ok(FieldType::Uint32)
                     }
                     BoundedSequenceField::Int32(v, _) => {
                         if index >= v.len() {
                             return Err("Index out of bounds".to_string());
                         }
-                        return Ok(FieldType::Int32);
+                        Ok(FieldType::Int32)
                     }
                     BoundedSequenceField::Uint64(v, _) => {
                         if index >= v.len() {
                             return Err("Index out of bounds".to_string());
                         }
-                        return Ok(FieldType::Uint64);
+                        Ok(FieldType::Uint64)
                     }
                     BoundedSequenceField::Int64(v, _) => {
                         if index >= v.len() {
                             return Err("Index out of bounds".to_string());
                         }
-                        return Ok(FieldType::Int64);
+                        Ok(FieldType::Int64)
                     }
                     BoundedSequenceField::String(v, _) => {
                         if index >= v.len() {
                             return Err("Index out of bounds".to_string());
                         }
-                        return Ok(FieldType::String);
+                        Ok(FieldType::String)
                     }
                     _ => Err("Unsupported array field type".to_string()),
                 }
@@ -1264,10 +1268,10 @@ impl GenericField {
         let field_index = field_index_path[0];
         let field_name = match self {
             GenericField::Simple(SimpleField::Message(inner_message)) => {
-                return inner_message.get_field_name(&field_index_path);
+                return inner_message.get_field_name(field_index_path);
             }
             GenericField::Simple(_) => {
-                if field_index_path.len() > 0 {
+                if !field_index_path.is_empty() {
                     return Err("Field is not a message type".to_string());
                 }
                 return Ok(String::new());
@@ -1437,7 +1441,7 @@ impl From<SequenceValue<'_>> for SequenceField {
                 SequenceField::BoundedWString(s.iter().map(|s| s.to_string()).collect())
             }
             SequenceValue::MessageSequence(msgs) => {
-                let generic_msgs = msgs.into_iter().map(GenericMessage::from).collect();
+                let generic_msgs = msgs.iter().map(GenericMessage::from).collect();
                 SequenceField::Message(generic_msgs)
             }
         }
@@ -1513,7 +1517,7 @@ impl From<BoundedSequenceValue<'_>> for BoundedSequenceField {
                 )
             }
             BoundedSequenceValue::MessageBoundedSequence(msgs) => {
-                let generic_msgs = msgs.into_iter().map(GenericMessage::from).collect();
+                let generic_msgs = msgs.iter().map(GenericMessage::from).collect();
                 BoundedSequenceField::Message(generic_msgs, 0) // TODO: msgs.upper_bound()
             }
         }

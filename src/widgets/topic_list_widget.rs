@@ -200,6 +200,12 @@ impl TuiWidget for TopicListWidgetState {
     }
 }
 
+impl<'a> Default for TopicListWidget<'a> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<'a> TopicListWidget<'a> {
     pub fn new() -> Self {
         Self {

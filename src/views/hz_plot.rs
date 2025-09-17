@@ -207,7 +207,7 @@ impl HzPlotWidget {
             .enumerate()
             .map(|(i, (line, plot))| {
                 Dataset::default()
-                    .name(format!("{}", line.lock().unwrap().topic,))
+                    .name(line.lock().unwrap().topic.to_string())
                     .marker(Marker::Braille)
                     .graph_type(GraphType::Line)
                     .style(Style::default().fg(match i % 6 {
@@ -218,7 +218,7 @@ impl HzPlotWidget {
                         4 => ratatui::style::Color::Magenta,
                         _ => ratatui::style::Color::Cyan,
                     }))
-                    .data(&plot)
+                    .data(plot)
             })
             .collect::<Vec<_>>();
 

@@ -1,5 +1,3 @@
-use std::usize;
-
 use crate::common::generic_message::{
     ArrayField, BoundedSequenceField, GenericField, GenericMessage, Length, SequenceField,
     SimpleField,
@@ -19,7 +17,7 @@ pub enum FieldCategory {
 }
 
 pub fn get_field_category(message: &GenericMessage, field_path: &[usize]) -> Option<FieldCategory> {
-    if field_path.len() == 0 {
+    if field_path.is_empty() {
         return Some(FieldCategory::Message);
     }
 
@@ -46,9 +44,9 @@ pub fn get_field_category(message: &GenericMessage, field_path: &[usize]) -> Opt
     match field {
         GenericField::Simple(simple_value) => {
             if let SimpleField::Message(inner_msg) = simple_value {
-                return get_field_category(&inner_msg, &field_path[1..]);
+                get_field_category(inner_msg, &field_path[1..])
             } else {
-                return None;
+                None
             }
         }
         GenericField::Array(array_value) => match array_value {
@@ -59,13 +57,13 @@ pub fn get_field_category(message: &GenericMessage, field_path: &[usize]) -> Opt
                 if field_path.len() == 2 {
                     return Some(FieldCategory::Message);
                 }
-                return get_field_category(&inner_msgs[field_path[1]], &field_path[2..]);
+                get_field_category(&inner_msgs[field_path[1]], &field_path[2..])
             }
             _ => {
                 if field_path.len() == 2 && field_path[1] < array_value.len() {
-                    return Some(FieldCategory::Base);
+                    Some(FieldCategory::Base)
                 } else {
-                    return None;
+                    None
                 }
             }
         },
@@ -77,13 +75,13 @@ pub fn get_field_category(message: &GenericMessage, field_path: &[usize]) -> Opt
                 if field_path.len() == 2 {
                     return Some(FieldCategory::Message);
                 }
-                return get_field_category(&inner_msgs[field_path[1]], &field_path[2..]);
+                get_field_category(&inner_msgs[field_path[1]], &field_path[2..])
             }
             _ => {
                 if field_path.len() == 2 && field_path[1] < sequence_value.len() {
-                    return Some(FieldCategory::Base);
+                    Some(FieldCategory::Base)
                 } else {
-                    return None;
+                    None
                 }
             }
         },
@@ -95,13 +93,13 @@ pub fn get_field_category(message: &GenericMessage, field_path: &[usize]) -> Opt
                 if field_path.len() == 2 {
                     return Some(FieldCategory::Message);
                 }
-                return get_field_category(&inner_msgs[field_path[1]], &field_path[2..]);
+                get_field_category(&inner_msgs[field_path[1]], &field_path[2..])
             }
             _ => {
                 if field_path.len() == 2 && field_path[1] < bounded_sequence_value.len() {
-                    return Some(FieldCategory::Base);
+                    Some(FieldCategory::Base)
                 } else {
-                    return None;
+                    None
                 }
             }
         },
@@ -109,8 +107,8 @@ pub fn get_field_category(message: &GenericMessage, field_path: &[usize]) -> Opt
 }
 
 fn get_last_index_path(message: &GenericMessage, field_path: &[usize]) -> Option<Vec<usize>> {
-    if field_path.len() == 0 {
-        return get_last_index_path(&message, &[message.len() - 1]);
+    if field_path.is_empty() {
+        return get_last_index_path(message, &[message.len() - 1]);
     }
 
     let field_index = field_path[0];
@@ -122,19 +120,17 @@ fn get_last_index_path(message: &GenericMessage, field_path: &[usize]) -> Option
     match field {
         GenericField::Simple(simple_value) => {
             if let SimpleField::Message(inner_msg) = simple_value {
-                if let Some(mut inner_path) = get_last_index_path(&inner_msg, &field_path[1..]) {
+                if let Some(mut inner_path) = get_last_index_path(inner_msg, &field_path[1..]) {
                     let mut path = vec![field_index];
                     path.append(&mut inner_path);
-                    return Some(path);
+                    Some(path)
                 } else {
-                    return None;
+                    None
                 }
+            } else if field_path.len() == 1 {
+                Some(vec![field_index])
             } else {
-                if field_path.len() == 1 {
-                    return Some(vec![field_index]);
-                } else {
-                    return None;
-                }
+                None
             }
         }
         GenericField::Array(array_value) => match array_value {
@@ -151,16 +147,16 @@ fn get_last_index_path(message: &GenericMessage, field_path: &[usize]) -> Option
                 {
                     let mut path = vec![field_index, inner_index];
                     path.append(&mut inner_path);
-                    return Some(path);
+                    Some(path)
                 } else {
-                    return None;
+                    None
                 }
             }
             _ => {
                 if field_path.len() == 2 && field_path[1] < array_value.len() {
-                    return Some(vec![field_index, field_path[1]]);
+                    Some(vec![field_index, field_path[1]])
                 } else {
-                    return Some(vec![field_index, array_value.len() - 1]);
+                    Some(vec![field_index, array_value.len() - 1])
                 }
             }
         },
@@ -178,9 +174,9 @@ fn get_last_index_path(message: &GenericMessage, field_path: &[usize]) -> Option
                 {
                     let mut path = vec![field_index, inner_index];
                     path.append(&mut inner_path);
-                    return Some(path);
+                    Some(path)
                 } else {
-                    return None;
+                    None
                 }
             }
             _ => {
@@ -188,12 +184,12 @@ fn get_last_index_path(message: &GenericMessage, field_path: &[usize]) -> Option
                     return None;
                 }
                 if field_path.len() == 2 {
-                    return Some(vec![field_index, field_path[1]]);
+                    Some(vec![field_index, field_path[1]])
                 } else {
                     if sequence_value.len() == 0 {
                         return None;
                     }
-                    return Some(vec![field_index, sequence_value.len() - 1]);
+                    Some(vec![field_index, sequence_value.len() - 1])
                 }
             }
         },
@@ -211,9 +207,9 @@ fn get_last_index_path(message: &GenericMessage, field_path: &[usize]) -> Option
                 {
                     let mut path = vec![field_index, inner_index];
                     path.append(&mut inner_path);
-                    return Some(path);
+                    Some(path)
                 } else {
-                    return None;
+                    None
                 }
             }
             _ => {
@@ -221,12 +217,12 @@ fn get_last_index_path(message: &GenericMessage, field_path: &[usize]) -> Option
                     return None;
                 }
                 if field_path.len() == 2 {
-                    return Some(vec![field_index, field_path[1]]);
+                    Some(vec![field_index, field_path[1]])
                 } else {
                     if bounded_sequence_value.len() == 0 {
                         return None;
                     }
-                    return Some(vec![field_index, bounded_sequence_value.len() - 1]);
+                    Some(vec![field_index, bounded_sequence_value.len() - 1])
                 }
             }
         },
@@ -243,7 +239,7 @@ impl<'a> GenericMessageSelector<'a> {
             return vec![];
         }
 
-        if current_field_path.len() == 0 {
+        if current_field_path.is_empty() {
             return vec![0];
         }
 
@@ -251,14 +247,16 @@ impl<'a> GenericMessageSelector<'a> {
 
         // Try to go right first
         result.push(0);
-        if get_field_category(&self.message, &result).is_some() {
+        if get_field_category(self.message, &result).is_some() {
             return result;
         }
         result.pop();
 
         // Try to go down
-        result.last_mut().map(|last| *last += 1);
-        while !result.is_empty() && get_field_category(&self.message, &result).is_none() {
+        if let Some(last) = result.last_mut() {
+            *last += 1
+        }
+        while !result.is_empty() && get_field_category(self.message, &result).is_none() {
             result.pop();
             if let Some(last) = result.last_mut() {
                 *last += 1;
@@ -273,14 +271,16 @@ impl<'a> GenericMessageSelector<'a> {
             return vec![];
         }
 
-        if current_field_path.len() == 0 {
+        if current_field_path.is_empty() {
             return vec![self.message.len() - 1];
         }
 
         let mut result = current_field_path.to_vec();
         if result.last().unwrap() > &0 {
-            result.last_mut().map(|last| *last -= 1);
-            if let Some(inner_path) = get_last_index_path(&self.message, &result) {
+            if let Some(last) = result.last_mut() {
+                *last -= 1;
+            }
+            if let Some(inner_path) = get_last_index_path(self.message, &result) {
                 return inner_path;
             } else {
                 return result;
@@ -289,7 +289,7 @@ impl<'a> GenericMessageSelector<'a> {
 
         // If can't go up, go left
         result.pop();
-        return result;
+        result
     }
 
     pub fn left(&self, current_field_path: &[usize]) -> Vec<usize> {
@@ -297,7 +297,7 @@ impl<'a> GenericMessageSelector<'a> {
             return vec![];
         }
 
-        if current_field_path.len() == 0 {
+        if current_field_path.is_empty() {
             return vec![self.message.len() - 1];
         }
 
@@ -308,7 +308,7 @@ impl<'a> GenericMessageSelector<'a> {
         }
 
         result.pop();
-        return result;
+        result
     }
 
     pub fn right(&self, current_field_path: &[usize]) -> Vec<usize> {
@@ -316,7 +316,7 @@ impl<'a> GenericMessageSelector<'a> {
             return vec![];
         }
 
-        if current_field_path.len() == 0 {
+        if current_field_path.is_empty() {
             return vec![0];
         }
 
@@ -325,11 +325,13 @@ impl<'a> GenericMessageSelector<'a> {
         }
 
         let mut result = current_field_path.to_vec();
-        result.last_mut().map(|last| *last += 1);
-        if get_field_category(&self.message, &result).is_some() {
-            return result;
+        if let Some(last) = result.last_mut() {
+            *last += 1;
+        }
+        if get_field_category(self.message, &result).is_some() {
+            result
         } else {
-            return current_field_path.to_vec();
+            current_field_path.to_vec()
         }
     }
 
@@ -338,7 +340,7 @@ impl<'a> GenericMessageSelector<'a> {
             return vec![];
         }
 
-        get_last_index_path(&self.message, &[]).unwrap_or_else(|| vec![])
+        get_last_index_path(self.message, &[]).unwrap_or_default()
     }
 }
 

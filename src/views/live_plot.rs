@@ -119,7 +119,7 @@ fn get_field(message: &GenericMessage, field_index_path: &[usize]) -> Option<f64
     let field = message.get_deep_index(field_index_path).unwrap();
     match field {
         AnyTypeRef::Float(v) => Some(*v as f64),
-        AnyTypeRef::Double(v) => Some(*v as f64),
+        AnyTypeRef::Double(v) => Some(*v),
         AnyTypeRef::Boolean(v) => {
             if *v {
                 Some(1.0)
@@ -241,7 +241,7 @@ impl LivePlotWidget {
                         4 => ratatui::style::Color::Magenta,
                         _ => ratatui::style::Color::Cyan,
                     }))
-                    .data(&plot)
+                    .data(plot)
             })
             .collect::<Vec<_>>();
 

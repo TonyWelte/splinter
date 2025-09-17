@@ -80,8 +80,7 @@ impl TopicPublisherState {
         // Update the message with the new field content
         let value = self
             .message
-            .get_mut_deep_index(&self.selected_fields)
-            .or_else(|e| Err(e))?;
+            .get_mut_deep_index(&self.selected_fields)?;
         match value {
             AnyTypeMutableRef::Float(v) => {
                 *v = self
@@ -218,8 +217,7 @@ impl TuiView for TopicPublisherState {
                             self.field_content.push('h');
                             Event::None
                         } else {
-                            if let Some(field) =
-                                self.message.get_mut_deep_index(&self.selected_fields).ok()
+                            if let Ok(field) = self.message.get_mut_deep_index(&self.selected_fields)
                             {
                                 match field {
                                     AnyTypeMutableRef::Sequence(sequence_field) => {
@@ -242,8 +240,7 @@ impl TuiView for TopicPublisherState {
                             self.field_content.push('l');
                             Event::None
                         } else {
-                            if let Some(field) =
-                                self.message.get_mut_deep_index(&self.selected_fields).ok()
+                            if let Ok(field) = self.message.get_mut_deep_index(&self.selected_fields)
                             {
                                 match field {
                                     AnyTypeMutableRef::Sequence(sequence_field) => {
@@ -277,17 +274,15 @@ impl TuiView for TopicPublisherState {
                             self.field_content.clear();
                             self.needs_redraw = true;
                             Event::None
+                        } else if get_field_category(&self.message, &self.selected_fields)
+                            == Some(FieldCategory::Base)
+                        {
+                            self.is_editing = true;
+                            self.field_content.clear();
+                            self.needs_redraw = true;
+                            Event::None
                         } else {
-                            if get_field_category(&self.message, &self.selected_fields)
-                                == Some(FieldCategory::Base)
-                            {
-                                self.is_editing = true;
-                                self.field_content.clear();
-                                self.needs_redraw = true;
-                                Event::None
-                            } else {
-                                event
-                            }
+                            event
                         }
                     }
                     KeyCode::Char(c) => {

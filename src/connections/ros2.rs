@@ -20,6 +20,12 @@ pub struct ConnectionROS2 {
     thread: JoinHandle<()>,
 }
 
+impl Default for ConnectionROS2 {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ConnectionROS2 {
     /// Create a new ROS2 connection.
     pub fn new() -> Self {
@@ -128,67 +134,67 @@ fn populate_message(dynamic_message: DynamicMessageViewMut, generic_message: &Ge
                     ValueMut::Array(ArrayValueMut::BooleanArray(v)),
                     GenericField::Array(ArrayField::Boolean(f)),
                 ) => {
-                    v.copy_from_slice(&f);
+                    v.copy_from_slice(f);
                 }
                 (
                     ValueMut::Array(ArrayValueMut::FloatArray(v)),
                     GenericField::Array(ArrayField::Float(f)),
                 ) => {
-                    v.copy_from_slice(&f);
+                    v.copy_from_slice(f);
                 }
                 (
                     ValueMut::Array(ArrayValueMut::DoubleArray(v)),
                     GenericField::Array(ArrayField::Double(f)),
                 ) => {
-                    v.copy_from_slice(&f);
+                    v.copy_from_slice(f);
                 }
                 (
                     ValueMut::Array(ArrayValueMut::Int64Array(v)),
                     GenericField::Array(ArrayField::Int64(f)),
                 ) => {
-                    v.copy_from_slice(&f);
+                    v.copy_from_slice(f);
                 }
                 (
                     ValueMut::Array(ArrayValueMut::Uint64Array(v)),
                     GenericField::Array(ArrayField::Uint64(f)),
                 ) => {
-                    v.copy_from_slice(&f);
+                    v.copy_from_slice(f);
                 }
                 (
                     ValueMut::Array(ArrayValueMut::Int32Array(v)),
                     GenericField::Array(ArrayField::Int32(f)),
                 ) => {
-                    v.copy_from_slice(&f);
+                    v.copy_from_slice(f);
                 }
                 (
                     ValueMut::Array(ArrayValueMut::Uint32Array(v)),
                     GenericField::Array(ArrayField::Uint32(f)),
                 ) => {
-                    v.copy_from_slice(&f);
+                    v.copy_from_slice(f);
                 }
                 (
                     ValueMut::Array(ArrayValueMut::Int16Array(v)),
                     GenericField::Array(ArrayField::Int16(f)),
                 ) => {
-                    v.copy_from_slice(&f);
+                    v.copy_from_slice(f);
                 }
                 (
                     ValueMut::Array(ArrayValueMut::Uint16Array(v)),
                     GenericField::Array(ArrayField::Uint16(f)),
                 ) => {
-                    v.copy_from_slice(&f);
+                    v.copy_from_slice(f);
                 }
                 (
                     ValueMut::Array(ArrayValueMut::Int8Array(v)),
                     GenericField::Array(ArrayField::Int8(f)),
                 ) => {
-                    v.copy_from_slice(&f);
+                    v.copy_from_slice(f);
                 }
                 (
                     ValueMut::Array(ArrayValueMut::Uint8Array(v)),
                     GenericField::Array(ArrayField::Uint8(f)),
                 ) => {
-                    v.copy_from_slice(&f);
+                    v.copy_from_slice(f);
                 }
                 (
                     ValueMut::Array(ArrayValueMut::StringArray(v)),
@@ -215,7 +221,7 @@ fn populate_message(dynamic_message: DynamicMessageViewMut, generic_message: &Ge
                     GenericField::Array(ArrayField::Boolean(f)),
                 ) => {
                     *v = Sequence::new(f.len());
-                    v.copy_from_slice(&f);
+                    v.copy_from_slice(f);
                 }
                 _ => {
                     eprintln!("Type mismatch for field: {}", name);
@@ -226,15 +232,15 @@ fn populate_message(dynamic_message: DynamicMessageViewMut, generic_message: &Ge
     }
 }
 
-impl Into<DynamicMessage> for &GenericMessage {
-    fn into(self) -> DynamicMessage {
+impl From<&GenericMessage> for DynamicMessage {
+    fn from(val: &GenericMessage) -> Self {
         let message_type = MessageTypeName {
-            package_name: self.type_name().package_name.clone(),
-            type_name: self.type_name().type_name.clone(),
+            package_name: val.type_name().package_name.clone(),
+            type_name: val.type_name().type_name.clone(),
         };
         let mut dynamic_message = DynamicMessage::new(message_type).unwrap();
 
-        populate_message(dynamic_message.view_mut(), &self);
+        populate_message(dynamic_message.view_mut(), val);
 
         dynamic_message
     }
@@ -255,7 +261,7 @@ impl Connection for ConnectionROS2 {
             .map(|(name, types)| {
                 let first_type = types
                     .first()
-                    .map(|type_name| InterfaceType::new(&type_name))
+                    .map(|type_name| InterfaceType::new(type_name))
                     .unwrap();
                 (name, first_type)
             })
@@ -279,7 +285,7 @@ impl Connection for ConnectionROS2 {
                 types.first().map(|type_name| {
                     let parts: Vec<&str> = type_name.split('/').collect();
                     MessageTypeName {
-                        package_name: parts.get(0).unwrap_or(&"").to_string(),
+                        package_name: parts.first().unwrap_or(&"").to_string(),
                         type_name: parts.get(2).unwrap_or(&"").to_string(),
                     }
                 })

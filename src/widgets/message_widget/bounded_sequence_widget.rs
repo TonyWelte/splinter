@@ -159,7 +159,7 @@ impl<'a> Widget for BoundedSequenceWidget<'a> {
                         Style::default()
                     };
                     if let Some(edit) = self.edit {
-                        if !self.selection.is_none()
+                        if self.selection.is_some()
                             && !self.selection.unwrap().is_empty()
                             && self.selection.unwrap()[0] == i
                         {
@@ -182,7 +182,7 @@ impl<'a> Widget for BoundedSequenceWidget<'a> {
                     buf.set_stringn(
                         area_remaining.x,
                         y,
-                        &format!("- \"{}\"", value),
+                        format!("- \"{}\"", value),
                         area_remaining.width as usize,
                         style,
                     );
@@ -216,7 +216,7 @@ impl<'a> Widget for BoundedSequenceWidget<'a> {
                         Style::default()
                     };
                     if let Some(edit) = self.edit {
-                        if !self.selection.is_none()
+                        if self.selection.is_some()
                             && !self.selection.unwrap().is_empty()
                             && self.selection.unwrap()[0] == i
                         {

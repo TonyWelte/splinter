@@ -46,7 +46,7 @@ impl AddLineState {
                 }
                 KeyCode::Char('j') | KeyCode::Down => {
                     if self.selected < self.views.len() {
-                        self.selected = self.selected + 1;
+                        self.selected += 1;
                     }
                     self.needs_redraw = true;
                     return Event::None;
@@ -74,7 +74,7 @@ impl AddLineState {
                 _ => {}
             }
         }
-        return event;
+        event
     }
 
     pub fn needs_redraw(&mut self) -> bool {

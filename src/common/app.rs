@@ -61,6 +61,24 @@ pub enum AppArgs {
     HzPlot(String),
 }
 
+impl Default for App {
+    fn default() -> Self {
+        let should_exit = false;
+        let connection = Rc::new(RefCell::new(ConnectionType::ROS2(ConnectionROS2::new())));
+        let topic_list = TopicListState::new(connection.clone());
+        let node_list = NodeListState::new(connection.clone());
+        Self {
+            should_exit,
+            connection,
+            widgets: vec![Views::TopicList(topic_list), Views::NodeList(node_list)],
+            active_widget_index: 0,
+            popup_view: PopupView::None,
+            needs_redraw: true,
+            metrics: AppMetrics { draw_count: 0 },
+        }
+    }
+}
+
 impl App {
     pub fn new(args: AppArgs) -> Self {
         let should_exit = false;
@@ -94,22 +112,6 @@ impl App {
             should_exit,
             connection,
             widgets: vec![view],
-            active_widget_index: 0,
-            popup_view: PopupView::None,
-            needs_redraw: true,
-            metrics: AppMetrics { draw_count: 0 },
-        }
-    }
-
-    pub fn default() -> Self {
-        let should_exit = false;
-        let connection = Rc::new(RefCell::new(ConnectionType::ROS2(ConnectionROS2::new())));
-        let topic_list = TopicListState::new(connection.clone());
-        let node_list = NodeListState::new(connection.clone());
-        Self {
-            should_exit,
-            connection,
-            widgets: vec![Views::TopicList(topic_list), Views::NodeList(node_list)],
             active_widget_index: 0,
             popup_view: PopupView::None,
             needs_redraw: true,
@@ -182,7 +184,6 @@ impl App {
                 match key_event.code {
                     KeyCode::Char('q') | KeyCode::Esc => {
                         self.should_exit = true;
-                        return;
                     }
                     KeyCode::Char('x') => {
                         if self.widgets.len() > 1 {
@@ -192,13 +193,11 @@ impl App {
                             }
                         }
                         self.needs_redraw = true;
-                        return;
                     }
                     KeyCode::Tab => {
                         self.active_widget_index =
                             (self.active_widget_index + 1) % self.widgets.len();
                         self.needs_redraw = true;
-                        return;
                     }
                     KeyCode::BackTab => {
                         if self.active_widget_index == 0 {
@@ -207,7 +206,6 @@ impl App {
                             self.active_widget_index -= 1;
                         }
                         self.needs_redraw = true;
-                        return;
                     }
                     KeyCode::Char('?') => {
                         if let Some(active_view) = self.widgets.get(self.active_widget_index) {
@@ -216,7 +214,6 @@ impl App {
                             help_text.push_str(&self.get_help_test());
                             self.popup_view = PopupView::Error(TextPopup::info(help_text));
                         }
-                        return;
                     }
                     _ => {}
                 }
@@ -249,7 +246,6 @@ impl App {
                     field_name,
                     candidate_views,
                 ));
-                return;
             }
             Event::NewLinePlot(new_graph_event) => {
                 let topic = new_graph_event.topic;
@@ -291,7 +287,6 @@ impl App {
                     })
                     .collect();
                 self.popup_view = PopupView::AddHz(AddHzState::new(topic, candidate_views));
-                return;
             }
             Event::NewHzPlot(new_topic_event) => {
                 let topic = new_topic_event.topic;
