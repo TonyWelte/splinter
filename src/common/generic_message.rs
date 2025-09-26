@@ -7,7 +7,7 @@ use std::{ops::Index, time::SystemTime};
 #[derive(Debug, Clone, PartialEq)]
 pub struct InterfaceType {
     pub package_name: String,
-    pub catergory: String,
+    pub category: String,
     pub type_name: String,
 }
 
@@ -19,7 +19,7 @@ impl InterfaceType {
         }
         Self {
             package_name: parts[0].to_string(),
-            catergory: parts[1].to_string(),
+            category: parts[1].to_string(),
             type_name: parts[2].to_string(),
         }
     }
@@ -1260,6 +1260,7 @@ impl GenericField {
             }
         }
     }
+
     pub fn get_field_name(&self, field_index_path: &[usize]) -> Result<String, String> {
         if field_index_path.is_empty() {
             return Ok(String::new());
@@ -1561,7 +1562,7 @@ impl From<&DynamicMessageView<'_>> for GenericMessage {
                     .next()
                     .unwrap_or("")
                     .to_string(),
-                catergory: message
+                category: message
                     .namespace
                     .split("__")
                     .nth(1)
@@ -1605,10 +1606,6 @@ impl GenericMessage {
 
     pub fn type_name(&self) -> &InterfaceType {
         &self.type_name
-    }
-
-    pub fn fields(&self) -> &IndexMap<String, GenericField> {
-        &self.fields
     }
 
     pub fn len(&self) -> usize {
@@ -1693,10 +1690,6 @@ impl GenericMessage {
             Ok(format!("{}.{}", field_name, sub_field_name))
         }
     }
-
-    pub fn field_count(&self) -> usize {
-        self.fields.len()
-    }
 }
 
 #[cfg(test)]
@@ -1716,7 +1709,7 @@ mod tests {
             generic_message.type_name,
             InterfaceType {
                 package_name: "std_msgs".to_string(),
-                catergory: "msg".to_string(),
+                category: "msg".to_string(),
                 type_name: "String".to_string(),
             }
         );

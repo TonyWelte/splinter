@@ -414,7 +414,7 @@ mod tests {
                 GenericMessage::new(
                     InterfaceType {
                         package_name: "test".to_string(),
-                        catergory: "msg".to_string(),
+                        category: "msg".to_string(),
                         type_name: "Message".to_string(),
                     },
                     IndexMap::from_iter([
@@ -431,7 +431,7 @@ mod tests {
                 GenericMessage::new(
                     InterfaceType {
                         package_name: "test".to_string(),
-                        catergory: "msg".to_string(),
+                        category: "msg".to_string(),
                         type_name: "Message".to_string(),
                     },
                     IndexMap::from_iter([

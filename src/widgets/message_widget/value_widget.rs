@@ -196,7 +196,7 @@ impl<'a> Widget for ValueWidget<'a> {
                 let type_string = format!(
                     "{}/{}/{}",
                     inner_message.type_name().package_name,
-                    inner_message.type_name().catergory,
+                    inner_message.type_name().category,
                     inner_message.type_name().type_name
                 );
                 buf.set_stringn(
@@ -398,7 +398,7 @@ mod tests {
         let inner_message = GenericMessage::new(
             InterfaceType {
                 package_name: "test_pkg".to_string(),
-                catergory: "msg".to_string(),
+                category: "msg".to_string(),
                 type_name: "InnerMessage".to_string(),
             },
             IndexMap::from([
@@ -461,7 +461,7 @@ mod tests {
         let inner_message = GenericMessage::new(
             InterfaceType {
                 package_name: "test_pkg".to_string(),
-                catergory: "msg".to_string(),
+                category: "msg".to_string(),
                 type_name: "InnerMessage".to_string(),
             },
             IndexMap::from([
