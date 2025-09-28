@@ -95,9 +95,7 @@ impl TuiView for TopicListState {
                     Event::None
                 }
                 KeyCode::Enter => {
-                    if let Some((topic, type_name)) =
-                        self.state.filtered_topics.get(self.state.selected_index)
-                    {
+                    if let Some((topic, type_name)) = self.state.get_selected() {
                         match self.action {
                             Action::Echo => Event::NewMessageView(NewTopicEvent {
                                 topic: topic.clone(),
@@ -129,11 +127,16 @@ impl TuiView for TopicListState {
 
     fn get_help_text(&self) -> String {
         "Topic List View Help:\n\
+        Normal Mode:\n\
         - 'j' or ↓: Move down in the topic list.\n\
         - 'k' or ↑: Move up in the topic list.\n\
         - 'l' or →: Switch to the next action (Echo, Pub, Hz).\n\
         - 'h' or ←: Switch to the previous action (Echo, Pub, Hz).\n\
-        - 'Enter': Execute the selected action on the highlighted topic."
+        - 'Enter': Execute the selected action on the highlighted topic.\n\
+        Search Mode:\n\
+        - Type to filter topics.\n\
+        - 'Backspace': Remove the last character from the search filter.\n\
+        - 'Esc'/'Enter': Exit search mode."
             .to_string()
     }
 
@@ -183,7 +186,7 @@ impl TopicList {
             .border_style(HEADER_STYLE)
             .border_type(BorderType::Rounded);
 
-        let topic_list_widget = TopicListWidget::new().block(block);
+        let topic_list_widget = TopicListWidget::new().block(block).auto_scroll(true);
 
         topic_list_widget.render(area, buf, &mut state.state);
     }
