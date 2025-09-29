@@ -16,6 +16,7 @@ struct DevNode {
     publisher_builtins: Arc<PublisherState<test_msgs::msg::Builtins>>,
     publisher_constants: Arc<PublisherState<test_msgs::msg::Constants>>,
     publisher_nested: Arc<PublisherState<test_msgs::msg::Nested>>,
+    publisher_sinusoid: Arc<PublisherState<test_msgs::msg::MultiNested>>,
 }
 
 impl DevNode {
@@ -37,6 +38,8 @@ impl DevNode {
         let publisher_constants = node.create_publisher("constants").unwrap();
         let publisher_nested = node.create_publisher("nested").unwrap();
 
+        let publisher_sinusoid = node.create_publisher("sinusoid").unwrap();
+
         Ok(Self {
             publisher_empty,
             publisher_bounded_plain_sequences,
@@ -51,6 +54,7 @@ impl DevNode {
             publisher_builtins,
             publisher_constants,
             publisher_nested,
+            publisher_sinusoid,
         })
     }
 
@@ -83,15 +87,31 @@ impl DevNode {
             .publish(test_msgs::msg::Nested::default())?;
         Ok(())
     }
+
+    fn publish_signal(&self, t: f64) -> Result<(), RclrsError> {
+        let mut msg = test_msgs::msg::MultiNested::default();
+        msg.array_of_arrays[0].float64_values = [t.sin(), t.cos(), t.tan()];
+        self.publisher_sinusoid.publish(msg)?;
+        Ok(())
+    }
 }
 
 fn main() -> Result<(), RclrsError> {
     let mut executor = Context::default_from_env().unwrap().create_basic_executor();
     let node = DevNode::new(&executor).unwrap();
 
-    thread::spawn(move || loop {
-        thread::sleep(Duration::from_millis(1000));
-        node.publish_data().unwrap();
+    thread::spawn(move || {
+        let mut t = 0.0;
+        loop {
+            thread::sleep(Duration::from_millis(100));
+            node.publish_signal(t).unwrap();
+            t += 0.1;
+
+            // Publish all other test messages at a slower rate
+            if (t * 10.0) as i32 % 10 == 0 {
+                node.publish_data().unwrap();
+            }
+        }
     });
     executor.spin(SpinOptions::default()).first_error()
 }

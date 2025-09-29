@@ -2,7 +2,7 @@
 
 **Splinter** is a **Terminal User Interface (TUI)** for **ROS2**. It provides a keyboard-driven way to interact with ROS2 topics and nodes from your terminal.
 
-TODO: Add animation
+![Animation](./doc/img/animation.gif)
 
 ## Features
 
@@ -54,10 +54,10 @@ chmod +x splinter_install.sh
 
 ### Current Priorities
 
-| Feature                     | Notes                                  |
-| --------------------------- | -------------------------------------- |
-| Fuzzy search                | Improve usability for large workspaces |
-| Parameters (List, Get, Set) | Full parameter management              |
+| Feature                      | Notes                                          |
+| ---------------------------- | ---------------------------------------------- |
+| Parameters (List, Get, Set)  | Full parameter management                      |
+| GenericMessage (non-copying) | Preparing for MCAP and Foxglove bridge support |
 
 ### Upcoming Features
 
@@ -77,7 +77,6 @@ chmod +x splinter_install.sh
 | New Connections: Rosbridge                | Web-based ROS2 interaction                      |
 | New Connections: Multi-connection support | Manage multiple ROS2 connections simultaneously |
 | Services                                  | List and call ROS2 services                     |
-| GenericMessage (non-copying)              | Optimize memory usage                           |
 | Grid view                                 | Customizable widget layouts                     |
 
 ## Why Rust ?

@@ -64,7 +64,7 @@ impl RawMessageState {
                 },
             )
             .expect("Failed to subscribe to topic");
-        
+
         Self {
             topic: topic.clone(),
             message,
@@ -82,8 +82,7 @@ impl RawMessageState {
 
     pub fn select_down(&mut self) {
         if let Some(message) = self.message.lock().unwrap().as_ref() {
-            self.selected_fields =
-                GenericMessageSelector::new(message).down(&self.selected_fields);
+            self.selected_fields = GenericMessageSelector::new(message).down(&self.selected_fields);
             self.set_needs_redraw();
         }
     }
@@ -97,8 +96,7 @@ impl RawMessageState {
 
     pub fn select_left(&mut self) {
         if let Some(message) = self.message.lock().unwrap().as_ref() {
-            self.selected_fields =
-                GenericMessageSelector::new(message).left(&self.selected_fields);
+            self.selected_fields = GenericMessageSelector::new(message).left(&self.selected_fields);
             self.set_needs_redraw();
         }
     }
@@ -134,17 +132,6 @@ impl TuiView for RawMessageState {
                     self.select_up();
                     Event::None
                 }
-                // KeyCode::Char('l') | KeyCode::Right => {
-                //     self.select_right();
-                //     Event::None
-                // }
-                // KeyCode::Char('h') | KeyCode::Left => {
-                //     self.select_left();
-                //     Event::None
-                // }
-                KeyCode::Char('g') => {
-                    todo!("Wait for double g");
-                }
                 KeyCode::Char('G') => {
                     self.select_last();
                     Event::None
@@ -166,18 +153,16 @@ impl TuiView for RawMessageState {
                         | Ok(FieldType::Uint32)
                         | Ok(FieldType::Int32)
                         | Ok(FieldType::Uint64)
-                        | Ok(FieldType::Int64) => {
-                            Event::NewLine(NewLineEvent {
-                                topic: self.topic.clone(),
-                                field: self.selected_fields.clone(),
-                                field_name: message
-                                    .as_ref()
-                                    .unwrap()
-                                    .get_field_name(&self.selected_fields)
-                                    .unwrap_or_else(|_| "this is a bug".to_string()),
-                                view: None,
-                            })
-                        }
+                        | Ok(FieldType::Int64) => Event::NewLine(NewLineEvent {
+                            topic: self.topic.clone(),
+                            field: self.selected_fields.clone(),
+                            field_name: message
+                                .as_ref()
+                                .unwrap()
+                                .get_field_name(&self.selected_fields)
+                                .unwrap_or_else(|_| "this is a bug".to_string()),
+                            view: None,
+                        }),
                         Ok(_) => Event::Error("Cannot plot non-primitive field".to_string()),
                         Err(e) => Event::Error(format!("Failed to get field type: {}", e)),
                     }

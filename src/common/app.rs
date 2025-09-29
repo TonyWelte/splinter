@@ -2,8 +2,15 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::time::Duration;
 
-use ratatui::text::Span;
-use ratatui::widgets::Tabs;
+use color_eyre::eyre::Result;
+use ratatui::{
+    buffer::Buffer,
+    crossterm::event::{self, Event as CrosstermEvent, KeyCode, KeyEventKind},
+    layout::{Alignment, Constraint, Layout, Rect},
+    style::Stylize,
+    widgets::{Clear, Paragraph, Tabs, Widget},
+    DefaultTerminal,
+};
 
 use crate::common::event::Event;
 use crate::common::generic_message::InterfaceType;
@@ -26,18 +33,18 @@ use crate::views::{
     TuiView, Views,
 };
 
-use color_eyre::eyre::Result;
-use ratatui::{
-    buffer::Buffer,
-    crossterm::event::{self, Event as CrosstermEvent, KeyCode, KeyEventKind},
-    layout::{Constraint, Layout, Rect},
-    style::Stylize,
-    widgets::{Paragraph, Widget},
-    DefaultTerminal,
-};
-
 pub struct AppMetrics {
     pub draw_count: u32,
+    pub events: Vec<Event>,
+}
+
+impl Default for AppMetrics {
+    fn default() -> Self {
+        Self {
+            draw_count: 0,
+            events: vec![],
+        }
+    }
 }
 
 pub struct App {
@@ -74,7 +81,7 @@ impl Default for App {
             active_widget_index: 0,
             popup_view: PopupView::None,
             needs_redraw: true,
-            metrics: AppMetrics { draw_count: 0 },
+            metrics: AppMetrics::default(),
         }
     }
 }
@@ -115,7 +122,7 @@ impl App {
             active_widget_index: 0,
             popup_view: PopupView::None,
             needs_redraw: true,
-            metrics: AppMetrics { draw_count: 0 },
+            metrics: AppMetrics::default(),
         }
     }
 
@@ -148,6 +155,9 @@ impl App {
     }
 
     fn handle_event(&mut self, event: Event) {
+        // Log all events for debugging purposes
+        self.metrics.events.push(event.clone());
+
         let event = match &mut self.popup_view {
             PopupView::None => self.widgets[self.active_widget_index].handle_event(event),
             PopupView::AddLine(data) => {
@@ -331,18 +341,13 @@ impl App {
 
 impl Widget for &mut App {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        let [header_area, content_area, footer_area] = Layout::vertical([
-            Constraint::Length(2),
-            Constraint::Fill(1),
-            Constraint::Length(1),
-        ])
-        .areas(area);
+        let [header_area, content_area] =
+            Layout::vertical([Constraint::Length(1), Constraint::Fill(1)]).areas(area);
 
         let [tab_area, widget_area] =
             Layout::vertical([Constraint::Length(1), Constraint::Fill(1)]).areas(content_area);
 
         App::render_header(header_area, buf);
-        App::render_footer(footer_area, buf);
 
         let widget_names = self.widgets.iter().map(|w| w.name());
         Tabs::new(widget_names)
@@ -372,19 +377,6 @@ impl Widget for &mut App {
             }
         }
 
-        Span::raw(format!("Draw count: {}", self.metrics.draw_count))
-            .italic()
-            .into_right_aligned_line()
-            .render(
-                Rect {
-                    x: widget_area.x + widget_area.height - 1,
-                    y: widget_area.y,
-                    width: widget_area.width,
-                    height: 1,
-                },
-                buf,
-            );
-
         let popup_area = Rect {
             x: area.width / 4,
             y: area.height / 4,
@@ -403,6 +395,9 @@ impl Widget for &mut App {
             }
             PopupView::None => {}
         }
+
+        // Uncomment to show pressed keys at the bottom for debugging / creating animated GIFs
+        // self.render_event(area, buf);
     }
 }
 
@@ -415,11 +410,52 @@ impl App {
             .render(area, buf);
     }
 
-    fn render_footer(area: Rect, buf: &mut Buffer) {
-        Paragraph::new(
-            "Use Tab to switch active pannel, ↓↑ to move, Enter for actions, q or Esc to exit",
-        )
-        .centered()
-        .render(area, buf);
+    pub fn render_event(&self, area: Rect, buf: &mut Buffer) {
+        // Display all key events at the bottom in a bordered text box for the animated GIF
+        let event_log_area = Rect {
+            x: area.x + area.width / 3,
+            y: area.y + area.height - 5,
+            width: area.width / 3,
+            height: 3,
+        };
+        let event_to_character = |event: &Event| match event {
+            Event::Key(CrosstermEvent::Key(key_event)) => match key_event.code {
+                KeyCode::Char(c) => c.to_string(),
+                KeyCode::Enter => "⏎".to_string(),
+                KeyCode::Tab => "⇥".to_string(),
+                KeyCode::BackTab => "⇤".to_string(),
+                KeyCode::Esc => "⎋".to_string(),
+                KeyCode::Backspace => "⌫".to_string(),
+                KeyCode::Left => "←".to_string(),
+                KeyCode::Right => "→".to_string(),
+                KeyCode::Up => "↑".to_string(),
+                KeyCode::Down => "↓".to_string(),
+                _ => "Unknown".to_string(),
+            },
+            _ => "".to_string(),
+        };
+        let recent_events = self
+            .metrics
+            .events
+            .iter()
+            .rev()
+            .filter(|e| matches!(e, Event::Key(_)))
+            .take(event_log_area.width as usize / 2 - 1)
+            .map(event_to_character)
+            .collect::<Vec<String>>();
+        let event_log_text = recent_events
+            .into_iter()
+            .rev()
+            .collect::<Vec<String>>()
+            .join(" ");
+        Clear.render(event_log_area, buf);
+        Paragraph::new(event_log_text)
+            .block(
+                ratatui::widgets::Block::default()
+                    .borders(ratatui::widgets::Borders::ALL)
+                    .title("Event Log"),
+            )
+            .alignment(Alignment::Right)
+            .render(event_log_area, buf);
     }
 }

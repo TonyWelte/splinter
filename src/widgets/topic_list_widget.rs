@@ -387,28 +387,28 @@ impl<'a> StatefulWidget for TopicListWidget<'a> {
                 Span::raw("/"),
                 Span::raw(state.filter.as_deref().unwrap_or("")),
                 Span::raw(" ").style(cursor_style),
-                Span::raw(
-                    " ".repeat(
-                        inner_area
-                            .width
-                            .saturating_sub(
-                                (2 + state.filter.as_deref().map_or_else(|| 0, |f| f.len()))
-                                    .try_into()
-                                    .unwrap(),
-                            )
-                            .min(inner_area.width)
-                            .into(),
-                    ),
-                ),
             ]);
             let overlay_area = Rect {
-                x: inner_area.x,
-                y: inner_area.y + inner_area.height.saturating_sub(1),
-                width: inner_area.width,
+                x: area.x + 1,
+                y: area.y + area.height.saturating_sub(1),
+                width: area.width,
                 height: 1,
             };
             overlay.render(overlay_area, buf);
         }
+        // Render mode at the bottom right
+        let mode_text = match state.mode {
+            TopicListWidgetMode::Normal => "NORMAL",
+            TopicListWidgetMode::Search => "SEARCH",
+        };
+        let mode = Line::from_iter([Span::raw(mode_text).style(Style::default())]);
+        let mode_area = Rect {
+            x: area.x + area.width.saturating_sub(mode.width() as u16) - 1,
+            y: area.y + area.height.saturating_sub(1),
+            width: mode.width() as u16,
+            height: 1,
+        };
+        mode.render(mode_area, buf);
     }
 }
 
@@ -466,7 +466,7 @@ mod tests {
                 "                                                  ".into(),
                 "                                                  ".into(),
                 "                                                  ".into(),
-                "                                                  ".into(),
+                "                                           NORMAL ".into(),
             ],
         );
 
@@ -484,7 +484,7 @@ mod tests {
                 "                                                  ".into(),
                 "                                                  ".into(),
                 "                                                  ".into(),
-                "                                                  ".into(),
+                "                                           NORMAL ".into(),
             ],
         );
 
@@ -502,7 +502,7 @@ mod tests {
                 "                                                  ".into(),
                 "                                                  ".into(),
                 "                                                  ".into(),
-                "                                                  ".into(),
+                "                                           NORMAL ".into(),
             ],
         );
     }
@@ -540,7 +540,7 @@ mod tests {
             "│                                                │",
             "│                                                │",
             "│                                                │",
-            "└────────────────────────────────────────────────┘",
+            "└──────────────────────────────────────────NORMAL┘",
         ]);
         expexted.set_style(
             Rect {

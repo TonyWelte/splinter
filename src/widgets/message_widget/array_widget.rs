@@ -14,6 +14,8 @@ use crate::{
     widgets::message_widget::{AsStrVec, MessageWidget},
 };
 
+const ARRAY_ELEMENT_WIDTH: u16 = 10; // Fixed width for each array element when rendering (including space)
+
 pub struct ArrayWidget<'a> {
     name: &'a str,
     value: &'a ArrayField,
@@ -57,8 +59,8 @@ impl<'a> ArrayWidget<'a> {
                 1 + inner_strings.len() as u16 // +1 for the field name
             }
             _ => {
-                let quot = (self.value.len() as u16) / (width / 10/* fixed width of val */);
-                let rem = (self.value.len() as u16) % (width / 10/* fixed width of val */);
+                let quot = (self.value.len() as u16) / (width / (ARRAY_ELEMENT_WIDTH));
+                let rem = (self.value.len() as u16) % (width / (ARRAY_ELEMENT_WIDTH));
                 1 + quot + if rem > 0 { 1 } else { 0 } // +1 for the field name
             }
         }
@@ -189,7 +191,7 @@ impl<'a> Widget for ArrayWidget<'a> {
                 let values = self.value.as_str_iter();
                 let mut x = area_remaining.x;
                 for (i, value) in values.iter().enumerate() {
-                    if x + 10 > area_remaining.x + area_remaining.width {
+                    if x + ARRAY_ELEMENT_WIDTH - 1 > area_remaining.x + area_remaining.width {
                         x = area_remaining.x;
                         area_remaining.y += 1;
                         area_remaining.height = area_remaining.height.saturating_sub(1);
@@ -267,19 +269,25 @@ impl<'a> Widget for ArrayWidget<'a> {
                                 x,
                                 area_remaining.y,
                                 edit,
-                                10,
+                                ARRAY_ELEMENT_WIDTH as usize - 1,
                                 style.fg(if is_edit_valid {
                                     Color::Green
                                 } else {
                                     Color::Red
                                 }),
                             );
-                            x += 10;
+                            x += ARRAY_ELEMENT_WIDTH;
                             continue;
                         }
                     }
-                    buf.set_stringn(x, area_remaining.y, value, 10, style);
-                    x += 10;
+                    buf.set_stringn(
+                        x,
+                        area_remaining.y,
+                        value,
+                        ARRAY_ELEMENT_WIDTH as usize - 1,
+                        style,
+                    );
+                    x += ARRAY_ELEMENT_WIDTH;
                 }
             }
         }
