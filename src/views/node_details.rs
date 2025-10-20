@@ -175,10 +175,7 @@ impl ParameterListView {
 
         self.connection
             .borrow_mut()
-            .set_parameter_by_node(&self.node, &param_name, new_param)
-            .unwrap_or_else(|err| {
-                eprintln!("Failed to set parameter: {}", err);
-            });
+            .set_parameter_by_node(&self.node, &param_name, new_param)?;
         self.mode = ParameterListMode::Normal;
         Ok(())
     }

@@ -8,6 +8,7 @@ use crate::common::generic_message::{
 };
 use crate::connections::{Connection, NodeName, Parameters};
 
+use rcl_interfaces::msg::ParameterValue;
 use rclrs::*;
 use rosidl_runtime_rs::Sequence;
 
@@ -251,6 +252,97 @@ impl From<&GenericMessage> for DynamicMessage {
     }
 }
 
+impl From<&rcl_interfaces::msg::ParameterValue> for Parameters {
+    fn from(value: &rcl_interfaces::msg::ParameterValue) -> Self {
+        match value.type_ {
+            rcl_interfaces::msg::ParameterType::PARAMETER_BOOL => {
+                Parameters::Bool(value.bool_value)
+            }
+            rcl_interfaces::msg::ParameterType::PARAMETER_INTEGER => {
+                Parameters::Integer(value.integer_value)
+            }
+            rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE => {
+                Parameters::Double(value.double_value)
+            }
+            rcl_interfaces::msg::ParameterType::PARAMETER_STRING => {
+                Parameters::String(value.string_value.clone())
+            }
+            rcl_interfaces::msg::ParameterType::PARAMETER_BYTE_ARRAY => {
+                Parameters::ByteArray(value.byte_array_value.clone())
+            }
+            rcl_interfaces::msg::ParameterType::PARAMETER_BOOL_ARRAY => {
+                Parameters::BoolArray(value.bool_array_value.clone())
+            }
+            rcl_interfaces::msg::ParameterType::PARAMETER_INTEGER_ARRAY => {
+                Parameters::IntegerArray(value.integer_array_value.clone())
+            }
+            rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE_ARRAY => {
+                Parameters::DoubleArray(value.double_array_value.clone())
+            }
+            rcl_interfaces::msg::ParameterType::PARAMETER_STRING_ARRAY => Parameters::StringArray(
+                value
+                    .string_array_value
+                    .iter()
+                    .map(|s| s.to_string())
+                    .collect(),
+            ),
+            _ => panic!("Unknown parameter type"),
+        }
+    }
+}
+
+impl From<Parameters> for rcl_interfaces::msg::ParameterValue {
+    fn from(param: Parameters) -> Self {
+        match param {
+            Parameters::Bool(v) => ParameterValue {
+                type_: rcl_interfaces::msg::ParameterType::PARAMETER_BOOL,
+                bool_value: v,
+                ..Default::default()
+            },
+            Parameters::Integer(v) => ParameterValue {
+                type_: rcl_interfaces::msg::ParameterType::PARAMETER_INTEGER,
+                integer_value: v,
+                ..Default::default()
+            },
+            Parameters::Double(v) => ParameterValue {
+                type_: rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE,
+                double_value: v,
+                ..Default::default()
+            },
+            Parameters::String(v) => ParameterValue {
+                type_: rcl_interfaces::msg::ParameterType::PARAMETER_STRING,
+                string_value: v,
+                ..Default::default()
+            },
+            Parameters::ByteArray(v) => ParameterValue {
+                type_: rcl_interfaces::msg::ParameterType::PARAMETER_BYTE_ARRAY,
+                byte_array_value: v,
+                ..Default::default()
+            },
+            Parameters::BoolArray(v) => ParameterValue {
+                type_: rcl_interfaces::msg::ParameterType::PARAMETER_BOOL_ARRAY,
+                bool_array_value: v,
+                ..Default::default()
+            },
+            Parameters::IntegerArray(v) => ParameterValue {
+                type_: rcl_interfaces::msg::ParameterType::PARAMETER_INTEGER_ARRAY,
+                integer_array_value: v,
+                ..Default::default()
+            },
+            Parameters::DoubleArray(v) => ParameterValue {
+                type_: rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE_ARRAY,
+                double_array_value: v,
+                ..Default::default()
+            },
+            Parameters::StringArray(v) => ParameterValue {
+                type_: rcl_interfaces::msg::ParameterType::PARAMETER_STRING_ARRAY,
+                string_array_value: v.iter().map(|s| s.clone()).collect(),
+                ..Default::default()
+            },
+        }
+    }
+}
+
 impl Connection for ConnectionROS2 {
     /// Get the name of the connection.
     fn name(&self) -> &str {
@@ -480,59 +572,7 @@ impl Connection for ConnectionROS2 {
         let parameters = response.ok_or("Service call failed")?;
         let mut params_map = HashMap::new();
         for (name, value) in param_names.iter().zip(parameters.values.iter()) {
-            match value.type_ {
-                rcl_interfaces::msg::ParameterType::PARAMETER_BOOL => {
-                    params_map.insert(name.clone(), Parameters::Bool(value.bool_value));
-                }
-                rcl_interfaces::msg::ParameterType::PARAMETER_INTEGER => {
-                    params_map.insert(name.clone(), Parameters::Integer(value.integer_value));
-                }
-                rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE => {
-                    params_map.insert(name.clone(), Parameters::Double(value.double_value));
-                }
-                rcl_interfaces::msg::ParameterType::PARAMETER_STRING => {
-                    params_map.insert(name.clone(), Parameters::String(value.string_value.clone()));
-                }
-                rcl_interfaces::msg::ParameterType::PARAMETER_BYTE_ARRAY => {
-                    params_map.insert(
-                        name.clone(),
-                        Parameters::ByteArray(value.byte_array_value.clone()),
-                    );
-                }
-                rcl_interfaces::msg::ParameterType::PARAMETER_BOOL_ARRAY => {
-                    params_map.insert(
-                        name.clone(),
-                        Parameters::BoolArray(value.bool_array_value.clone()),
-                    );
-                }
-                rcl_interfaces::msg::ParameterType::PARAMETER_INTEGER_ARRAY => {
-                    params_map.insert(
-                        name.clone(),
-                        Parameters::IntegerArray(value.integer_array_value.clone()),
-                    );
-                }
-                rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE_ARRAY => {
-                    params_map.insert(
-                        name.clone(),
-                        Parameters::DoubleArray(value.double_array_value.clone()),
-                    );
-                }
-                rcl_interfaces::msg::ParameterType::PARAMETER_STRING_ARRAY => {
-                    params_map.insert(
-                        name.clone(),
-                        Parameters::StringArray(
-                            value
-                                .string_array_value
-                                .iter()
-                                .map(|s| s.to_string())
-                                .collect(),
-                        ),
-                    );
-                }
-                _ => {
-                    eprintln!("Unknown parameter type for parameter: {}", name);
-                }
-            }
+            params_map.insert(name.clone(), value.into());
         }
 
         Ok(params_map)
@@ -574,53 +614,7 @@ impl Connection for ConnectionROS2 {
         let request = rcl_interfaces::srv::SetParameters_Request {
             parameters: vec![rcl_interfaces::msg::Parameter {
                 name: parameter_name.to_string(),
-                value: match parameter {
-                    Parameters::Bool(v) => rcl_interfaces::msg::ParameterValue {
-                        type_: rcl_interfaces::msg::ParameterType::PARAMETER_BOOL,
-                        bool_value: v,
-                        ..Default::default()
-                    },
-                    Parameters::Integer(v) => rcl_interfaces::msg::ParameterValue {
-                        type_: rcl_interfaces::msg::ParameterType::PARAMETER_INTEGER,
-                        integer_value: v,
-                        ..Default::default()
-                    },
-                    Parameters::Double(v) => rcl_interfaces::msg::ParameterValue {
-                        type_: rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE,
-                        double_value: v,
-                        ..Default::default()
-                    },
-                    Parameters::String(v) => rcl_interfaces::msg::ParameterValue {
-                        type_: rcl_interfaces::msg::ParameterType::PARAMETER_STRING,
-                        string_value: v,
-                        ..Default::default()
-                    },
-                    Parameters::ByteArray(v) => rcl_interfaces::msg::ParameterValue {
-                        type_: rcl_interfaces::msg::ParameterType::PARAMETER_BYTE_ARRAY,
-                        byte_array_value: v,
-                        ..Default::default()
-                    },
-                    Parameters::BoolArray(v) => rcl_interfaces::msg::ParameterValue {
-                        type_: rcl_interfaces::msg::ParameterType::PARAMETER_BOOL_ARRAY,
-                        bool_array_value: v,
-                        ..Default::default()
-                    },
-                    Parameters::IntegerArray(v) => rcl_interfaces::msg::ParameterValue {
-                        type_: rcl_interfaces::msg::ParameterType::PARAMETER_INTEGER_ARRAY,
-                        integer_array_value: v,
-                        ..Default::default()
-                    },
-                    Parameters::DoubleArray(v) => rcl_interfaces::msg::ParameterValue {
-                        type_: rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE_ARRAY,
-                        double_array_value: v,
-                        ..Default::default()
-                    },
-                    Parameters::StringArray(v) => rcl_interfaces::msg::ParameterValue {
-                        type_: rcl_interfaces::msg::ParameterType::PARAMETER_STRING_ARRAY,
-                        string_array_value: v.iter().map(|s| s.to_string()).collect(),
-                        ..Default::default()
-                    },
-                },
+                value: parameter.into(),
             }],
         };
 
@@ -639,6 +633,19 @@ impl Connection for ConnectionROS2 {
             )
             .first_error()
             .map_err(|_| format!("Error when running service: {}", &service_name))?;
+
+        let response = response
+            .lock()
+            .unwrap()
+            .take()
+            .ok_or("Service call failed".to_string())?;
+
+        for result in response.results {
+            if !result.successful {
+                return Err(format!("Failed to set parameter: {}", result.reason));
+            }
+        }
+
         Ok(())
     }
 }

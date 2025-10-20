@@ -10,7 +10,7 @@ use ratatui::{
 
 use crate::{
     common::style::SELECTED_STYLE, connections::Parameters,
-    widgets::edit_value_widget::EditValueState,
+    widgets::edit_value_widget::EditableValueWidget,
 };
 
 pub struct ParameterListWidget<'a> {
@@ -52,7 +52,7 @@ impl<'a> ParameterListWidget<'a> {
 
 impl Widget for ParameterListWidget<'_> {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        let block = self.block.unwrap_or_else(Block::default);
+        let block = self.block.unwrap_or_default();
         let inner_area = block.inner(area);
         block.render(area, buf);
 
@@ -70,10 +70,10 @@ impl Widget for ParameterListWidget<'_> {
             let value_widget = if is_selected {
                 if let Some(edit) = &self.edit {
                     match value {
-                        Parameters::Bool(v) => EditValueState::new(v, edit).into(),
-                        Parameters::Integer(v) => EditValueState::new(v, edit).into(),
-                        Parameters::Double(v) => EditValueState::new(v, edit).into(),
-                        Parameters::String(v) => EditValueState::new(v, edit).into(),
+                        Parameters::Bool(v) => EditableValueWidget::new(v, edit).into(),
+                        Parameters::Integer(v) => EditableValueWidget::new(v, edit).into(),
+                        Parameters::Double(v) => EditableValueWidget::new(v, edit).into(),
+                        Parameters::String(v) => EditableValueWidget::new(v, edit).into(),
                         Parameters::BoolArray(v) => Span::raw(format!("{:?}", v)),
                         Parameters::IntegerArray(v) => Span::raw(format!("{:?}", v)),
                         Parameters::DoubleArray(v) => Span::raw(format!("{:?}", v)),

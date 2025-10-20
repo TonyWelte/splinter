@@ -2,12 +2,12 @@ use ratatui::{buffer::Buffer, layout::Rect, style::Color, text::Span, widgets::W
 
 use crate::common::style::SELECTED_STYLE;
 
-pub struct EditValueState<'a, T> {
+pub struct EditableValueWidget<'a, T> {
     _value: &'a T,
     edit: &'a String,
 }
 
-impl<'a, T> EditValueState<'a, T>
+impl<'a, T> EditableValueWidget<'a, T>
 where
     T: std::str::FromStr,
 {
@@ -19,8 +19,8 @@ where
     }
 }
 
-impl<'a, T: std::str::FromStr> From<EditValueState<'a, T>> for Span<'a> {
-    fn from(edit_value_state: EditValueState<'a, T>) -> Self {
+impl<'a, T: std::str::FromStr> From<EditableValueWidget<'a, T>> for Span<'a> {
+    fn from(edit_value_state: EditableValueWidget<'a, T>) -> Self {
         let is_edit_valid = edit_value_state.edit.parse::<T>().is_ok();
 
         let style = if is_edit_valid {
@@ -33,7 +33,7 @@ impl<'a, T: std::str::FromStr> From<EditValueState<'a, T>> for Span<'a> {
     }
 }
 
-impl<'a, T: std::str::FromStr> Widget for EditValueState<'a, T> {
+impl<'a, T: std::str::FromStr> Widget for EditableValueWidget<'a, T> {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let span: Span = self.into();
         span.render(area, buf);
