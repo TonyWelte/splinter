@@ -39,6 +39,29 @@ impl Display for Parameters {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct NodeName {
+    pub namespace: String,
+    pub name: String,
+}
+
+impl NodeName {
+    pub fn new(namespace: &str, name: &str) -> Self {
+        Self {
+            namespace: namespace.to_string(),
+            name: name.to_string(),
+        }
+    }
+
+    pub fn full_name(&self) -> String {
+        if self.namespace.ends_with('/') {
+            format!("{}{}", self.namespace, self.name)
+        } else {
+            format!("{}/{}", self.namespace, self.name)
+        }
+    }
+}
+
 type PublisherFunc = dyn Fn(&GenericMessage);
 
 // Connection trait
@@ -51,7 +74,7 @@ pub trait Connection {
     fn list_topics(&self) -> Vec<(String, InterfaceType)>;
 
     /// Get the list of nodes in the connection.
-    fn list_nodes(&self) -> Vec<NodeNameInfo>;
+    fn list_nodes(&self) -> Vec<NodeName>;
 
     /// Get the type of a specific topic.
     fn get_topic_type(&self, topic: &str) -> Option<MessageTypeName>;
@@ -70,32 +93,32 @@ pub trait Connection {
 
     fn get_publisher_names_and_types_by_node(
         &self,
-        node_name: &NodeNameInfo,
+        node_name: &NodeName,
     ) -> Result<HashMap<String, Vec<String>>, String>;
 
     fn get_subscription_names_and_types_by_node(
         &self,
-        node_name: &NodeNameInfo,
+        node_name: &NodeName,
     ) -> Result<HashMap<String, Vec<String>>, String>;
 
     fn get_client_names_and_types_by_node(
         &self,
-        node_name: &NodeNameInfo,
+        node_name: &NodeName,
     ) -> Result<HashMap<String, Vec<String>>, String>;
 
     fn get_service_names_and_types_by_node(
         &self,
-        node_name: &NodeNameInfo,
+        node_name: &NodeName,
     ) -> Result<HashMap<String, Vec<String>>, String>;
 
     fn get_parameters_by_node(
         &self,
-        node_name: &NodeNameInfo,
+        node_name: &NodeName,
     ) -> Result<HashMap<String, Parameters>, String>;
 
     fn set_parameter_by_node(
         &mut self,
-        node_name: &NodeNameInfo,
+        node_name: &NodeName,
         parameter_name: &str,
         parameter: Parameters,
     ) -> Result<(), String>;

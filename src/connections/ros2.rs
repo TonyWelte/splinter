@@ -6,7 +6,7 @@ use std::time::SystemTime;
 use crate::common::generic_message::{
     ArrayField, GenericField, GenericMessage, InterfaceType, MessageMetadata, SimpleField,
 };
-use crate::connections::{Connection, Parameters};
+use crate::connections::{Connection, NodeName, Parameters};
 
 use rclrs::*;
 use rosidl_runtime_rs::Sequence;
@@ -273,10 +273,16 @@ impl Connection for ConnectionROS2 {
             .collect()
     }
 
-    fn list_nodes(&self) -> Vec<NodeNameInfo> {
+    fn list_nodes(&self) -> Vec<NodeName> {
         self.node
             .get_node_names()
             .expect("Failed to get node names")
+            .iter()
+            .map(|node_name_info| NodeName {
+                name: node_name_info.name.clone(),
+                namespace: node_name_info.namespace.clone(),
+            })
+            .collect()
     }
 
     /// Get the type of a specific topic.
@@ -299,7 +305,7 @@ impl Connection for ConnectionROS2 {
 
     fn get_publisher_names_and_types_by_node(
         &self,
-        node_name: &NodeNameInfo,
+        node_name: &NodeName,
     ) -> Result<HashMap<String, Vec<String>>, String> {
         self.node
             .get_publisher_names_and_types_by_node(&node_name.name, &node_name.namespace)
@@ -310,7 +316,7 @@ impl Connection for ConnectionROS2 {
 
     fn get_subscription_names_and_types_by_node(
         &self,
-        node_name: &NodeNameInfo,
+        node_name: &NodeName,
     ) -> Result<HashMap<String, Vec<String>>, String> {
         self.node
             .get_subscription_names_and_types_by_node(&node_name.name, &node_name.namespace)
@@ -321,7 +327,7 @@ impl Connection for ConnectionROS2 {
 
     fn get_client_names_and_types_by_node(
         &self,
-        node_name: &NodeNameInfo,
+        node_name: &NodeName,
     ) -> Result<HashMap<String, Vec<String>>, String> {
         self.node
             .get_client_names_and_types_by_node(&node_name.name, &node_name.namespace)
@@ -330,7 +336,7 @@ impl Connection for ConnectionROS2 {
 
     fn get_service_names_and_types_by_node(
         &self,
-        node_name: &NodeNameInfo,
+        node_name: &NodeName,
     ) -> Result<HashMap<String, Vec<String>>, String> {
         self.node
             .get_service_names_and_types_by_node(&node_name.name, &node_name.namespace)
@@ -380,7 +386,7 @@ impl Connection for ConnectionROS2 {
 
     fn get_parameters_by_node(
         &self,
-        node_name: &NodeNameInfo,
+        node_name: &NodeName,
     ) -> Result<HashMap<String, Parameters>, String> {
         let namespace = if node_name.namespace.is_empty() {
             "/".to_string()
@@ -416,8 +422,7 @@ impl Connection for ConnectionROS2 {
             };
 
             // TODO(@TonyWelte): Handle error
-            let response: ListParameters_Response =
-                client.call(&request).unwrap().await.unwrap();
+            let response: ListParameters_Response = client.call(&request).unwrap().await.unwrap();
 
             response_clone.lock().unwrap().replace(response);
         });
@@ -535,7 +540,7 @@ impl Connection for ConnectionROS2 {
 
     fn set_parameter_by_node(
         &mut self,
-        node_name: &NodeNameInfo,
+        node_name: &NodeName,
         parameter_name: &str,
         parameter: Parameters,
     ) -> Result<(), String> {

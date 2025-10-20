@@ -1,6 +1,6 @@
 use ratatui::crossterm::event::Event as CrosstermEvent;
 
-use crate::common::generic_message::InterfaceType;
+use crate::{common::generic_message::InterfaceType, connections::NodeName};
 
 #[derive(Debug, Clone)]
 pub struct NewLineEvent {
@@ -14,6 +14,11 @@ pub struct NewLineEvent {
 pub struct NewTopicEvent {
     pub topic: String,
     pub message_type: InterfaceType,
+}
+
+#[derive(Debug, Clone)]
+pub struct NewNodeEvent {
+    pub node: NodeName,
 }
 
 #[derive(Debug, Clone)]
@@ -38,6 +43,7 @@ pub enum Event {
     NewHz(NewHzEvent),
     NewHzPlot(NewHzEvent),
     NewPublisher(NewPublisherEvent),
+    NewNodeDetailView(NewNodeEvent),
     Error(String),
     ClosePopup,
 }

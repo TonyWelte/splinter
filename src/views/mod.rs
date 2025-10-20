@@ -2,6 +2,7 @@ use enum_dispatch::enum_dispatch;
 
 use hz_plot::HzPlotState;
 use live_plot::LivePlotState;
+use node_details::NodeDetailState;
 use node_list::NodeListState;
 use raw_message::RawMessageState;
 use topic_list::TopicListState;
@@ -11,6 +12,7 @@ use crate::common::event::Event;
 
 pub mod hz_plot;
 pub mod live_plot;
+pub mod node_details;
 pub mod node_list;
 pub mod raw_message;
 pub mod topic_list;
@@ -23,6 +25,7 @@ pub enum Views {
     LivePlot(LivePlotState),
     HzPlot(HzPlotState),
     NodeList(NodeListState),
+    NodeDetails(NodeDetailState),
     TopicPublisher(TopicPublisherState),
 }
 

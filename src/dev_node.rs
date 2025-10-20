@@ -25,6 +25,7 @@ struct DevNode {
     publisher_constants: Arc<PublisherState<test_msgs::msg::Constants>>,
     publisher_nested: Arc<PublisherState<test_msgs::msg::Nested>>,
     publisher_sinusoid: Arc<PublisherState<test_msgs::msg::MultiNested>>,
+    subcriber_odometry: Arc<SubscriptionState<nav_msgs::msg::Odometry, Arc<NodeState>>>,
 }
 
 impl DevNode {
@@ -93,6 +94,15 @@ impl DevNode {
 
         let publisher_sinusoid = node.create_publisher("sinusoid").unwrap();
 
+        let subcriber_odometry = node
+            .create_subscription("odometry", |msg: nav_msgs::msg::Odometry| {
+                println!(
+                    "Received odometry message: position=({:.2}, {:.2}, {:.2})",
+                    msg.pose.pose.position.x, msg.pose.pose.position.y, msg.pose.pose.position.z
+                );
+            })
+            .unwrap();
+
         Ok(Self {
             param_bool,
             param_integer,
@@ -116,6 +126,7 @@ impl DevNode {
             publisher_constants,
             publisher_nested,
             publisher_sinusoid,
+            subcriber_odometry,
         })
     }
 

@@ -878,6 +878,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "geometry_msgs"
+version = "5.8.2"
+dependencies = [
+ "builtin_interfaces",
+ "rosidl_runtime_rs",
+ "std_msgs",
+]
+
+[[package]]
 name = "getrandom"
 version = "0.2.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1195,6 +1204,17 @@ dependencies = [
  "log",
  "wasi 0.11.1+wasi-snapshot-preview1",
  "windows-sys 0.59.0",
+]
+
+[[package]]
+name = "nav_msgs"
+version = "5.8.2"
+dependencies = [
+ "builtin_interfaces",
+ "geometry_msgs",
+ "rosidl_runtime_rs",
+ "service_msgs",
+ "std_msgs",
 ]
 
 [[package]]
@@ -1886,6 +1906,7 @@ dependencies = [
  "crossterm",
  "enum_dispatch",
  "indexmap",
+ "nav_msgs",
  "nucleo-matcher",
  "ratatui",
  "rcl_interfaces",

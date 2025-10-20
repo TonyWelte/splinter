@@ -23,6 +23,13 @@ impl InterfaceType {
             type_name: parts[2].to_string(),
         }
     }
+
+    pub fn as_str(&self) -> String {
+        format!(
+            "{}/{}/{}",
+            self.package_name, self.catergory, self.type_name
+        )
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]

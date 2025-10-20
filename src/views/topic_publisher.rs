@@ -78,9 +78,7 @@ impl TopicPublisherState {
         self.needs_redraw = true;
 
         // Update the message with the new field content
-        let value = self
-            .message
-            .get_mut_deep_index(&self.selected_fields)?;
+        let value = self.message.get_mut_deep_index(&self.selected_fields)?;
         match value {
             AnyTypeMutableRef::Float(v) => {
                 *v = self
@@ -217,7 +215,8 @@ impl TuiView for TopicPublisherState {
                             self.field_content.push('h');
                             Event::None
                         } else {
-                            if let Ok(field) = self.message.get_mut_deep_index(&self.selected_fields)
+                            if let Ok(field) =
+                                self.message.get_mut_deep_index(&self.selected_fields)
                             {
                                 match field {
                                     AnyTypeMutableRef::Sequence(sequence_field) => {
@@ -240,7 +239,8 @@ impl TuiView for TopicPublisherState {
                             self.field_content.push('l');
                             Event::None
                         } else {
-                            if let Ok(field) = self.message.get_mut_deep_index(&self.selected_fields)
+                            if let Ok(field) =
+                                self.message.get_mut_deep_index(&self.selected_fields)
                             {
                                 match field {
                                     AnyTypeMutableRef::Sequence(sequence_field) => {
@@ -297,16 +297,17 @@ impl TuiView for TopicPublisherState {
                     _ => event,
                 }
             }
-            Event::Key(_) => event,
-            Event::None => event,
-            Event::NewMessageView(_) => event,
-            Event::NewLine(_) => event,
-            Event::NewLinePlot(_) => event,
-            Event::NewHz(_) => event,
-            Event::NewHzPlot(_) => event,
-            Event::NewPublisher(_) => event,
-            Event::Error(_) => event,
-            Event::ClosePopup => event,
+            Event::Key(_)
+            | Event::None
+            | Event::NewMessageView(_)
+            | Event::NewLine(_)
+            | Event::NewLinePlot(_)
+            | Event::NewHz(_)
+            | Event::NewHzPlot(_)
+            | Event::NewPublisher(_)
+            | Event::NewNodeDetailView(_)
+            | Event::Error(_)
+            | Event::ClosePopup => event,
         }
     }
 

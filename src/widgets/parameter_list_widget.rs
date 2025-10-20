@@ -3,11 +3,15 @@ use std::collections::BTreeMap;
 use ratatui::{
     buffer::Buffer,
     layout::Rect,
-    style::Style,
+    style::{Style, Styled},
+    text::{Line, Span},
     widgets::{Block, Borders, Widget},
 };
 
-use crate::{common::style::SELECTED_STYLE, connections::Parameters};
+use crate::{
+    common::style::SELECTED_STYLE, connections::Parameters,
+    widgets::edit_value_widget::EditValueState,
+};
 
 pub struct ParameterListWidget<'a> {
     parameters: &'a BTreeMap<String, Parameters>,
@@ -48,9 +52,7 @@ impl<'a> ParameterListWidget<'a> {
 
 impl Widget for ParameterListWidget<'_> {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        let block = self
-            .block
-            .unwrap_or_else(|| Block::default().borders(Borders::ALL));
+        let block = self.block.unwrap_or_else(|| Block::default());
         let inner_area = block.inner(area);
         block.render(area, buf);
 
@@ -62,30 +64,38 @@ impl Widget for ParameterListWidget<'_> {
             }
 
             let is_selected = self.selected == Some(index);
-            let style = if is_selected {
-                SELECTED_STYLE
-            } else {
-                Style::default()
-            };
 
-            let display_value = if is_selected {
+            let param_name_widget = Span::raw(format!("{}: ", name));
+
+            let value_widget = if is_selected {
                 if let Some(edit) = &self.edit {
-                    edit.clone()
+                    match value {
+                        Parameters::Bool(v) => EditValueState::new(v, edit).into(),
+                        Parameters::Integer(v) => EditValueState::new(v, edit).into(),
+                        Parameters::Double(v) => EditValueState::new(v, edit).into(),
+                        Parameters::String(v) => EditValueState::new(v, edit).into(),
+                        Parameters::BoolArray(v) => Span::raw(format!("{:?}", v)),
+                        Parameters::IntegerArray(v) => Span::raw(format!("{:?}", v)),
+                        Parameters::DoubleArray(v) => Span::raw(format!("{:?}", v)),
+                        Parameters::StringArray(v) => Span::raw(format!("{:?}", v)),
+                        Parameters::ByteArray(v) => Span::raw(format!("{:?}", v)),
+                    }
                 } else {
-                    value.to_string()
+                    Span::raw(value.to_string()).set_style(SELECTED_STYLE)
                 }
             } else {
-                value.to_string()
+                Span::raw(value.to_string())
             };
+            Line::from(vec![param_name_widget, value_widget]).render(
+                Rect {
+                    x: inner_area.x,
+                    y,
+                    width: inner_area.width,
+                    height: 1,
+                },
+                buf,
+            );
 
-            let line = format!("{}: {}", name, display_value);
-            let line = if line.len() > inner_area.width as usize {
-                &line[..inner_area.width as usize]
-            } else {
-                &line
-            };
-
-            buf.set_string(inner_area.x, y, line, style);
             y += 1;
             index += 1;
         }

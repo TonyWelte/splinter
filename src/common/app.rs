@@ -12,8 +12,6 @@ use ratatui::{
     DefaultTerminal,
 };
 
-use crate::common::event::Event;
-use crate::common::generic_message::InterfaceType;
 use crate::common::style::SELECTED_STYLE;
 use crate::connections::ros2::ConnectionROS2;
 use crate::connections::ConnectionType;
@@ -32,6 +30,8 @@ use crate::views::{
     topic_publisher::TopicPublisherWidget,
     TuiView, Views,
 };
+use crate::{common::event::Event, views::node_details::NodeDetailState};
+use crate::{common::generic_message::InterfaceType, views::node_details::NodeDetailWidget};
 
 pub struct AppMetrics {
     pub draw_count: u32,
@@ -333,6 +333,14 @@ impl App {
                 self.widgets.push(widget);
                 self.active_widget_index = self.widgets.len() - 1;
             }
+            Event::NewNodeDetailView(new_node_event) => {
+                let node_name = new_node_event.node;
+                let connection = self.connection.clone();
+                let node_details_state = NodeDetailState::new(node_name, connection);
+                let widget = Views::NodeDetails(node_details_state);
+                self.widgets.push(widget);
+                self.active_widget_index = self.widgets.len() - 1;
+            }
             Event::ClosePopup => {
                 self.popup_view = PopupView::None;
                 self.needs_redraw = true;
@@ -391,6 +399,9 @@ impl Widget for &mut App {
             }
             Views::HzPlot(hz_plot_state) => {
                 HzPlotWidget::render(widget_area, buf, hz_plot_state);
+            }
+            Views::NodeDetails(node_details_state) => {
+                NodeDetailWidget::render(widget_area, buf, node_details_state);
             }
         }
 

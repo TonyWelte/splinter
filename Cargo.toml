@@ -20,6 +20,7 @@ rcl_interfaces = "*"
 
 std_msgs = "*"
 test_msgs = "*"
+nav_msgs = "*"
 
 [lib]
 name = "splinter"
