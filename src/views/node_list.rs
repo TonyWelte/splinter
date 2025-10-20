@@ -1,29 +1,22 @@
-use std::{cell::RefCell, collections::BTreeMap, rc::Rc};
+use std::{cell::RefCell, rc::Rc};
 
 use ratatui::{
-    layout::{Constraint, Layout},
     prelude::{Buffer, Rect},
-    style::{Color, Style, Styled, Stylize},
-    symbols,
-    text::{Line, Span},
-    widgets::{Block, BorderType, Borders, List, ListItem, StatefulWidget, Widget},
+    style::Styled,
+    text::Line,
+    widgets::{Block, BorderType, StatefulWidget},
 };
 
-use crossterm::event::{self, Event as CrosstermEvent, KeyCode};
-use rclrs::NodeNameInfo;
+use crossterm::event::{Event as CrosstermEvent, KeyCode};
 
 use crate::{
     common::{
-        event::{Event, NewNodeEvent, NewPublisherEvent, NewTopicEvent},
-        generic_message::InterfaceType,
+        event::{Event, NewNodeEvent},
         style::{HEADER_STYLE, SELECTED_STYLE},
     },
-    connections::{Connection, ConnectionType, NodeName, Parameters},
+    connections::{Connection, ConnectionType, NodeName},
     views::TuiView,
-    widgets::{
-        list_widget::{ListItemTrait, ListWidget, ListWidgetState},
-        parameter_list_widget::ParameterListWidget,
-    },
+    widgets::list_widget::{ListItemTrait, ListWidget, ListWidgetState},
 };
 
 impl ListItemTrait for NodeName {
@@ -75,17 +68,14 @@ impl NodeListState {
 
         // Node list specific key handling
         if let Event::Key(CrosstermEvent::Key(key_event)) = &new_event {
-            match key_event.code {
-                KeyCode::Enter => {
-                    if let Some(selected) = self.node_list_state.get_selected() {
-                        // Switch to node details view
-                        return Event::NewNodeDetailView(NewNodeEvent {
-                            node: selected.clone(),
-                        });
-                    }
-                    self.needs_redraw = true;
+            if key_event.code == KeyCode::Enter {
+                if let Some(selected) = self.node_list_state.get_selected() {
+                    // Switch to node details view
+                    return Event::NewNodeDetailView(NewNodeEvent {
+                        node: selected.clone(),
+                    });
                 }
-                _ => {}
+                self.needs_redraw = true;
             }
         }
 

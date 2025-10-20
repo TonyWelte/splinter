@@ -8,7 +8,6 @@ use ros2::ConnectionROS2;
 use crate::common::generic_message::{GenericMessage, InterfaceType, MessageMetadata};
 
 use rclrs::MessageTypeName;
-use rclrs::NodeNameInfo;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Parameters {

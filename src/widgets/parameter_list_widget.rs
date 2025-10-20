@@ -3,9 +3,9 @@ use std::collections::BTreeMap;
 use ratatui::{
     buffer::Buffer,
     layout::Rect,
-    style::{Style, Styled},
+    style::Styled,
     text::{Line, Span},
-    widgets::{Block, Borders, Widget},
+    widgets::{Block, Widget},
 };
 
 use crate::{
@@ -52,7 +52,7 @@ impl<'a> ParameterListWidget<'a> {
 
 impl Widget for ParameterListWidget<'_> {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        let block = self.block.unwrap_or_else(|| Block::default());
+        let block = self.block.unwrap_or_else(Block::default);
         let inner_area = block.inner(area);
         block.render(area, buf);
 

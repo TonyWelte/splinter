@@ -1,5 +1,3 @@
-use std::default;
-
 use ratatui::{
     crossterm::event::{Event as CrosstermEvent, KeyCode},
     prelude::{BlockExt, Buffer, Rect},
@@ -32,16 +30,13 @@ pub struct ListWidget<'a, ItemType> {
     _phantom: std::marker::PhantomData<ItemType>,
 }
 
+#[derive(Default)]
 enum ListWidgetMode {
+    #[default]
     Normal,
     Search,
 }
 
-impl Default for ListWidgetMode {
-    fn default() -> Self {
-        ListWidgetMode::Normal
-    }
-}
 
 #[derive(Default)]
 pub struct ListWidgetState<ItemType>
@@ -331,12 +326,10 @@ impl<'a, ItemType: ListItemTrait> ListWidget<'a, ItemType> {
     pub fn height(&self, state: &ListWidgetState<ItemType>) -> usize {
         if self.auto_scroll {
             1
+        } else if state.filter.is_empty() && !matches!(state.mode, ListWidgetMode::Search) {
+            state.items.len()
         } else {
-            if state.filter.is_empty() && !matches!(state.mode, ListWidgetMode::Search) {
-                state.items.len()
-            } else {
-                state.items.len().saturating_sub(state.hidden_nodes_count) + 1 // +1 for filter
-            }
+            state.items.len().saturating_sub(state.hidden_nodes_count) + 1 // +1 for filter
         }
     }
 }

@@ -363,7 +363,7 @@ impl<'a> StatefulWidget for TopicListWidget<'a> {
                     buf.cell_mut((item_area.x + *i as u16, item_area.y))
                         .map(|c| {
                             c.set_style(c.style().add_modifier(Modifier::BOLD));
-                            ()
+                            
                         });
                 }
             }

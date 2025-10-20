@@ -198,7 +198,7 @@ impl ParameterListView {
                 KeyCode::Enter => {
                     // Enter edit mode if a parameter is selected
                     if let Some(selected) = self.selected {
-                        if let Some(_) = self.parameters.keys().nth(selected) {
+                        if self.parameters.keys().nth(selected).is_some() {
                             self.mode = ParameterListMode::Editing(String::new());
                             return Event::None;
                         }

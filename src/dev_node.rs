@@ -44,7 +44,7 @@ impl DevNode {
             .unwrap();
         let param_double = node
             .declare_parameter("param_double")
-            .default(3.14)
+            .default(std::f64::consts::PI)
             .optional()
             .unwrap();
         let param_string = node
