@@ -234,7 +234,7 @@ impl<'a> Widget for ValueWidget<'a> {
                     style,
                 );
                 if let Some(edit) = self.edit {
-                    if self.selection.is_some() && self.selection.unwrap().is_empty() {
+                    if let Some([]) = self.selection {
                         let is_edit_valid = match simple_value {
                             SimpleField::Float(_) => {
                                 edit.parse::<f32>().is_ok() && !edit.contains(' ')

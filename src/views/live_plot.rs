@@ -48,33 +48,12 @@ impl LivePlotState {
         field_name: String,
         connection: Rc<RefCell<ConnectionType>>,
     ) -> Self {
-        let plot = Arc::new(Mutex::new(Vec::new()));
-        let plot_copy = plot.clone();
-        connection
-            .borrow_mut()
-            .subscribe(
-                &topic,
-                move |msg: GenericMessage, msg_info: MessageMetadata| {
-                    let mut mut_plot = plot_copy.lock().unwrap();
-                    let stamp = msg_info
-                        .received_time
-                        .duration_since(SystemTime::UNIX_EPOCH)
-                        .unwrap()
-                        .as_secs_f64();
-                    let value = get_field(&msg, &selected_fields).unwrap();
-                    mut_plot.push((stamp, value));
-                },
-            )
-            .expect("Failed to subscribe to topic");
-        Self {
-            lines: vec![GraphLineState {
-                topic,
-                field_name,
-                _connection: connection,
-                plot,
-            }],
+        let mut state = Self {
+            lines: vec![],
             max_duration: 10.0, // Default maximum duration for the plot
-        }
+        };
+        state.add_graph_line(topic, selected_fields, field_name, connection);
+        state
     }
 
     pub fn add_graph_line(
@@ -96,8 +75,9 @@ impl LivePlotState {
                     let stamp = msg_info
                         .received_time
                         .duration_since(SystemTime::UNIX_EPOCH)
-                        .unwrap()
+                        .expect("Timestamp before UNIX EPOCH")
                         .as_secs_f64();
+                    // TODO: Handle error properly
                     let value = get_field(&msg, &selected_fields_copy).unwrap();
                     mut_plot.push((stamp, value));
                 },
@@ -116,7 +96,7 @@ fn get_field(message: &GenericMessage, field_index_path: &[usize]) -> Option<f64
     if field_index_path.is_empty() {
         return None; // No field index provided
     }
-    let field = message.get_deep_index(field_index_path).unwrap();
+    let field = message.get_deep_index(field_index_path).ok()?;
     match field {
         AnyTypeRef::Float(v) => Some(*v as f64),
         AnyTypeRef::Double(v) => Some(*v),
@@ -184,13 +164,13 @@ impl TuiView for LivePlotState {
 
 impl LivePlotWidget {
     pub fn render(area: Rect, buf: &mut Buffer, state: &mut LivePlotState) {
+        let current_time = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .expect("Timestamp before UNIX EPOCH")
+            .as_secs_f64();
         for line in &state.lines {
             // Ensure the plot does not exceed the maximum duration
             let mut plot = line.plot.lock().unwrap();
-            let current_time = SystemTime::now()
-                .duration_since(SystemTime::UNIX_EPOCH)
-                .unwrap()
-                .as_secs_f64();
             plot.retain(|&(stamp, _)| current_time - stamp <= state.max_duration);
         }
 
@@ -245,10 +225,6 @@ impl LivePlotWidget {
             })
             .collect::<Vec<_>>();
 
-        let current_time = SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .unwrap()
-            .as_secs_f64();
         let x_axis = Axis::default()
             .style(Style::default().white())
             .bounds([current_time - state.max_duration, current_time])

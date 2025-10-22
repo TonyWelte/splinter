@@ -27,7 +27,7 @@ pub struct TopicPublisherWidget;
 pub struct TopicPublisherState {
     topic: String,
     _connection: Rc<RefCell<ConnectionType>>,
-    publisher: Box<dyn Fn(&GenericMessage)>,
+    publisher: Box<dyn Fn(&GenericMessage) -> Result<(), String>>,
     message: GenericMessage,
     selected_fields: Vec<usize>,
     is_editing: bool,

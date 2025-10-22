@@ -58,7 +58,7 @@ pub struct TopicListState {
 
 impl TopicListState {
     pub fn new(connection: Rc<RefCell<ConnectionType>>) -> Self {
-        let topics = connection.borrow().list_topics();
+        let topics = connection.borrow().list_topics().unwrap();
         Self {
             connection,
             state: TopicListWidgetState::new(topics, 0),
@@ -68,7 +68,7 @@ impl TopicListState {
     }
 
     pub fn update(&mut self) {
-        let mut new_topics = self.connection.borrow().list_topics();
+        let mut new_topics = self.connection.borrow().list_topics().unwrap_or_default();
         new_topics.sort_by(|a, b| a.0.cmp(&b.0));
         self.state.update(new_topics);
     }

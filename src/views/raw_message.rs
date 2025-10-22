@@ -7,7 +7,7 @@ use std::{
 use ratatui::{
     prelude::{Buffer, Rect},
     text::Line,
-    widgets::{Block, BorderType, Paragraph, StatefulWidget, Widget},
+    widgets::{Block, BorderType, Clear, Paragraph, StatefulWidget, Widget},
 };
 
 use crate::{
@@ -138,11 +138,11 @@ impl TuiView for RawMessageState {
                 }
                 KeyCode::Enter => {
                     let message = self.message.lock().unwrap();
-                    match message
-                        .as_ref()
-                        .unwrap()
-                        .get_field_type(&self.selected_fields)
-                    {
+                    let message = match &*message {
+                        Some(msg) => msg,
+                        None => return Event::Error("No message available".to_string()),
+                    };
+                    match message.get_field_type(&self.selected_fields) {
                         Ok(FieldType::Float)
                         | Ok(FieldType::Double)
                         | Ok(FieldType::Boolean)
@@ -157,8 +157,6 @@ impl TuiView for RawMessageState {
                             topic: self.topic.clone(),
                             field: self.selected_fields.clone(),
                             field_name: message
-                                .as_ref()
-                                .unwrap()
                                 .get_field_name(&self.selected_fields)
                                 .unwrap_or_else(|_| "this is a bug".to_string()),
                             view: None,
@@ -205,11 +203,7 @@ impl RawMessageWidget {
 
         if let Some(message) = &*state.message.lock().unwrap() {
             // Clear the area before rendering
-            for x in area.left()..area.right() {
-                for y in area.top()..area.bottom() {
-                    buf.cell_mut((x, y)).unwrap().reset();
-                }
-            }
+            Clear.render(area, buf);
 
             block = if state.selected_fields.is_empty() {
                 block.title(

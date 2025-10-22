@@ -238,17 +238,20 @@ fn populate_message(dynamic_message: DynamicMessageViewMut, generic_message: &Ge
     }
 }
 
-impl From<&GenericMessage> for DynamicMessage {
-    fn from(val: &GenericMessage) -> Self {
+impl TryFrom<&GenericMessage> for DynamicMessage {
+    type Error = String;
+
+    fn try_from(val: &GenericMessage) -> Result<Self, Self::Error> {
         let message_type = MessageTypeName {
             package_name: val.type_name().package_name.clone(),
             type_name: val.type_name().type_name.clone(),
         };
-        let mut dynamic_message = DynamicMessage::new(message_type).unwrap();
+        let mut dynamic_message = DynamicMessage::new(message_type)
+            .map_err(|_| "Failed to create dynamic message".to_string())?;
 
         populate_message(dynamic_message.view_mut(), val);
 
-        dynamic_message
+        Ok(dynamic_message)
     }
 }
 
@@ -336,7 +339,7 @@ impl From<Parameters> for rcl_interfaces::msg::ParameterValue {
             },
             Parameters::StringArray(v) => ParameterValue {
                 type_: rcl_interfaces::msg::ParameterType::PARAMETER_STRING_ARRAY,
-                string_array_value: v.iter().map(|s| s.clone()).collect(),
+                string_array_value: v.iter().cloned().collect(),
                 ..Default::default()
             },
         }
@@ -350,19 +353,25 @@ impl Connection for ConnectionROS2 {
     }
 
     /// Get the type of the connection.
-    fn list_topics(&self) -> Vec<(String, InterfaceType)> {
-        self.node
+    fn list_topics(&self) -> Result<Vec<(String, InterfaceType)>, String> {
+        // Get topic names and types
+        let topics = self
+            .node
             .get_topic_names_and_types()
-            .unwrap()
+            .map_err(|_| "Failed to get topic names and types".to_string())?;
+
+        // Convert to InterfaceType
+        let topics: Vec<(String, InterfaceType)> = topics
             .into_iter()
-            .map(|(name, types)| {
-                let first_type = types
-                    .first()
-                    .map(|type_name| InterfaceType::new(type_name))
-                    .unwrap();
-                (name, first_type)
+            .filter_map(|(name, types)| {
+                types.first().map(|type_name| {
+                    let interface_type = InterfaceType::new(type_name);
+                    (name, interface_type)
+                })
             })
-            .collect()
+            .collect();
+
+        Ok(topics)
     }
 
     fn list_nodes(&self) -> Vec<NodeName> {
@@ -379,9 +388,9 @@ impl Connection for ConnectionROS2 {
 
     /// Get the type of a specific topic.
     fn get_topic_type(&self, topic: &str) -> Option<MessageTypeName> {
-        self.node
-            .get_topic_names_and_types()
-            .unwrap()
+        let topics = self.node.get_topic_names_and_types().ok()?;
+
+        topics
             .into_iter()
             .find(|(name, _types)| name == topic)
             .and_then(|(_name, types)| {
@@ -440,7 +449,12 @@ impl Connection for ConnectionROS2 {
         topic: &str,
         callback: impl Fn(GenericMessage, MessageMetadata) + Send + Sync + 'static,
     ) -> Result<(), String> {
-        let topic_type = self.get_topic_type(topic).unwrap();
+        // Get topic type
+        let topic_type = self
+            .get_topic_type(topic)
+            .ok_or(format!("Failed to get topic type for topic: {}", topic))?;
+
+        // Create subscription
         let subscription = self
             .node
             .create_dynamic_subscription(
@@ -454,7 +468,7 @@ impl Connection for ConnectionROS2 {
                     callback(generic_message, metadata);
                 },
             )
-            .unwrap();
+            .map_err(|e| format!("Failed to create subscription: {}", e))?;
         self.subscriptions.push(subscription);
 
         Ok(())
@@ -464,14 +478,22 @@ impl Connection for ConnectionROS2 {
         &mut self,
         topic: &str,
         message_type: &MessageTypeName,
-    ) -> Result<Box<dyn Fn(&GenericMessage)>, String> {
+    ) -> Result<Box<dyn Fn(&GenericMessage) -> Result<(), String>>, String> {
         let publisher = self
             .node
             .create_dynamic_publisher(message_type.clone(), topic.reliable().transient_local())
             .map_err(|e| format!("Failed to create publisher: {}", e))?;
 
         let publish_fn = move |msg: &GenericMessage| {
-            publisher.publish(msg.into()).unwrap();
+            let dynamic_message = msg
+                .try_into()
+                .map_err(|_| "Failed to convert GenericMessage to DynamicMessage")?;
+
+            publisher
+                .publish(dynamic_message)
+                .map_err(|e| format!("Failed to publish message: {}", e))?;
+
+            Ok(())
         };
         Ok(Box::new(publish_fn))
     }

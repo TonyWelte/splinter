@@ -360,11 +360,7 @@ impl<'a> StatefulWidget for TopicListWidget<'a> {
 
             for i in indices.iter() {
                 if *i < available_width.try_into().unwrap() {
-                    buf.cell_mut((item_area.x + *i as u16, item_area.y))
-                        .map(|c| {
-                            c.set_style(c.style().add_modifier(Modifier::BOLD));
-                            
-                        });
+                    if let Some(c) = buf.cell_mut((item_area.x + *i as u16, item_area.y)) { c.set_style(c.style().add_modifier(Modifier::BOLD)); }
                 }
             }
 

@@ -53,40 +53,13 @@ pub struct HzPlotState {
 
 impl HzPlotState {
     pub fn new(topic: String, connection: Rc<RefCell<ConnectionType>>) -> Self {
-        let line_state = Arc::new(Mutex::new(HzLineState::new(topic.clone())));
-        let line_state_copy = line_state.clone();
-        connection
-            .borrow_mut()
-            .subscribe(
-                &topic,
-                move |_: GenericMessage, msg_info: MessageMetadata| {
-                    let mut mut_line_state = line_state.lock().unwrap();
-                    let stamp = msg_info
-                        .received_time
-                        .duration_since(SystemTime::UNIX_EPOCH)
-                        .unwrap()
-                        .as_secs_f64();
-                    mut_line_state.stamps.push(stamp);
-                    let window_length = 10; // Number of stamps to consider for frequency calculation
-                    if mut_line_state.stamps.len() > window_length {
-                        mut_line_state.stamps.remove(0);
-                    }
-                    if mut_line_state.stamps.len() == window_length {
-                        let duration = mut_line_state.stamps.last().unwrap()
-                            - mut_line_state.stamps.first().unwrap();
-                        if duration > 0.0 {
-                            let frequency = (window_length - 1) as f64 / duration;
-                            mut_line_state.plot.push((stamp, frequency));
-                        }
-                    }
-                },
-            )
-            .expect("Failed to subscribe to topic");
-        Self {
-            lines: vec![line_state_copy],
+        let mut state = Self {
+            lines: vec![],
             max_duration: 10.0, // Default maximum duration for the plot
             _connection: connection,
-        }
+        };
+        state.add_line(topic, state._connection.clone());
+        state
     }
 
     pub fn add_line(&mut self, topic: String, connection: Rc<RefCell<ConnectionType>>) {
@@ -101,18 +74,19 @@ impl HzPlotState {
                     let stamp = msg_info
                         .received_time
                         .duration_since(SystemTime::UNIX_EPOCH)
-                        .unwrap()
+                        .expect("Timestamp before UNIX EPOCH")
                         .as_secs_f64();
                     mut_line_state.stamps.push(stamp);
-                    let window_length = 10; // Number of stamps to consider for frequency calculation
-                    if mut_line_state.stamps.len() > window_length {
+                    // TODO: Make WINDOW_LENGTH configurable
+                    static WINDOW_LENGTH: usize = 10; // Number of stamps to consider for frequency calculation
+                    if mut_line_state.stamps.len() > WINDOW_LENGTH {
                         mut_line_state.stamps.remove(0);
                     }
-                    if mut_line_state.stamps.len() == window_length {
-                        let duration = mut_line_state.stamps.last().unwrap()
-                            - mut_line_state.stamps.first().unwrap();
+                    if mut_line_state.stamps.len() == WINDOW_LENGTH {
+                        let duration =
+                            mut_line_state.stamps[WINDOW_LENGTH - 1] - mut_line_state.stamps[0];
                         if duration > 0.0 {
-                            let frequency = (window_length - 1) as f64 / duration;
+                            let frequency = (WINDOW_LENGTH - 1) as f64 / duration;
                             mut_line_state.plot.push((stamp, frequency));
                         }
                     }
@@ -170,7 +144,7 @@ impl HzPlotWidget {
             let mut hz_line = line.lock().unwrap();
             let current_time = SystemTime::now()
                 .duration_since(SystemTime::UNIX_EPOCH)
-                .unwrap()
+                .expect("Timestamp before UNIX EPOCH")
                 .as_secs_f64();
             hz_line
                 .plot
@@ -224,7 +198,7 @@ impl HzPlotWidget {
 
         let current_time = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
-            .unwrap()
+            .expect("Timestamp before UNIX EPOCH")
             .as_secs_f64();
         let x_axis = Axis::default()
             .style(Style::default().white())

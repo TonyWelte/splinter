@@ -155,10 +155,7 @@ impl<'a> Widget for SequenceWidget<'a> {
                         Style::default()
                     };
                     if let Some(edit) = self.edit {
-                        if self.selection.is_some()
-                            && !self.selection.unwrap().is_empty()
-                            && self.selection.unwrap()[0] == i
-                        {
+                        if self.selection.is_some() && self.selection.unwrap().first() == Some(&i) {
                             let is_edit_valid = true; // Any string is valid
                             buf.set_stringn(
                                 area_remaining.x,
@@ -212,10 +209,7 @@ impl<'a> Widget for SequenceWidget<'a> {
                         Style::default()
                     };
                     if let Some(edit) = self.edit {
-                        if self.selection.is_some()
-                            && !self.selection.unwrap().is_empty()
-                            && self.selection.unwrap()[0] == i
-                        {
+                        if self.selection.is_some() && self.selection.unwrap().first() == Some(&i) {
                             let is_edit_valid = match self.value {
                                 SequenceField::Float(_) => {
                                     edit.parse::<f32>().is_ok() && !edit.contains(' ')

@@ -61,7 +61,7 @@ impl NodeName {
     }
 }
 
-type PublisherFunc = dyn Fn(&GenericMessage);
+type PublisherFunc = dyn Fn(&GenericMessage) -> Result<(), String>;
 
 // Connection trait
 #[enum_dispatch(ConnectionType)]
@@ -70,7 +70,7 @@ pub trait Connection {
     fn name(&self) -> &str;
 
     /// Get the list of topics in the connection.
-    fn list_topics(&self) -> Vec<(String, InterfaceType)>;
+    fn list_topics(&self) -> Result<Vec<(String, InterfaceType)>, String>;
 
     /// Get the list of nodes in the connection.
     fn list_nodes(&self) -> Vec<NodeName>;

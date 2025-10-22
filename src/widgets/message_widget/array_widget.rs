@@ -156,26 +156,25 @@ impl<'a> Widget for ArrayWidget<'a> {
                     } else {
                         Style::default()
                     };
-                    if let Some(edit) = self.edit {
-                        if self.selection.is_some()
-                            && !self.selection.unwrap().is_empty()
-                            && self.selection.unwrap()[0] == i
-                        {
-                            let is_edit_valid = true; // Any string is valid
-                            buf.set_stringn(
-                                area_remaining.x,
-                                y,
-                                edit,
-                                area_remaining.width as usize,
-                                style.fg(if is_edit_valid {
-                                    Color::Green
-                                } else {
-                                    Color::Red
-                                }),
-                            );
-                            y += 1;
-                            continue;
-                        }
+                    if self.edit.is_some()
+                        && self.selection.is_some()
+                        && self.selection.unwrap().first() == Some(&i)
+                    {
+                        let edit = self.edit.unwrap(); // unwrap: checked above
+                        let is_edit_valid = true; // Any string is valid
+                        buf.set_stringn(
+                            area_remaining.x,
+                            y,
+                            edit,
+                            area_remaining.width as usize,
+                            style.fg(if is_edit_valid {
+                                Color::Green
+                            } else {
+                                Color::Red
+                            }),
+                        );
+                        y += 1;
+                        continue;
                     }
                     buf.set_stringn(
                         area_remaining.x,
@@ -214,10 +213,7 @@ impl<'a> Widget for ArrayWidget<'a> {
                         Style::default()
                     };
                     if let Some(edit) = self.edit {
-                        if self.selection.is_some()
-                            && !self.selection.unwrap().is_empty()
-                            && self.selection.unwrap()[0] == i
-                        {
+                        if self.selection.is_some() && self.selection.unwrap().first() == Some(&i) {
                             let is_edit_valid = match self.value {
                                 ArrayField::Float(_) => {
                                     edit.parse::<f32>().is_ok() && !edit.contains(' ')

@@ -33,18 +33,10 @@ use crate::views::{
 use crate::{common::event::Event, views::node_details::NodeDetailState};
 use crate::{common::generic_message::InterfaceType, views::node_details::NodeDetailWidget};
 
+#[derive(Default)]
 pub struct AppMetrics {
     pub draw_count: u32,
     pub events: Vec<Event>,
-}
-
-impl Default for AppMetrics {
-    fn default() -> Self {
-        Self {
-            draw_count: 0,
-            events: vec![],
-        }
-    }
 }
 
 pub struct App {
@@ -249,8 +241,7 @@ impl App {
                 let topic = new_graph_event.topic;
                 let field = new_graph_event.field;
                 let field_name = new_graph_event.field_name;
-                if new_graph_event.view.is_some() {
-                    let view = new_graph_event.view.unwrap();
+                if let Some(view) = new_graph_event.view {
                     let connection = self.connection.clone();
                     if let Some(Views::LivePlot(live_plot_state)) = self.widgets.get_mut(view) {
                         live_plot_state.add_graph_line(topic, field, field_name, connection);
