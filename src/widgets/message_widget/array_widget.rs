@@ -11,7 +11,7 @@ use crate::{
         generic_message::{ArrayField, Length},
         style::SELECTED_STYLE,
     },
-    widgets::message_widget::{AsStrVec, MessageWidget},
+    widgets::message_widget::{AsStrIter, MessageWidget},
 };
 
 const ARRAY_ELEMENT_WIDTH: u16 = 10; // Fixed width for each array element when rendering (including space)
@@ -21,6 +21,9 @@ pub struct ArrayWidget<'a> {
     value: &'a ArrayField,
     selection: Option<&'a [usize]>,
     edit: Option<&'a str>,
+    max_elements: usize,
+    max_strings: usize,
+    max_objects: usize,
 }
 
 impl<'a> ArrayWidget<'a> {
@@ -30,6 +33,9 @@ impl<'a> ArrayWidget<'a> {
             value,
             edit: None,
             selection: None,
+            max_elements: 100,
+            max_strings: 10,
+            max_objects: 10,
         }
     }
 
@@ -43,12 +49,27 @@ impl<'a> ArrayWidget<'a> {
         self
     }
 
+    pub fn with_max_visible_elements(
+        mut self,
+        max_elements: usize,
+        max_strings: usize,
+        max_objects: usize,
+    ) -> Self {
+        self.max_elements = max_elements;
+        self.max_strings = max_strings;
+        self.max_objects = max_objects;
+        self
+    }
+
     pub fn height(&self, width: u16) -> u16 {
         match &self.value {
             ArrayField::Message(inner_messages) => {
                 let mut height = 1;
-                for inner_message in inner_messages {
+                for inner_message in inner_messages.iter().take(self.max_objects) {
                     height += MessageWidget::new(inner_message).height(width);
+                }
+                if inner_messages.len() > self.max_objects {
+                    height += 1; // For the "..." line
                 }
                 height
             }
@@ -56,12 +77,21 @@ impl<'a> ArrayWidget<'a> {
             | ArrayField::WString(inner_strings)
             | ArrayField::BoundedString(inner_strings)
             | ArrayField::BoundedWString(inner_strings) => {
-                1 + inner_strings.len() as u16 // +1 for the field name
+                let mut height = 1 + (inner_strings.len().min(self.max_strings) as u16);
+                if inner_strings.len() > self.max_strings {
+                    height += 1; // For the "..." line
+                }
+                height
             }
             _ => {
-                let quot = (self.value.len() as u16) / (width / (ARRAY_ELEMENT_WIDTH));
-                let rem = (self.value.len() as u16) % (width / (ARRAY_ELEMENT_WIDTH));
-                1 + quot + if rem > 0 { 1 } else { 0 } // +1 for the field name
+                let visible_elements = self.value.len().min(self.max_elements);
+                let quot = (visible_elements as u16) / (width / ARRAY_ELEMENT_WIDTH);
+                let rem = (visible_elements as u16) % (width / ARRAY_ELEMENT_WIDTH);
+                let mut height = 1 + quot + if rem > 0 { 1 } else { 0 }; // +1 for the field name
+                if self.value.len() > self.max_elements {
+                    height += 1; // For the "..." line
+                }
+                height
             }
         }
     }
@@ -96,7 +126,7 @@ impl<'a> Widget for ArrayWidget<'a> {
 
         match &self.value {
             ArrayField::Message(inner_messages) => {
-                for (i, inner_message) in inner_messages.iter().enumerate() {
+                for (i, inner_message) in inner_messages.iter().take(self.max_objects).enumerate() {
                     let mut inner_widget = MessageWidget::new(inner_message);
                     if let Some(selection) = self.selection {
                         if !selection.is_empty() && selection[0] == i {
@@ -132,6 +162,11 @@ impl<'a> Widget for ArrayWidget<'a> {
                     area_remaining.y += widget_height;
                     area_remaining.height -= widget_height;
                 }
+                if inner_messages.len() > self.max_objects {
+                    Span::raw("...")
+                        .style(Style::default().fg(Color::DarkGray))
+                        .render(area_remaining, buf);
+                }
             }
             ArrayField::String(inner_strings)
             | ArrayField::WString(inner_strings)
@@ -139,7 +174,7 @@ impl<'a> Widget for ArrayWidget<'a> {
             | ArrayField::BoundedWString(inner_strings) => {
                 // Print each string on its own line, with quotes
                 let mut y = area_remaining.y;
-                for (i, value) in inner_strings.iter().enumerate() {
+                for (i, value) in inner_strings.iter().take(self.max_strings).enumerate() {
                     if y >= area_remaining.y + area_remaining.height {
                         break; // No more space to render
                     }
@@ -185,11 +220,23 @@ impl<'a> Widget for ArrayWidget<'a> {
                     );
                     y += 1;
                 }
+                if inner_strings.len() > self.max_strings {
+                    Span::raw("...")
+                        .style(Style::default().fg(Color::DarkGray))
+                        .render(
+                            Rect {
+                                x: area_remaining.x,
+                                y,
+                                width: area_remaining.width,
+                                height: 1,
+                            },
+                            buf,
+                        );
+                }
             }
             _ => {
-                let values = self.value.as_str_iter();
                 let mut x = area_remaining.x;
-                for (i, value) in values.iter().enumerate() {
+                for (i, value) in self.value.as_str_iter().take(self.max_elements).enumerate() {
                     if x + ARRAY_ELEMENT_WIDTH - 1 > area_remaining.x + area_remaining.width {
                         x = area_remaining.x;
                         area_remaining.y += 1;
@@ -285,38 +332,51 @@ impl<'a> Widget for ArrayWidget<'a> {
                     );
                     x += ARRAY_ELEMENT_WIDTH;
                 }
+                if self.value.len() > self.max_elements {
+                    Span::raw("...")
+                        .style(Style::default().fg(Color::DarkGray))
+                        .render(
+                            Rect {
+                                x: area_remaining.x,
+                                y: area_remaining.y + 1,
+                                width: area_remaining.width,
+                                height: 1,
+                            },
+                            buf,
+                        );
+                }
             }
         }
     }
 }
 
-impl AsStrVec for ArrayField {
-    fn as_str_iter(&self) -> Vec<String> {
+impl AsStrIter for ArrayField {
+    fn as_str_iter(&self) -> Box<dyn Iterator<Item = String> + '_> {
         match self {
-            ArrayField::Float(values) => values.iter().map(|v| format!("{}", v)).collect(),
-            ArrayField::Double(values) => values.iter().map(|v| format!("{}", v)).collect(),
-            ArrayField::LongDouble(_) => vec![],
-            ArrayField::Char(values) => values.iter().map(|v| format!("{}", v)).collect(),
-            ArrayField::WChar(values) => values.iter().map(|v| format!("{}", v)).collect(),
-            ArrayField::Boolean(values) => values.iter().map(|v| format!("{}", v)).collect(),
-            ArrayField::Octet(values) => values.iter().map(|v| format!("{}", v)).collect(),
-            ArrayField::Uint8(values) => values.iter().map(|v| format!("{}", v)).collect(),
-            ArrayField::Int8(values) => values.iter().map(|v| format!("{}", v)).collect(),
-            ArrayField::Uint16(values) => values.iter().map(|v| format!("{}", v)).collect(),
-            ArrayField::Int16(values) => values.iter().map(|v| format!("{}", v)).collect(),
-            ArrayField::Uint32(values) => values.iter().map(|v| format!("{}", v)).collect(),
-            ArrayField::Int32(values) => values.iter().map(|v| format!("{}", v)).collect(),
-            ArrayField::Uint64(values) => values.iter().map(|v| format!("{}", v)).collect(),
-            ArrayField::Int64(values) => values.iter().map(|v| format!("{}", v)).collect(),
-            ArrayField::String(values) => values.iter().map(|v| format!("\"{}\"", v)).collect(),
+            ArrayField::Float(values) => Box::new(values.iter().map(|v| format!("{}", v))),
+            ArrayField::Double(values) => Box::new(values.iter().map(|v| format!("{}", v))),
+            ArrayField::LongDouble(_) => Box::new(std::iter::empty()),
+            ArrayField::Char(values) => Box::new(values.iter().map(|v| format!("{}", v))),
+            ArrayField::WChar(values) => Box::new(values.iter().map(|v| format!("{}", v))),
+            ArrayField::Boolean(values) => Box::new(values.iter().map(|v| format!("{}", v))),
+            ArrayField::Octet(values) => Box::new(values.iter().map(|v| format!("{}", v))),
+            ArrayField::Uint8(values) => Box::new(values.iter().map(|v| format!("{}", v))),
+            ArrayField::Int8(values) => Box::new(values.iter().map(|v| format!("{}", v))),
+            ArrayField::Uint16(values) => Box::new(values.iter().map(|v| format!("{}", v))),
+            ArrayField::Int16(values) => Box::new(values.iter().map(|v| format!("{}", v))),
+            ArrayField::Uint32(values) => Box::new(values.iter().map(|v| format!("{}", v))),
+            ArrayField::Int32(values) => Box::new(values.iter().map(|v| format!("{}", v))),
+            ArrayField::Uint64(values) => Box::new(values.iter().map(|v| format!("{}", v))),
+            ArrayField::Int64(values) => Box::new(values.iter().map(|v| format!("{}", v))),
+            ArrayField::String(values) => Box::new(values.iter().map(|v| format!("\"{}\"", v))),
             ArrayField::BoundedString(values) => {
-                values.iter().map(|v| format!("\"{}\"", v)).collect()
+                Box::new(values.iter().map(|v| format!("\"{}\"", v)))
             }
-            ArrayField::WString(values) => values.iter().map(|v| format!("\"{}\"", v)).collect(),
+            ArrayField::WString(values) => Box::new(values.iter().map(|v| format!("\"{}\"", v))),
             ArrayField::BoundedWString(values) => {
-                values.iter().map(|v| format!("\"{}\"", v)).collect()
+                Box::new(values.iter().map(|v| format!("\"{}\"", v)))
             }
-            _ => vec![],
+            _ => Box::new(std::iter::empty()),
         }
     }
 }
@@ -337,6 +397,10 @@ mod tests {
         assert_eq!(array_widget.height(200), 2); // 10 elements, all fit in one line
         assert_eq!(array_widget.height(50), 3); // 10 elements, 5 per line + 1 for name
         assert_eq!(array_widget.height(30), 5); // 10 elements, 3 per line + 1 for name
+        assert_eq!(
+            array_widget.with_max_visible_elements(5, 1, 1).height(30),
+            4
+        ); // 5 visible elements, 3 per line + 1 for "..." + 1 for name
     }
 
     #[test]
@@ -425,6 +489,32 @@ mod tests {
             "                                                  ",
             "                                                  ",
             "                                                  ",
+        ]);
+
+        buf.set_style(buf.area, Style::reset()); // Not testing style here
+        assert_eq!(buf, expected);
+    }
+
+    #[test]
+    fn test_array_widget_render_with_max_elements() {
+        let array_field = ArrayField::Uint32((1..=150).collect());
+        let array_widget =
+            ArrayWidget::new("test_array", &array_field).with_max_visible_elements(50, 1, 1);
+        let mut buf = Buffer::empty(Rect::new(0, 0, 50, 12));
+        array_widget.render(buf.area, &mut buf);
+        let expected = Buffer::with_lines([
+            "test_array: 150 elements                          ",
+            "1         2         3         4         5         ",
+            "6         7         8         9         10        ",
+            "11        12        13        14        15        ",
+            "16        17        18        19        20        ",
+            "21        22        23        24        25        ",
+            "26        27        28        29        30        ",
+            "31        32        33        34        35        ",
+            "36        37        38        39        40        ",
+            "41        42        43        44        45        ",
+            "46        47        48        49        50        ",
+            "...                                               ",
         ]);
 
         buf.set_style(buf.area, Style::reset()); // Not testing style here

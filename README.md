@@ -56,17 +56,16 @@ chmod +x splinter_install.sh
 
 | Feature                      | Notes                                          |
 | ---------------------------- | ---------------------------------------------- |
-| Parameters (List, Get, Set)  | Full parameter management                      |
 | GenericMessage (non-copying) | Preparing for MCAP and Foxglove bridge support |
 
 ### Upcoming Features
 
-| Feature                                    | Notes                            |
-| ------------------------------------------ | -------------------------------- |
-| New Plots: Delay plot                      | Visualize message delays         |
-| New Plots: Bitrate plot                    | Monitor topic bandwidth          |
-| Message Widget: Limit array/sequence sizes | Prevent UI overload              |
-| Message Widget: Folding                    | Collapse/expand message sections |
+| Feature                 | Notes                            |
+| ----------------------- | -------------------------------- |
+| New Plots: Delay plot   | Visualize message delays         |
+| New Plots: Bitrate plot | Monitor topic bandwidth          |
+| Message Widget: Folding | Collapse/expand message sections |
+| Parameters (Set List)   |                                  |
 
 ### Long Term Plan
 

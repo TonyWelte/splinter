@@ -174,14 +174,14 @@ impl<'a> StatefulWidget for MessageWidget<'a> {
     }
 }
 
-trait AsStrVec {
-    fn as_str_iter(&self) -> Vec<String>;
+trait AsStrIter {
+    fn as_str_iter(&self) -> Box<dyn Iterator<Item = String> + '_>;
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rclrs::{MessageTypeName, dynamic_message::DynamicMessage};
+    use rclrs::{dynamic_message::DynamicMessage, MessageTypeName};
 
     #[test]
     fn test_message_widget_selection_height() {
