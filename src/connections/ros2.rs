@@ -339,7 +339,7 @@ impl From<Parameters> for rcl_interfaces::msg::ParameterValue {
             },
             Parameters::StringArray(v) => ParameterValue {
                 type_: rcl_interfaces::msg::ParameterType::PARAMETER_STRING_ARRAY,
-                string_array_value: v.iter().cloned().collect(),
+                string_array_value: v.to_vec(),
                 ..Default::default()
             },
         }

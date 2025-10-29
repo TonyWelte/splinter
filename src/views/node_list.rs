@@ -2,8 +2,8 @@ use std::{cell::RefCell, rc::Rc};
 
 use ratatui::{
     prelude::{Buffer, Rect},
-    style::Styled,
-    text::Line,
+    style::{Style, Styled, Stylize},
+    text::{Line, Span},
     widgets::{Block, BorderType, StatefulWidget},
 };
 
@@ -13,6 +13,7 @@ use crate::{
     common::{
         event::{Event, NewNodeEvent},
         style::{HEADER_STYLE, SELECTED_STYLE},
+        utils::truncate_namespaces,
     },
     connections::{Connection, ConnectionType, NodeName},
     views::TuiView,
@@ -25,11 +26,46 @@ impl ListItemTrait for NodeName {
     }
 
     fn to_line(&self, width: usize, selected: bool, indices: Vec<u32>) -> Line {
-        let mut line = Line::from(self.full_name());
+        let (truncated_name, new_indices) = truncate_namespaces(&self.full_name(), &indices, width);
+
+        let mut spans = vec![];
+        if new_indices.is_empty() {
+            spans.push(Span::raw(truncated_name));
+        } else {
+            let first_idx = new_indices.first().unwrap();
+            if *first_idx != 0 {
+                spans.push(Span::raw(truncated_name[..*first_idx as usize].to_string()));
+            }
+
+            for window in new_indices.windows(2) {
+                let idx = window[0] as usize;
+                let next_idx = window[1] as usize;
+                spans.push(Span::styled(
+                    truncated_name[idx..idx + 1].to_string(),
+                    Style::default().bold(),
+                ));
+                if next_idx > idx + 1 {
+                    spans.push(Span::raw(truncated_name[idx + 1..next_idx].to_string()));
+                }
+            }
+
+            let last_idx = new_indices.last().unwrap();
+            let idx = *last_idx as usize;
+            spans.push(Span::styled(
+                truncated_name[idx..idx + 1].to_string(),
+                Style::default().bold(),
+            ));
+            if truncated_name.len() > idx + 1 {
+                spans.push(Span::raw(truncated_name[idx + 1..].to_string()));
+            }
+        }
+
+        let mut line = Line::from(spans);
+
         if selected {
             line = line.set_style(SELECTED_STYLE);
         }
-        // TODO: Highlight indices
+
         line
     }
 }

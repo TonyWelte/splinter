@@ -2,7 +2,7 @@ use std::{cell::RefCell, rc::Rc};
 
 use ratatui::{
     prelude::{Buffer, Rect},
-    style::Style,
+    style::{Color, Style, Styled, Stylize},
     text::{Line, Span},
     widgets::{Block, BorderType, StatefulWidget},
 };
@@ -12,12 +12,14 @@ use crossterm::event::{Event as CrosstermEvent, KeyCode, KeyEventKind};
 use crate::{
     common::{
         event::{Event, NewHzEvent, NewPublisherEvent, NewTopicEvent},
+        generic_message::InterfaceType,
         style::{HEADER_STYLE, SELECTED_STYLE},
+        utils::truncate_namespaces,
     },
     connections::{Connection, ConnectionType},
     views::TuiView,
     widgets::{
-        topic_list_widget::{TopicListWidget, TopicListWidgetState},
+        list_widget::{ListItemTrait, ListWidget, ListWidgetState},
         TuiWidget,
     },
 };
@@ -48,9 +50,71 @@ impl Action {
     }
 }
 
+#[derive(Clone, Debug)]
+struct Topic {
+    name: String,
+    type_name: InterfaceType,
+}
+
+impl ListItemTrait for Topic {
+    fn search_text(&self) -> String {
+        self.name.clone()
+    }
+
+    fn to_line(&'_ self, width: usize, selected: bool, indices: Vec<u32>) -> Line<'_> {
+        let (truncated_name, new_indices) = truncate_namespaces(&self.name, &indices, width);
+
+        let mut spans = vec![];
+        if new_indices.is_empty() {
+            spans.push(Span::raw(truncated_name));
+        } else {
+            let first_idx = new_indices.first().unwrap();
+            if *first_idx != 0 {
+                spans.push(Span::raw(truncated_name[..*first_idx as usize].to_string()));
+            }
+
+            for window in new_indices.windows(2) {
+                let idx = window[0] as usize;
+                let next_idx = window[1] as usize;
+                spans.push(Span::styled(
+                    truncated_name[idx..idx + 1].to_string(),
+                    Style::default().bold(),
+                ));
+                if next_idx > idx + 1 {
+                    spans.push(Span::raw(truncated_name[idx + 1..next_idx].to_string()));
+                }
+            }
+
+            let last_idx = new_indices.last().unwrap();
+            let idx = *last_idx as usize;
+            spans.push(Span::styled(
+                truncated_name[idx..idx + 1].to_string(),
+                Style::default().bold(),
+            ));
+            if truncated_name.len() > idx + 1 {
+                spans.push(Span::raw(truncated_name[idx + 1..].to_string()));
+            }
+        }
+
+        spans.push(Span::raw(" "));
+        spans.push(Span::styled(
+            self.type_name.to_string(),
+            Style::default().fg(Color::DarkGray),
+        ));
+
+        let mut line = Line::from(spans);
+
+        if selected {
+            line = line.set_style(SELECTED_STYLE);
+        }
+
+        line
+    }
+}
+
 pub struct TopicListState {
     connection: Rc<RefCell<ConnectionType>>,
-    state: TopicListWidgetState,
+    state: ListWidgetState<Topic>,
     action: Action,
 
     needs_redraw: bool,
@@ -58,18 +122,32 @@ pub struct TopicListState {
 
 impl TopicListState {
     pub fn new(connection: Rc<RefCell<ConnectionType>>) -> Self {
-        let topics = connection.borrow().list_topics().unwrap();
+        let topics = connection
+            .borrow()
+            .list_topics()
+            .unwrap()
+            .into_iter()
+            .map(|(name, type_name)| Topic { name, type_name })
+            .collect::<Vec<Topic>>();
+
         Self {
             connection,
-            state: TopicListWidgetState::new(topics, 0),
+            state: ListWidgetState::new(topics, Some(0)),
             action: Action::Echo,
             needs_redraw: true,
         }
     }
 
     pub fn update(&mut self) {
-        let mut new_topics = self.connection.borrow().list_topics().unwrap_or_default();
-        new_topics.sort_by(|a, b| a.0.cmp(&b.0));
+        let mut new_topics = self
+            .connection
+            .borrow()
+            .list_topics()
+            .unwrap_or_default()
+            .into_iter()
+            .map(|(name, type_name)| Topic { name, type_name })
+            .collect::<Vec<Topic>>();
+        new_topics.sort_by(|a, b| a.name.cmp(&b.name));
         self.state.update(new_topics);
     }
 }
@@ -95,18 +173,18 @@ impl TuiView for TopicListState {
                     Event::None
                 }
                 KeyCode::Enter => {
-                    if let Some((topic, type_name)) = self.state.get_selected() {
+                    if let Some(topic) = self.state.get_selected() {
                         match self.action {
                             Action::Echo => Event::NewMessageView(NewTopicEvent {
-                                topic: topic.clone(),
-                                message_type: type_name.clone(),
+                                topic: topic.name.clone(),
+                                message_type: topic.type_name.clone(),
                             }),
                             Action::Pub => Event::NewPublisher(NewPublisherEvent {
-                                topic: topic.clone(),
-                                message_type: type_name.clone(),
+                                topic: topic.name.clone(),
+                                message_type: topic.type_name.clone(),
                             }),
                             Action::FrequencyPlot => Event::NewHz(NewHzEvent {
-                                topic: topic.clone(),
+                                topic: topic.name.clone(),
                                 view: None,
                             }),
                         }
@@ -186,7 +264,7 @@ impl TopicList {
             .border_style(HEADER_STYLE)
             .border_type(BorderType::Rounded);
 
-        let topic_list_widget = TopicListWidget::new().block(block).auto_scroll(true);
+        let topic_list_widget = ListWidget::new().block(block).auto_scroll(true);
 
         topic_list_widget.render(area, buf, &mut state.state);
     }

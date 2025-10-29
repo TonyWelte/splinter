@@ -7,7 +7,7 @@ use std::{ops::Index, time::SystemTime};
 #[derive(Debug, Clone, PartialEq)]
 pub struct InterfaceType {
     pub package_name: String,
-    pub catergory: String,
+    pub category: String,
     pub type_name: String,
 }
 
@@ -19,16 +19,13 @@ impl InterfaceType {
         }
         Self {
             package_name: parts[0].to_string(),
-            catergory: parts[1].to_string(),
+            category: parts[1].to_string(),
             type_name: parts[2].to_string(),
         }
     }
 
-    pub fn as_str(&self) -> String {
-        format!(
-            "{}/{}/{}",
-            self.package_name, self.catergory, self.type_name
-        )
+    pub fn to_string(&self) -> String {
+        format!("{}/{}/{}", self.package_name, self.category, self.type_name)
     }
 }
 
@@ -1568,7 +1565,7 @@ impl From<&DynamicMessageView<'_>> for GenericMessage {
                     .next()
                     .unwrap_or("")
                     .to_string(),
-                catergory: message
+                category: message
                     .namespace
                     .split("__")
                     .nth(1)
@@ -1723,7 +1720,7 @@ mod tests {
             generic_message.type_name,
             InterfaceType {
                 package_name: "std_msgs".to_string(),
-                catergory: "msg".to_string(),
+                category: "msg".to_string(),
                 type_name: "String".to_string(),
             }
         );

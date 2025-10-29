@@ -25,6 +25,7 @@ struct DevNode {
     publisher_constants: Arc<PublisherState<test_msgs::msg::Constants>>,
     publisher_nested: Arc<PublisherState<test_msgs::msg::Nested>>,
     publisher_sinusoid: Arc<PublisherState<test_msgs::msg::MultiNested>>,
+    publisher_long_name: Arc<PublisherState<test_msgs::msg::BasicTypes>>,
     subcriber_odometry: Arc<SubscriptionState<nav_msgs::msg::Odometry, Arc<NodeState>>>,
 }
 
@@ -94,6 +95,10 @@ impl DevNode {
 
         let publisher_sinusoid = node.create_publisher("sinusoid").unwrap();
 
+        let publisher_long_name = node
+            .create_publisher("/long/name/to/test/the/display/truncation/in/the/ui/component")
+            .unwrap();
+
         let subcriber_odometry = node
             .create_subscription("odometry", |msg: nav_msgs::msg::Odometry| {
                 println!(
@@ -126,6 +131,7 @@ impl DevNode {
             publisher_constants,
             publisher_nested,
             publisher_sinusoid,
+            publisher_long_name,
             subcriber_odometry,
         })
     }
@@ -173,6 +179,9 @@ impl DevNode {
             .publish(test_msgs::msg::Constants::default())?;
         self.publisher_nested
             .publish(test_msgs::msg::Nested::default())?;
+
+        self.publisher_long_name
+            .publish(test_msgs::msg::BasicTypes::default())?;
         Ok(())
     }
 
