@@ -16,7 +16,7 @@ use crate::{common::event::Event, widgets::TuiWidget};
 pub trait ListItemTrait {
     fn search_text(&self) -> String;
 
-    fn to_line(&self, width: usize, selected: bool, indices: Vec<u32>) -> Line;
+    fn to_line(&self, width: usize, selected: bool, indices: Vec<u32>) -> Line<'_>;
 }
 
 pub struct ListWidget<'a, ItemType> {
@@ -255,6 +255,9 @@ where
         }
     }
 
+    pub fn get_selected_index(&self) -> Option<usize> {
+        self.selected_index
+    }
     pub fn unselect(&mut self) {
         self.selected_index = None;
         self.needs_redraw = true;

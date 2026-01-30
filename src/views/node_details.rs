@@ -11,12 +11,12 @@ use crossterm::event::{Event as CrosstermEvent, KeyCode};
 
 use crate::{
     common::{
-        event::{Event, NewPublisherEvent, NewTopicEvent},
+        event::Event,
         generic_message::InterfaceType,
         style::{HEADER_STYLE, SELECTED_STYLE},
     },
     connections::{Connection, ConnectionType, NodeName, Parameters},
-    views::TuiView,
+    views::{AcceptsNode, FromNode, NodeInfo, TopicInfo, TuiView},
     widgets::{
         list_widget::{ListWidget, ListWidgetState},
         parameter_list_widget::ParameterListWidget,
@@ -195,9 +195,48 @@ impl ParameterListView {
                 KeyCode::Enter => {
                     // Enter edit mode if a parameter is selected
                     if let Some(selected) = self.selected {
-                        if self.parameters.keys().nth(selected).is_some() {
-                            self.mode = ParameterListMode::Editing(String::new());
-                            return Event::None;
+                        if let Some(param_name) = self.parameters.keys().nth(selected) {
+                            if let Some(param) = self.parameters.get(param_name) {
+                                self.mode = ParameterListMode::Editing(match param {
+                                    Parameters::Bool(value) => value.to_string(),
+                                    Parameters::Integer(value) => value.to_string(),
+                                    Parameters::Double(value) => value.to_string(),
+                                    Parameters::String(value) => value.clone(),
+                                    Parameters::ByteArray(_) => {
+                                        return Event::Error(
+                                            "Editing byte array parameters is not supported"
+                                                .to_string(),
+                                        );
+                                    }
+                                    Parameters::BoolArray(_) => {
+                                        return Event::Error(
+                                            "Editing bool array parameters is not supported"
+                                                .to_string(),
+                                        );
+                                    }
+                                    Parameters::IntegerArray(_) => {
+                                        return Event::Error(
+                                            "Editing integer array parameters is not supported"
+                                                .to_string(),
+                                        );
+                                    }
+                                    Parameters::DoubleArray(_) => {
+                                        return Event::Error(
+                                            "Editing double array parameters is not supported"
+                                                .to_string(),
+                                        );
+                                    }
+                                    Parameters::StringArray(_) => {
+                                        return Event::Error(
+                                            "Editing string array parameters is not supported"
+                                                .to_string(),
+                                        );
+                                    }
+                                });
+                                return Event::None;
+                            } else {
+                                return Event::Error("Selected parameter not found".to_string());
+                            }
                         }
                     }
                 }
@@ -484,19 +523,12 @@ impl NodeDetailState {
                      * If parameters is selected, edit that parameter
                      */
                     match active_detail {
-                        DetailSection::Publishers => {
-                            if let Some(item) = self.publisher_list_state.get_selected() {
-                                return Event::NewMessageView(NewTopicEvent {
-                                    topic: item.full_name.clone(),
-                                    message_type: item.type_name.clone(),
-                                });
-                            }
-                        }
-                        DetailSection::Subscribers => {
+                        DetailSection::Publishers | DetailSection::Subscribers => {
                             if let Some(item) = self.subscriber_list_state.get_selected() {
-                                return Event::NewPublisher(NewPublisherEvent {
+                                return Event::NewTopic(TopicInfo {
+                                    connection: self.connection.clone(),
                                     topic: item.full_name.clone(),
-                                    message_type: item.type_name.clone(),
+                                    type_name: item.type_name.clone(),
                                 });
                             }
                         }
@@ -547,6 +579,26 @@ impl TuiView for NodeDetailState {
         }
         false
     }
+
+    fn render(&mut self, area: Rect, buf: &mut Buffer) {
+        NodeDetailWidget::render(area, buf, self);
+    }
+
+    fn as_node_acceptor(&mut self) -> Option<&mut dyn AcceptsNode> {
+        Some(self)
+    }
+}
+
+impl AcceptsNode for NodeDetailState {
+    fn accepts_node(&mut self, node_info: NodeInfo) {
+        *self = NodeDetailState::new(node_info.node_name, node_info.connection);
+    }
+}
+
+impl FromNode for NodeDetailState {
+    fn from_node(node_info: NodeInfo) -> Self {
+        NodeDetailState::new(node_info.node_name, node_info.connection)
+    }
 }
 
 pub struct NodeDetailWidget;
@@ -557,12 +609,96 @@ impl NodeDetailWidget {
             .title(Line::raw("Node Details").centered())
             .border_style(HEADER_STYLE);
 
-        let mut inner_details_area = block.inner(area);
+        let inner_area = block.inner(area);
         Widget::render(block, area, buf);
 
-        // Create the node details view
-        // Render publisher
-        let publisher_title_style = match state.active_section {
+        let width = inner_area.width;
+
+        // Pre-calculate the height of each section's list content.
+        let publisher_list = ListWidget::<InterfaceListItem>::new()
+            .auto_scroll(false)
+            .enable_search(false)
+            .show_mode(false);
+        let publisher_list_height = publisher_list.height(&state.publisher_list_state) as u16;
+
+        let subscriber_list = ListWidget::<InterfaceListItem>::new()
+            .auto_scroll(false)
+            .enable_search(false)
+            .show_mode(false);
+        let subscriber_list_height = subscriber_list.height(&state.subscriber_list_state) as u16;
+
+        let client_list = ListWidget::<InterfaceListItem>::new()
+            .auto_scroll(false)
+            .enable_search(false)
+            .show_mode(false);
+        let client_list_height = client_list.height(&state.client_list_state) as u16;
+
+        let service_list = ListWidget::<InterfaceListItem>::new()
+            .auto_scroll(false)
+            .enable_search(false)
+            .show_mode(false);
+        let service_list_height = service_list.height(&state.service_list_state) as u16;
+
+        let param_list_height =
+            ParameterListWidget::new(&state.parameter_list_state.parameters).height();
+
+        // Calculate the y-offset of each section's title within the full content.
+        // Each section is: 1 line title + list_height lines.
+        let publishers_y: u16 = 0;
+        let subscribers_y: u16 = publishers_y + 1 + publisher_list_height;
+        let clients_y: u16 = subscribers_y + 1 + subscriber_list_height;
+        let services_y: u16 = clients_y + 1 + client_list_height;
+        let parameters_y: u16 = services_y + 1 + service_list_height;
+        let total_height: u16 = parameters_y + 1 + param_list_height;
+
+        // Determine the y-position to center in view: the section title when navigating
+        // sections, or the selected item row when navigating within a subsection.
+        let active_section_y = match &state.active_section {
+            MainDetailSection::Section(section) => match section {
+                DetailSection::Publishers => publishers_y,
+                DetailSection::Subscribers => subscribers_y,
+                DetailSection::Clients => clients_y,
+                DetailSection::Services => services_y,
+                DetailSection::Parameters => parameters_y,
+            },
+            MainDetailSection::SubSection(section) => match section {
+                DetailSection::Publishers => {
+                    let sel = state.publisher_list_state.get_selected_index().unwrap_or(0) as u16;
+                    publishers_y + 1 + sel
+                }
+                DetailSection::Subscribers => {
+                    let sel = state.subscriber_list_state.get_selected_index().unwrap_or(0) as u16;
+                    subscribers_y + 1 + sel
+                }
+                DetailSection::Clients => {
+                    let sel = state.client_list_state.get_selected_index().unwrap_or(0) as u16;
+                    clients_y + 1 + sel
+                }
+                DetailSection::Services => {
+                    let sel = state.service_list_state.get_selected_index().unwrap_or(0) as u16;
+                    services_y + 1 + sel
+                }
+                DetailSection::Parameters => {
+                    let sel = state.parameter_list_state.selected.unwrap_or(0) as u16;
+                    parameters_y + 1 + sel
+                }
+            },
+        };
+        let scroll_offset = active_section_y
+            .saturating_sub(inner_area.height / 2)
+            .min(total_height.saturating_sub(inner_area.height));
+
+        // Render all content into an extended buffer, then copy the visible slice.
+        let extended_height = total_height.max(inner_area.height);
+        let mut extended_buffer = Buffer::empty(Rect {
+            x: 0,
+            y: 0,
+            width,
+            height: extended_height,
+        });
+
+        // --- Publishers ---
+        let publisher_title_style = match &state.active_section {
             MainDetailSection::Section(DetailSection::Publishers) => SELECTED_STYLE,
             MainDetailSection::SubSection(DetailSection::Publishers) => {
                 SELECTED_STYLE.fg(Color::DarkGray)
@@ -572,32 +708,23 @@ impl NodeDetailWidget {
         .bold();
         Span::raw("Publishers:")
             .style(publisher_title_style)
-            .render(inner_details_area, buf);
-        inner_details_area.y += 1;
-        inner_details_area.height = inner_details_area.height.saturating_sub(1);
-        let publisher_list = ListWidget::<InterfaceListItem>::new()
-            .auto_scroll(false)
-            .enable_search(false)
-            .show_mode(false);
-        let publisher_list_height = publisher_list.height(&state.publisher_list_state) as u16;
-        StatefulWidget::render(
-            publisher_list,
-            Rect {
-                x: inner_details_area.x + 2,
-                y: inner_details_area.y,
-                width: inner_details_area.width.saturating_sub(2),
-                height: inner_details_area.height,
-            },
-            buf,
-            &mut state.publisher_list_state,
-        );
-        inner_details_area.y += publisher_list_height;
-        inner_details_area.height = inner_details_area
-            .height
-            .saturating_sub(publisher_list_height);
+            .render(Rect { x: 0, y: publishers_y, width, height: 1 }, &mut extended_buffer);
+        if publisher_list_height > 0 {
+            StatefulWidget::render(
+                publisher_list,
+                Rect {
+                    x: 2,
+                    y: publishers_y + 1,
+                    width: width.saturating_sub(2),
+                    height: publisher_list_height,
+                },
+                &mut extended_buffer,
+                &mut state.publisher_list_state,
+            );
+        }
 
-        // Render subscribers
-        let subscriber_title_style = match state.active_section {
+        // --- Subscribers ---
+        let subscriber_title_style = match &state.active_section {
             MainDetailSection::Section(DetailSection::Subscribers) => SELECTED_STYLE,
             MainDetailSection::SubSection(DetailSection::Subscribers) => {
                 SELECTED_STYLE.fg(Color::DarkGray)
@@ -607,32 +734,23 @@ impl NodeDetailWidget {
         .bold();
         Span::raw("Subscriptions:")
             .style(subscriber_title_style)
-            .render(inner_details_area, buf);
-        inner_details_area.y += 1;
-        inner_details_area.height = inner_details_area.height.saturating_sub(1);
-        let subscriber_list = ListWidget::<InterfaceListItem>::new()
-            .auto_scroll(false)
-            .enable_search(false)
-            .show_mode(false);
-        let subscriber_list_height = subscriber_list.height(&state.subscriber_list_state) as u16;
-        StatefulWidget::render(
-            subscriber_list,
-            Rect {
-                x: inner_details_area.x + 2,
-                y: inner_details_area.y,
-                width: inner_details_area.width.saturating_sub(2),
-                height: inner_details_area.height,
-            },
-            buf,
-            &mut state.subscriber_list_state,
-        );
-        inner_details_area.y += subscriber_list_height;
-        inner_details_area.height = inner_details_area
-            .height
-            .saturating_sub(subscriber_list_height);
+            .render(Rect { x: 0, y: subscribers_y, width, height: 1 }, &mut extended_buffer);
+        if subscriber_list_height > 0 {
+            StatefulWidget::render(
+                subscriber_list,
+                Rect {
+                    x: 2,
+                    y: subscribers_y + 1,
+                    width: width.saturating_sub(2),
+                    height: subscriber_list_height,
+                },
+                &mut extended_buffer,
+                &mut state.subscriber_list_state,
+            );
+        }
 
-        // Render clients
-        let client_title_style = match state.active_section {
+        // --- Clients ---
+        let client_title_style = match &state.active_section {
             MainDetailSection::Section(DetailSection::Clients) => SELECTED_STYLE,
             MainDetailSection::SubSection(DetailSection::Clients) => {
                 SELECTED_STYLE.fg(Color::DarkGray)
@@ -642,30 +760,23 @@ impl NodeDetailWidget {
         .bold();
         Span::raw("Clients:")
             .style(client_title_style)
-            .render(inner_details_area, buf);
-        inner_details_area.y += 1;
-        inner_details_area.height = inner_details_area.height.saturating_sub(1);
-        let client_list = ListWidget::<InterfaceListItem>::new()
-            .auto_scroll(false)
-            .enable_search(false)
-            .show_mode(false);
-        let client_list_height = client_list.height(&state.client_list_state) as u16;
-        StatefulWidget::render(
-            client_list,
-            Rect {
-                x: inner_details_area.x + 2,
-                y: inner_details_area.y,
-                width: inner_details_area.width.saturating_sub(2),
-                height: inner_details_area.height,
-            },
-            buf,
-            &mut state.client_list_state,
-        );
-        inner_details_area.y += client_list_height;
-        inner_details_area.height = inner_details_area.height.saturating_sub(client_list_height);
+            .render(Rect { x: 0, y: clients_y, width, height: 1 }, &mut extended_buffer);
+        if client_list_height > 0 {
+            StatefulWidget::render(
+                client_list,
+                Rect {
+                    x: 2,
+                    y: clients_y + 1,
+                    width: width.saturating_sub(2),
+                    height: client_list_height,
+                },
+                &mut extended_buffer,
+                &mut state.client_list_state,
+            );
+        }
 
-        // Render services
-        let service_title_style = match state.active_section {
+        // --- Services ---
+        let service_title_style = match &state.active_section {
             MainDetailSection::Section(DetailSection::Services) => SELECTED_STYLE,
             MainDetailSection::SubSection(DetailSection::Services) => {
                 SELECTED_STYLE.fg(Color::DarkGray)
@@ -675,32 +786,23 @@ impl NodeDetailWidget {
         .bold();
         Span::raw("Services:")
             .style(service_title_style)
-            .render(inner_details_area, buf);
-        inner_details_area.y += 1;
-        inner_details_area.height = inner_details_area.height.saturating_sub(1);
-        let service_list = ListWidget::<InterfaceListItem>::new()
-            .auto_scroll(false)
-            .enable_search(false)
-            .show_mode(false);
-        let service_list_height = service_list.height(&state.service_list_state) as u16;
-        StatefulWidget::render(
-            service_list,
-            Rect {
-                x: inner_details_area.x + 2,
-                y: inner_details_area.y,
-                width: inner_details_area.width.saturating_sub(2),
-                height: inner_details_area.height,
-            },
-            buf,
-            &mut state.service_list_state,
-        );
-        inner_details_area.y += service_list_height;
-        inner_details_area.height = inner_details_area
-            .height
-            .saturating_sub(service_list_height);
+            .render(Rect { x: 0, y: services_y, width, height: 1 }, &mut extended_buffer);
+        if service_list_height > 0 {
+            StatefulWidget::render(
+                service_list,
+                Rect {
+                    x: 2,
+                    y: services_y + 1,
+                    width: width.saturating_sub(2),
+                    height: service_list_height,
+                },
+                &mut extended_buffer,
+                &mut state.service_list_state,
+            );
+        }
 
-        // Render parameters
-        let parameter_title_style = match state.active_section {
+        // --- Parameters ---
+        let parameter_title_style = match &state.active_section {
             MainDetailSection::Section(DetailSection::Parameters) => SELECTED_STYLE,
             MainDetailSection::SubSection(DetailSection::Parameters) => {
                 SELECTED_STYLE.fg(Color::DarkGray)
@@ -710,23 +812,34 @@ impl NodeDetailWidget {
         .bold();
         Span::raw("Parameters:")
             .style(parameter_title_style)
-            .render(inner_details_area, buf);
-        inner_details_area.y += 1;
-        inner_details_area.height = inner_details_area.height.saturating_sub(1);
-        let param_widget = ParameterListWidget::new(&state.parameter_list_state.parameters)
-            .selected(state.parameter_list_state.selected)
-            .edit(match &state.parameter_list_state.mode {
-                ParameterListMode::Editing(edit) => Some(edit.clone()),
-                ParameterListMode::Normal => None,
-            });
-        param_widget.render(
-            Rect {
-                x: inner_details_area.x + 2,
-                y: inner_details_area.y,
-                width: inner_details_area.width.saturating_sub(2),
-                height: inner_details_area.height,
-            },
-            buf,
-        );
+            .render(Rect { x: 0, y: parameters_y, width, height: 1 }, &mut extended_buffer);
+        if param_list_height > 0 {
+            let param_widget = ParameterListWidget::new(&state.parameter_list_state.parameters)
+                .selected(state.parameter_list_state.selected)
+                .edit(match &state.parameter_list_state.mode {
+                    ParameterListMode::Editing(edit) => Some(edit.clone()),
+                    ParameterListMode::Normal => None,
+                });
+            param_widget.render(
+                Rect {
+                    x: 2,
+                    y: parameters_y + 1,
+                    width: width.saturating_sub(2),
+                    height: param_list_height,
+                },
+                &mut extended_buffer,
+            );
+        }
+
+        // Copy the visible slice of the extended buffer into the actual buffer.
+        for row in 0..inner_area.height {
+            for col in 0..inner_area.width {
+                if let Some(cell) = buf.cell_mut((inner_area.x + col, inner_area.y + row)) {
+                    if let Some(src) = extended_buffer.cell((col, row + scroll_offset)) {
+                        *cell = src.clone();
+                    }
+                }
+            }
+        }
     }
 }

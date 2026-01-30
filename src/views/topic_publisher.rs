@@ -10,13 +10,12 @@ use rclrs::*;
 use crate::{
     common::{
         event::Event,
-        generic_message::{AnyTypeMutableRef, GenericMessage, InterfaceType, Length},
-        generic_message_selector::{get_field_category, FieldCategory, GenericMessageSelector},
+        generic_message::{AnyTypeMutableRef, BoundedSequenceField, GenericMessage, InterfaceType, Length, SequenceField},
+        generic_message_selector::{FieldCategory, GenericMessageSelector, get_field_category},
         style::HEADER_STYLE,
     },
     connections::{Connection, ConnectionType},
-    // generic_message::{GenericField, GenericMessage},
-    views::TuiView,
+    views::{FromTopic, TopicInfo, TuiView},
     widgets::message_widget::MessageWidget,
 };
 
@@ -49,7 +48,7 @@ impl TopicPublisherState {
         let generic_message = GenericMessage::from(message.view());
         let publisher = connection
             .borrow_mut()
-            .create_publisher(&topic, &message_type.clone())
+            .create_publisher(&topic, &topic_type)
             .expect("Failed to subscribe to topic");
         Self {
             topic,
@@ -219,6 +218,16 @@ impl TuiView for TopicPublisherState {
                                 self.message.get_mut_deep_index(&self.selected_fields)
                             {
                                 match field {
+                                    AnyTypeMutableRef::Sequence(SequenceField::Message(_)) => {
+                                        return Event::Error(
+                                            "Cannot resize sequence of messages".to_string(),
+                                        );
+                                    }
+                                    AnyTypeMutableRef::BoundedSequence(BoundedSequenceField::Message(_, _)) => {
+                                        return Event::Error(
+                                            "Cannot resize sequence of messages".to_string(),
+                                        );
+                                    }
                                     AnyTypeMutableRef::Sequence(sequence_field) => {
                                         sequence_field
                                             .resize(sequence_field.len().saturating_sub(1));
@@ -243,6 +252,16 @@ impl TuiView for TopicPublisherState {
                                 self.message.get_mut_deep_index(&self.selected_fields)
                             {
                                 match field {
+                                    AnyTypeMutableRef::Sequence(SequenceField::Message(_)) => {
+                                        return Event::Error(
+                                            "Cannot resize sequence of messages".to_string(),
+                                        );
+                                    }
+                                    AnyTypeMutableRef::BoundedSequence(BoundedSequenceField::Message(_, _)) => {
+                                        return Event::Error(
+                                            "Cannot resize sequence of messages".to_string(),
+                                        );
+                                    }
                                     AnyTypeMutableRef::Sequence(sequence_field) => {
                                         sequence_field.resize(sequence_field.len() + 1);
                                     }
@@ -299,15 +318,13 @@ impl TuiView for TopicPublisherState {
             }
             Event::Key(_)
             | Event::None
-            | Event::NewMessageView(_)
-            | Event::NewLine(_)
-            | Event::NewLinePlot(_)
-            | Event::NewHz(_)
-            | Event::NewHzPlot(_)
-            | Event::NewPublisher(_)
-            | Event::NewNodeDetailView(_)
+            | Event::NewConnection(_)
+            | Event::NewNode(_)
+            | Event::NewTopic(_)
+            | Event::NewField(_)
             | Event::Error(_)
-            | Event::ClosePopup => event,
+            | Event::ClosePopup
+            | Event::NewView(_) => event,
         }
     }
 
@@ -333,6 +350,21 @@ impl TuiView for TopicPublisherState {
             return true;
         }
         false
+    }
+
+    fn render(&mut self, area: Rect, buf: &mut Buffer) {
+        TopicPublisherWidget::render(area, buf, self);
+    }
+}
+
+impl FromTopic for TopicPublisherState {
+    fn from_topic(topic_info: TopicInfo) -> Self {
+        let message_type = topic_info
+            .connection
+            .borrow()
+            .get_topic_type(&topic_info.topic)
+            .expect("Failed to get topic type");
+        TopicPublisherState::new(topic_info.topic, message_type, topic_info.connection)
     }
 }
 

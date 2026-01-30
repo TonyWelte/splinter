@@ -12,14 +12,14 @@ use ratatui::{
 
 use crate::{
     common::{
-        event::{Event, NewLineEvent},
+        event::Event,
         generic_message::{FieldType, GenericMessage, MessageMetadata},
         generic_message_selector::GenericMessageSelector,
         style::HEADER_STYLE,
     },
     connections::{Connection, ConnectionType},
     // generic_message::{GenericField, GenericMessage},
-    views::TuiView,
+    views::{FieldInfo, FieldInfoType, FromTopic, TopicInfo, TuiView},
     widgets::message_widget::{MessageWidget, MessageWidgetState},
 };
 
@@ -143,25 +143,28 @@ impl TuiView for RawMessageState {
                         None => return Event::Error("No message available".to_string()),
                     };
                     match message.get_field_type(&self.selected_fields) {
-                        Ok(FieldType::Float)
-                        | Ok(FieldType::Double)
-                        | Ok(FieldType::Boolean)
-                        | Ok(FieldType::Uint8)
-                        | Ok(FieldType::Int8)
-                        | Ok(FieldType::Uint16)
-                        | Ok(FieldType::Int16)
-                        | Ok(FieldType::Uint32)
-                        | Ok(FieldType::Int32)
-                        | Ok(FieldType::Uint64)
-                        | Ok(FieldType::Int64) => Event::NewLine(NewLineEvent {
+                        Ok(FieldType::Float) | Ok(FieldType::Double) => {
+                            Event::NewField(FieldInfo {
+                                connection: self._connection.clone(),
+                                topic: self.topic.clone(),
+                                type_name: message.type_name().clone(),
+                                field: self.selected_fields.clone(),
+                                field_name: message
+                                    .get_field_name(&self.selected_fields)
+                                    .unwrap_or_else(|_| "this is a bug".to_string()),
+                                field_type: FieldInfoType::Float,
+                            })
+                        }
+                        Ok(_) => Event::NewField(FieldInfo {
+                            connection: self._connection.clone(),
                             topic: self.topic.clone(),
+                            type_name: message.type_name().clone(),
                             field: self.selected_fields.clone(),
                             field_name: message
                                 .get_field_name(&self.selected_fields)
                                 .unwrap_or_else(|_| "this is a bug".to_string()),
-                            view: None,
+                            field_type: FieldInfoType::Integer,
                         }),
-                        Ok(_) => Event::Error("Cannot plot non-primitive field".to_string()),
                         Err(e) => Event::Error(format!("Failed to get field type: {}", e)),
                     }
                 }
@@ -192,6 +195,16 @@ impl TuiView for RawMessageState {
             return true;
         }
         false
+    }
+
+    fn render(&mut self, area: Rect, buf: &mut Buffer) {
+        RawMessageWidget::render(area, buf, self);
+    }
+}
+
+impl FromTopic for RawMessageState {
+    fn from_topic(topic_info: TopicInfo) -> Self {
+        RawMessageState::new(topic_info.topic, topic_info.connection)
     }
 }
 

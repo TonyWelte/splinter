@@ -1,14 +1,17 @@
-pub mod add_hz_popup;
-pub mod add_line_popup;
+pub mod new_node_popup;
+pub mod new_topic_popup;
+pub mod new_field_popup;
 pub mod text_popup;
 
-use add_hz_popup::AddHzState;
-use add_line_popup::AddLineState;
+use new_node_popup::NewNodePopupState;
+use new_field_popup::NewFieldPopupState;
+use new_topic_popup::NewTopicPopupState;
 use text_popup::TextPopup;
 
 pub enum PopupView {
     None,
-    AddLine(AddLineState),
-    AddHz(AddHzState),
     Error(TextPopup),
+    NewNode(NewNodePopupState),
+    NewTopic(NewTopicPopupState),
+    NewField(NewFieldPopupState),
 }

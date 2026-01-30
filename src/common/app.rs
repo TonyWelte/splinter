@@ -1,6 +1,6 @@
-use std::cell::RefCell;
 use std::rc::Rc;
 use std::time::Duration;
+use std::{cell::RefCell, collections::HashMap};
 
 use color_eyre::eyre::Result;
 use ratatui::{
@@ -12,26 +12,25 @@ use ratatui::{
     DefaultTerminal,
 };
 
-use crate::common::style::SELECTED_STYLE;
 use crate::connections::ros2::ConnectionROS2;
 use crate::connections::ConnectionType;
+use crate::popups::new_node_popup::NewNodePopupState;
+use crate::popups::new_topic_popup::NewTopicPopupState;
+use crate::popups::new_field_popup::NewFieldPopupState;
 use crate::popups::text_popup::TextPopup;
 use crate::popups::PopupView;
-use crate::popups::{add_hz_popup::AddHzState, add_line_popup::AddLineState};
-use crate::views::hz_plot::{HzPlotState, HzPlotWidget};
-use crate::views::live_plot::LivePlotState;
+use crate::views::hz_plot::HzPlotState;
 use crate::views::raw_message::RawMessageState;
 use crate::views::topic_publisher::TopicPublisherState;
 use crate::views::{
-    live_plot::LivePlotWidget,
-    node_list::{NodeListState, NodeListWidget},
-    raw_message::RawMessageWidget,
-    topic_list::{TopicList, TopicListState},
-    topic_publisher::TopicPublisherWidget,
-    TuiView, Views,
+    node_list::NodeListState,
+    topic_list::TopicListState,
+    FromConnection, TuiView, Views,
 };
-use crate::{common::event::Event, views::node_details::NodeDetailState};
-use crate::{common::generic_message::InterfaceType, views::node_details::NodeDetailWidget};
+use crate::views::{FieldInfo, NodeInfo};
+use crate::common::event::Event;
+use crate::common::generic_message::InterfaceType;
+use crate::{common::style::SELECTED_STYLE, views::ConnectionInfo};
 
 #[derive(Default)]
 pub struct AppMetrics {
@@ -39,10 +38,36 @@ pub struct AppMetrics {
     pub events: Vec<Event>,
 }
 
+type NewConnectionFactoryClosure = dyn Fn(ConnectionInfo) -> Rc<RefCell<dyn TuiView>> + Send + Sync;
+type NewFieldFactoryClosure = dyn Fn(FieldInfo) -> Rc<RefCell<dyn TuiView>> + Send + Sync;
+type NewNodeFactoryClosure = dyn Fn(NodeInfo) -> Rc<RefCell<dyn TuiView>> + Send + Sync;
+
+static FROM_NEW_CONNECTION_FACTORIES: once_cell::sync::Lazy<
+    HashMap<&'static str, Box<NewConnectionFactoryClosure>>,
+> = once_cell::sync::Lazy::new(|| {
+    let mut m = HashMap::new();
+    m.insert(
+        "topic_list",
+        Box::new(|connection_info: ConnectionInfo| {
+            Rc::new(RefCell::new(TopicListState::from_connection(
+                connection_info,
+            ))) as Rc<RefCell<dyn TuiView>>
+        }) as Box<NewConnectionFactoryClosure>,
+    );
+    m.insert(
+        "node_list",
+        Box::new(|connection_info: ConnectionInfo| {
+            Rc::new(RefCell::new(NodeListState::from_connection(
+                connection_info,
+            ))) as Rc<RefCell<dyn TuiView>>
+        }) as Box<NewConnectionFactoryClosure>,
+    );
+    m
+});
+
 pub struct App {
     should_exit: bool,
-    pub connection: Rc<RefCell<ConnectionType>>,
-    widgets: Vec<Views>,
+    widgets: Vec<Rc<RefCell<dyn TuiView>>>,
     active_widget_index: usize,
 
     popup_view: PopupView,
@@ -51,6 +76,22 @@ pub struct App {
 
     metrics: AppMetrics,
 }
+
+// List of TuiViews supported:
+// - HzPlot -> FromTopic, AcceptsTopic
+// - LiveHzPlot -> FromField, AcceptsField
+// - NodeDetails -> FromNode
+// - NodeList -> FromConnection
+// - RawMessage -> FromTopic
+// - TopicList -> FromConnection
+// - TopicPublisher -> FromTopic
+//
+// So on:
+// - NewConnection -> NodeList, TopicList
+// - NewNode -> NodeDetails
+// - NewTopic -> RawMessage, TopicPublisher, HzPlot
+// - NewField -> LiveHzPlot
+// for any existing view
 
 pub enum AppArgs {
     TopicList,
@@ -68,8 +109,10 @@ impl Default for App {
         let node_list = NodeListState::new(connection.clone());
         Self {
             should_exit,
-            connection,
-            widgets: vec![Views::TopicList(topic_list), Views::NodeList(node_list)],
+            widgets: vec![
+                Rc::new(RefCell::new(Views::TopicList(topic_list))),
+                Rc::new(RefCell::new(Views::NodeList(node_list))),
+            ],
             active_widget_index: 0,
             popup_view: PopupView::None,
             needs_redraw: true,
@@ -122,8 +165,7 @@ impl App {
 
         Self {
             should_exit,
-            connection,
-            widgets: vec![view],
+            widgets: vec![Rc::new(RefCell::new(view))],
             active_widget_index: 0,
             popup_view: PopupView::None,
             needs_redraw: true,
@@ -135,11 +177,16 @@ impl App {
         while !self.should_exit {
             let popup_needs_redraw = match &mut self.popup_view {
                 PopupView::None => false,
-                PopupView::AddLine(state) => state.needs_redraw(),
-                PopupView::AddHz(state) => state.needs_redraw(),
+                // PopupView::AddLine(state) => state.needs_redraw(),
+                // PopupView::AddHz(state) => state.needs_redraw(),
                 PopupView::Error(state) => state.needs_redraw(),
+                PopupView::NewNode(state) => state.needs_redraw(),
+                PopupView::NewTopic(state) => state.needs_redraw(),
+                PopupView::NewField(state) => state.needs_redraw(),
             };
-            if self.widgets[self.active_widget_index].needs_redraw()
+            if self.widgets[self.active_widget_index]
+                .borrow_mut()
+                .needs_redraw()
                 || self.needs_redraw
                 || popup_needs_redraw
             {
@@ -168,28 +215,13 @@ impl App {
         self.metrics.events.push(event.clone());
 
         let event = match &mut self.popup_view {
-            PopupView::None => self.widgets[self.active_widget_index].handle_event(event),
-            PopupView::AddLine(data) => {
-                let new_event = data.handle_event(event);
-                match new_event {
-                    Event::None => Event::None,
-                    other_event => {
-                        self.popup_view = PopupView::None;
-                        other_event
-                    }
-                }
-            }
-            PopupView::AddHz(data) => {
-                let new_event = data.handle_event(event);
-                match new_event {
-                    Event::None => Event::None,
-                    other_event => {
-                        self.popup_view = PopupView::None;
-                        other_event
-                    }
-                }
-            }
+            PopupView::None => self.widgets[self.active_widget_index]
+                .borrow_mut()
+                .handle_event(event),
             PopupView::Error(data) => data.handle_event(event),
+            PopupView::NewNode(data) => data.handle_event(event),
+            PopupView::NewTopic(data) => data.handle_event(event),
+            PopupView::NewField(data) => data.handle_event(event),
         };
 
         match event {
@@ -228,7 +260,7 @@ impl App {
                     }
                     KeyCode::Char('?') => {
                         if let Some(active_view) = self.widgets.get(self.active_widget_index) {
-                            let mut help_text = active_view.get_help_text();
+                            let mut help_text = active_view.borrow().get_help_text();
                             help_text.push_str("\n\n");
                             help_text.push_str(&self.get_help_test());
                             self.popup_view = PopupView::Error(TextPopup::info(help_text));
@@ -237,100 +269,52 @@ impl App {
                     _ => {}
                 }
             }
-            Event::NewLine(new_graph_event) => {
-                let topic = new_graph_event.topic;
-                let field = new_graph_event.field;
-                let field_name = new_graph_event.field_name;
-                if let Some(view) = new_graph_event.view {
-                    let connection = self.connection.clone();
-                    if let Some(Views::LivePlot(live_plot_state)) = self.widgets.get_mut(view) {
-                        live_plot_state.add_graph_line(topic, field, field_name, connection);
-                        self.active_widget_index = view;
-                    }
-                    return;
-                }
-                let candidate_views: Vec<(usize, String)> = self
+            Event::NewConnection(_) => {
+                todo!("Handle new connection event");
+            }
+            Event::NewNode(node_info) => {
+                // List existing TuiViews that accept nodes
+                let candidate_views = self
                     .widgets
                     .iter()
-                    .enumerate()
-                    .filter_map(|(i, w)| match w {
-                        Views::LivePlot(_) => Some((i, w.name())),
-                        _ => None,
+                    .filter_map(|w| {
+                        let mut w_borrowed = w.borrow_mut();
+                        w_borrowed.as_node_acceptor().map(|_| w.clone())
                     })
-                    .collect();
-                self.popup_view = PopupView::AddLine(AddLineState::new(
-                    topic,
-                    field,
-                    field_name,
-                    candidate_views,
-                ));
+                    .collect::<Vec<_>>();
+                self.popup_view =
+                    PopupView::NewNode(NewNodePopupState::new(node_info, candidate_views));
             }
-            Event::NewLinePlot(new_graph_event) => {
-                let topic = new_graph_event.topic;
-                let field = new_graph_event.field;
-                let field_name = new_graph_event.field_name;
-                let connection = self.connection.clone();
-                let live_plot_state = LivePlotState::new(topic, field, field_name, connection);
-                let widget = Views::LivePlot(live_plot_state);
-                self.widgets.push(widget);
-                self.active_widget_index = self.widgets.len() - 1;
-            }
-            Event::NewMessageView(new_topic_event) => {
-                let topic = new_topic_event.topic;
-                let connection = self.connection.clone();
-                let raw_message_state = RawMessageState::new(topic, connection);
-                let widget = Views::RawMessage(raw_message_state);
-                self.widgets.push(widget);
-                self.active_widget_index = self.widgets.len() - 1;
-            }
-            Event::NewHz(new_hz_event) => {
-                if new_hz_event.view.is_some() {
-                    let topic = new_hz_event.topic;
-                    let view = new_hz_event.view.unwrap();
-                    let connection = self.connection.clone();
-                    if let Some(Views::HzPlot(hz_plot_state)) = self.widgets.get_mut(view) {
-                        hz_plot_state.add_line(topic, connection);
-                        self.active_widget_index = view;
-                    }
-                    return;
-                }
-                let topic = new_hz_event.topic;
-                let candidate_views: Vec<(usize, String)> = self
+            Event::NewTopic(topic_info) => {
+                // List existing TuiViews that accept topics
+                let candidate_views = self
                     .widgets
                     .iter()
-                    .enumerate()
-                    .filter_map(|(i, w)| match w {
-                        Views::HzPlot(_) => Some((i, w.name())),
-                        _ => None,
+                    .filter_map(|w| {
+                        let mut w_borrowed = w.borrow_mut();
+                        w_borrowed.as_topic_acceptor().map(|_| w.clone())
                     })
-                    .collect();
-                self.popup_view = PopupView::AddHz(AddHzState::new(topic, candidate_views));
+                    .collect::<Vec<_>>();
+                self.popup_view =
+                    PopupView::NewTopic(NewTopicPopupState::new(topic_info, candidate_views));
             }
-            Event::NewHzPlot(new_topic_event) => {
-                let topic = new_topic_event.topic;
-                let connection = self.connection.clone();
-                let hz_plot_state = HzPlotState::new(topic, connection);
-                let widget = Views::HzPlot(hz_plot_state);
-                self.widgets.push(widget);
-                self.active_widget_index = self.widgets.len() - 1;
+            Event::NewField(field_info) => {
+                // List existing TuiViews that accept fields
+                let candidate_views = self
+                    .widgets
+                    .iter()
+                    .filter_map(|w| {
+                        let mut w_borrowed = w.borrow_mut();
+                        w_borrowed.as_field_acceptor().map(|_| w.clone())
+                    })
+                    .collect::<Vec<_>>();
+                self.popup_view =
+                    PopupView::NewField(NewFieldPopupState::new(field_info, candidate_views));
             }
-            Event::NewPublisher(new_publisher_event) => {
-                let topic = new_publisher_event.topic;
-                let message_type = new_publisher_event.message_type;
-                let connection = self.connection.clone();
-                let topic_publisher_state =
-                    TopicPublisherState::new(topic, message_type, connection);
-                let widget = Views::TopicPublisher(topic_publisher_state);
-                self.widgets.push(widget);
+            Event::NewView(new_view) => {
+                self.widgets.push(new_view);
                 self.active_widget_index = self.widgets.len() - 1;
-            }
-            Event::NewNodeDetailView(new_node_event) => {
-                let node_name = new_node_event.node;
-                let connection = self.connection.clone();
-                let node_details_state = NodeDetailState::new(node_name, connection);
-                let widget = Views::NodeDetails(node_details_state);
-                self.widgets.push(widget);
-                self.active_widget_index = self.widgets.len() - 1;
+                self.popup_view = PopupView::None;
             }
             Event::ClosePopup => {
                 self.popup_view = PopupView::None;
@@ -365,36 +349,14 @@ impl Widget for &mut App {
 
         App::render_header(header_area, buf);
 
-        let widget_names = self.widgets.iter().map(|w| w.name());
+        let widget_names = self.widgets.iter().map(|w| w.borrow().name());
         Tabs::new(widget_names)
             .highlight_style(SELECTED_STYLE)
             .select(self.active_widget_index)
             .divider(" ")
             .render(tab_area, buf);
         let widget = &mut self.widgets[self.active_widget_index];
-        match widget {
-            Views::TopicList(topic_list) => {
-                TopicList::render(widget_area, buf, topic_list);
-            }
-            Views::RawMessage(raw_message) => {
-                RawMessageWidget::render(widget_area, buf, raw_message);
-            }
-            Views::LivePlot(live_plot) => {
-                LivePlotWidget::render(widget_area, buf, live_plot);
-            }
-            Views::NodeList(node_list) => {
-                NodeListWidget::render(widget_area, buf, node_list);
-            }
-            Views::TopicPublisher(topic_publisher) => {
-                TopicPublisherWidget::render(widget_area, buf, topic_publisher);
-            }
-            Views::HzPlot(hz_plot_state) => {
-                HzPlotWidget::render(widget_area, buf, hz_plot_state);
-            }
-            Views::NodeDetails(node_details_state) => {
-                NodeDetailWidget::render(widget_area, buf, node_details_state);
-            }
-        }
+        widget.borrow_mut().render(widget_area, buf);
 
         let popup_area = Rect {
             x: area.width / 4,
@@ -403,13 +365,16 @@ impl Widget for &mut App {
             height: area.height / 2,
         };
         match &mut self.popup_view {
-            PopupView::AddLine(state) => {
-                state.render(popup_area, buf);
-            }
-            PopupView::AddHz(state) => {
-                state.render(popup_area, buf);
-            }
             PopupView::Error(state) => {
+                state.render(popup_area, buf);
+            }
+            PopupView::NewNode(state) => {
+                state.render(popup_area, buf);
+            }
+            PopupView::NewTopic(state) => {
+                state.render(popup_area, buf);
+            }
+            PopupView::NewField(state) => {
                 state.render(popup_area, buf);
             }
             PopupView::None => {}

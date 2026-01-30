@@ -21,7 +21,7 @@ use crate::{
     },
     connections::{Connection, ConnectionType},
     // generic_message::{GenericField, GenericMessage},
-    views::TuiView,
+    views::{AcceptsTopic, FromTopic, TopicInfo, TuiView},
 };
 
 use crossterm::event::{Event as CrosstermEvent, KeyCode, KeyEventKind};
@@ -134,6 +134,26 @@ impl TuiView for HzPlotState {
 
     fn needs_redraw(&mut self) -> bool {
         true
+    }
+
+    fn render(&mut self, area: Rect, buf: &mut Buffer) {
+        HzPlotWidget::render(area, buf, self);
+    }
+
+    fn as_topic_acceptor(&mut self) -> Option<&mut dyn AcceptsTopic> {
+        Some(self)
+    }
+}
+
+impl FromTopic for HzPlotState {
+    fn from_topic(topic_info: TopicInfo) -> Self {
+        HzPlotState::new(topic_info.topic, topic_info.connection)
+    }
+}
+
+impl AcceptsTopic for HzPlotState {
+    fn accepts_topic(&mut self, topic_info: TopicInfo) {
+        self.add_line(topic_info.topic, topic_info.connection);
     }
 }
 

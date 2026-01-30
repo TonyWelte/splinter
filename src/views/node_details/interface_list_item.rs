@@ -16,7 +16,7 @@ impl ListItemTrait for InterfaceListItem {
         self.full_name.clone()
     }
 
-    fn to_line(&self, width: usize, selected: bool, indices: Vec<u32>) -> Line {
+    fn to_line(&self, width: usize, selected: bool, _indices: Vec<u32>) -> Line<'_> {
         let type_name_str = self.type_name.to_string();
         let space_width = width.saturating_sub(self.full_name.len() + type_name_str.len());
         let mut line = Line::from(format!(

@@ -11,44 +11,17 @@ use crossterm::event::{Event as CrosstermEvent, KeyCode, KeyEventKind};
 
 use crate::{
     common::{
-        event::{Event, NewHzEvent, NewPublisherEvent, NewTopicEvent},
+        event::Event,
         generic_message::InterfaceType,
         style::{HEADER_STYLE, SELECTED_STYLE},
         utils::truncate_namespaces,
     },
     connections::{Connection, ConnectionType},
-    views::TuiView,
-    widgets::{
-        list_widget::{ListItemTrait, ListWidget, ListWidgetState},
-        TuiWidget,
-    },
+    views::{ConnectionInfo, FromConnection, TopicInfo, TuiView},
+    widgets::list_widget::{ListItemTrait, ListWidget, ListWidgetState},
 };
 
 pub struct TopicList;
-
-enum Action {
-    Echo,
-    Pub,
-    FrequencyPlot,
-}
-
-impl Action {
-    pub fn next(&self) -> Self {
-        match self {
-            Action::Echo => Action::Pub,
-            Action::Pub => Action::FrequencyPlot,
-            Action::FrequencyPlot => Action::FrequencyPlot,
-        }
-    }
-
-    pub fn previous(&self) -> Self {
-        match self {
-            Action::Echo => Action::Echo,
-            Action::Pub => Action::Echo,
-            Action::FrequencyPlot => Action::Pub,
-        }
-    }
-}
 
 #[derive(Clone, Debug)]
 struct Topic {
@@ -115,7 +88,6 @@ impl ListItemTrait for Topic {
 pub struct TopicListState {
     connection: Rc<RefCell<ConnectionType>>,
     state: ListWidgetState<Topic>,
-    action: Action,
 
     needs_redraw: bool,
 }
@@ -133,7 +105,6 @@ impl TopicListState {
         Self {
             connection,
             state: ListWidgetState::new(topics, Some(0)),
-            action: Action::Echo,
             needs_redraw: true,
         }
     }
@@ -162,32 +133,13 @@ impl TuiView for TopicListState {
                 return event;
             }
             match key_event.code {
-                KeyCode::Char('l') | KeyCode::Right => {
-                    self.action = self.action.next();
-                    self.needs_redraw = true;
-                    Event::None
-                }
-                KeyCode::Char('h') | KeyCode::Left => {
-                    self.action = self.action.previous();
-                    self.needs_redraw = true;
-                    Event::None
-                }
                 KeyCode::Enter => {
                     if let Some(topic) = self.state.get_selected() {
-                        match self.action {
-                            Action::Echo => Event::NewMessageView(NewTopicEvent {
-                                topic: topic.name.clone(),
-                                message_type: topic.type_name.clone(),
-                            }),
-                            Action::Pub => Event::NewPublisher(NewPublisherEvent {
-                                topic: topic.name.clone(),
-                                message_type: topic.type_name.clone(),
-                            }),
-                            Action::FrequencyPlot => Event::NewHz(NewHzEvent {
-                                topic: topic.name.clone(),
-                                view: None,
-                            }),
-                        }
+                        Event::NewTopic(TopicInfo {
+                            connection: self.connection.clone(),
+                            topic: topic.name.clone(),
+                            type_name: topic.type_name.clone(),
+                        })
                     } else {
                         event
                     }
@@ -208,8 +160,6 @@ impl TuiView for TopicListState {
         Normal Mode:\n\
         - 'j' or ↓: Move down in the topic list.\n\
         - 'k' or ↑: Move up in the topic list.\n\
-        - 'l' or →: Switch to the next action (Echo, Pub, Hz).\n\
-        - 'h' or ←: Switch to the previous action (Echo, Pub, Hz).\n\
         - 'Enter': Execute the selected action on the highlighted topic.\n\
         Search Mode:\n\
         - Type to filter topics.\n\
@@ -226,38 +176,21 @@ impl TuiView for TopicListState {
             false
         }
     }
+
+    fn render(&mut self, area: Rect, buf: &mut Buffer) {
+        TopicList::render(area, buf, self);
+    }
+}
+
+impl FromConnection for TopicListState {
+    fn from_connection(connection_info: ConnectionInfo) -> Self {
+        TopicListState::new(connection_info.connection)
+    }
 }
 
 impl TopicList {
     pub fn render(area: Rect, buf: &mut Buffer, state: &mut TopicListState) {
-        let action_text = Line::from_iter([
-            Span::raw(" Topic List - "),
-            Span::styled(
-                " Echo ",
-                if matches!(state.action, Action::Echo) {
-                    SELECTED_STYLE
-                } else {
-                    Style::default()
-                },
-            ),
-            Span::styled(
-                " Pub ",
-                if matches!(state.action, Action::Pub) {
-                    SELECTED_STYLE
-                } else {
-                    Style::default()
-                },
-            ),
-            Span::styled(
-                " Hz ",
-                if matches!(state.action, Action::FrequencyPlot) {
-                    SELECTED_STYLE
-                } else {
-                    Style::default()
-                },
-            ),
-        ])
-        .centered();
+        let action_text = Line::from_iter([Span::raw(" Topic List ")]).centered();
 
         let block = Block::bordered()
             .title(action_text)

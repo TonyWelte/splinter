@@ -76,20 +76,11 @@ impl<'a> Widget for SelectViewWidget<'a> {
         if self.with_new_option {
             let y = inner_area.y + self.views.len() as u16;
             if y < inner_area.y + inner_area.height {
-                let style = if Some(self.views.len()) == self.selected {
+                let _style = if Some(self.views.len()) == self.selected {
                     SELECTED_STYLE
                 } else {
                     Style::default()
                 };
-                Line::from("<New View>").style(style).render(
-                    Rect {
-                        x: inner_area.x,
-                        y,
-                        width: inner_area.width,
-                        height: 1,
-                    },
-                    buf,
-                );
             }
         }
     }

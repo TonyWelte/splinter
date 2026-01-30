@@ -11,12 +11,12 @@ use crossterm::event::{Event as CrosstermEvent, KeyCode};
 
 use crate::{
     common::{
-        event::{Event, NewNodeEvent},
+        event::Event,
         style::{HEADER_STYLE, SELECTED_STYLE},
         utils::truncate_namespaces,
     },
     connections::{Connection, ConnectionType, NodeName},
-    views::TuiView,
+    views::{ConnectionInfo, FromConnection, NodeInfo, TuiView},
     widgets::list_widget::{ListItemTrait, ListWidget, ListWidgetState},
 };
 
@@ -25,7 +25,7 @@ impl ListItemTrait for NodeName {
         self.full_name()
     }
 
-    fn to_line(&self, width: usize, selected: bool, indices: Vec<u32>) -> Line {
+    fn to_line(&self, width: usize, selected: bool, indices: Vec<u32>) -> Line<'_> {
         let (truncated_name, new_indices) = truncate_namespaces(&self.full_name(), &indices, width);
 
         let mut spans = vec![];
@@ -107,8 +107,9 @@ impl NodeListState {
             if key_event.code == KeyCode::Enter {
                 if let Some(selected) = self.node_list_state.get_selected() {
                     // Switch to node details view
-                    return Event::NewNodeDetailView(NewNodeEvent {
-                        node: selected.clone(),
+                    return Event::NewNode(NodeInfo {
+                        node_name: selected.clone(),
+                        connection: self.connection.clone(),
                     });
                 }
                 self.needs_redraw = true;
@@ -140,6 +141,16 @@ impl TuiView for NodeListState {
             return true;
         }
         false
+    }
+
+    fn render(&mut self, area: Rect, buf: &mut Buffer) {
+        NodeListWidget::render(area, buf, self);
+    }
+}
+
+impl FromConnection for NodeListState {
+    fn from_connection(connection_info: ConnectionInfo) -> Self {
+        NodeListState::new(connection_info.connection)
     }
 }
 

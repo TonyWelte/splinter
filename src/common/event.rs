@@ -1,49 +1,18 @@
+use std::{cell::RefCell, rc::Rc};
+
 use ratatui::crossterm::event::Event as CrosstermEvent;
 
-use crate::{common::generic_message::InterfaceType, connections::NodeName};
-
-#[derive(Debug, Clone)]
-pub struct NewLineEvent {
-    pub topic: String,
-    pub field: Vec<usize>,
-    pub field_name: String,
-    pub view: Option<usize>,
-}
-
-#[derive(Debug, Clone)]
-pub struct NewTopicEvent {
-    pub topic: String,
-    pub message_type: InterfaceType,
-}
-
-#[derive(Debug, Clone)]
-pub struct NewNodeEvent {
-    pub node: NodeName,
-}
-
-#[derive(Debug, Clone)]
-pub struct NewHzEvent {
-    pub topic: String,
-    pub view: Option<usize>,
-}
-
-#[derive(Debug, Clone)]
-pub struct NewPublisherEvent {
-    pub topic: String,
-    pub message_type: InterfaceType,
-}
+use crate::views::{ConnectionInfo, FieldInfo, NodeInfo, TopicInfo, TuiView};
 
 #[derive(Debug, Clone)]
 pub enum Event {
     None,
     Key(CrosstermEvent),
-    NewMessageView(NewTopicEvent),
-    NewLine(NewLineEvent),
-    NewLinePlot(NewLineEvent),
-    NewHz(NewHzEvent),
-    NewHzPlot(NewHzEvent),
-    NewPublisher(NewPublisherEvent),
-    NewNodeDetailView(NewNodeEvent),
+    NewConnection(ConnectionInfo),
+    NewNode(NodeInfo),
+    NewTopic(TopicInfo),
+    NewField(FieldInfo),
     Error(String),
     ClosePopup,
+    NewView(Rc<RefCell<dyn TuiView>>),
 }

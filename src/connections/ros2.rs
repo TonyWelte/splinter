@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fmt::Debug;
 use std::sync::{Arc, Mutex};
 use std::thread::{spawn, JoinHandle};
 use std::time::SystemTime;
@@ -24,6 +25,12 @@ pub struct ConnectionROS2 {
 
     #[allow(unused)]
     thread: JoinHandle<()>,
+}
+
+impl Debug for ConnectionROS2 {
+    fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        todo!("Implement Debug for ConnectionROS2")
+    }
 }
 
 impl Default for ConnectionROS2 {
@@ -246,8 +253,9 @@ impl TryFrom<&GenericMessage> for DynamicMessage {
             package_name: val.type_name().package_name.clone(),
             type_name: val.type_name().type_name.clone(),
         };
-        let mut dynamic_message = DynamicMessage::new(message_type)
-            .map_err(|_| "Failed to create dynamic message".to_string())?;
+        let mut dynamic_message = DynamicMessage::new(message_type).map_err(|_| {
+            format!("Failed to create dynamic message: {:?}", val.type_name()).to_string()
+        })?;
 
         populate_message(dynamic_message.view_mut(), val);
 
@@ -387,7 +395,7 @@ impl Connection for ConnectionROS2 {
     }
 
     /// Get the type of a specific topic.
-    fn get_topic_type(&self, topic: &str) -> Option<MessageTypeName> {
+    fn get_topic_type(&self, topic: &str) -> Option<InterfaceType> {
         let topics = self.node.get_topic_names_and_types().ok()?;
 
         topics
@@ -396,8 +404,9 @@ impl Connection for ConnectionROS2 {
             .and_then(|(_name, types)| {
                 types.first().map(|type_name| {
                     let parts: Vec<&str> = type_name.split('/').collect();
-                    MessageTypeName {
+                    InterfaceType {
                         package_name: parts.first().unwrap_or(&"").to_string(),
+                        category: parts.get(1).unwrap_or(&"").to_string(),
                         type_name: parts.get(2).unwrap_or(&"").to_string(),
                     }
                 })
@@ -453,12 +462,15 @@ impl Connection for ConnectionROS2 {
         let topic_type = self
             .get_topic_type(topic)
             .ok_or(format!("Failed to get topic type for topic: {}", topic))?;
-
+        let topic_type2 = topic_type.clone();
         // Create subscription
         let subscription = self
             .node
             .create_dynamic_subscription(
-                topic_type,
+                MessageTypeName {
+                    package_name: topic_type.package_name,
+                    type_name: topic_type.type_name,
+                },
                 topic,
                 move |msg: DynamicMessage, msg_info: MessageInfo| {
                     let metadata = MessageMetadata {
@@ -468,7 +480,12 @@ impl Connection for ConnectionROS2 {
                     callback(generic_message, metadata);
                 },
             )
-            .map_err(|e| format!("Failed to create subscription: {}", e))?;
+            .map_err(|e| {
+                format!(
+                    "Failed to create subscription: {} (topic: {}, type {:?})",
+                    e, topic, topic_type2
+                )
+            })?;
         self.subscriptions.push(subscription);
 
         Ok(())
@@ -477,11 +494,17 @@ impl Connection for ConnectionROS2 {
     fn create_publisher(
         &mut self,
         topic: &str,
-        message_type: &MessageTypeName,
+        message_type: &InterfaceType,
     ) -> Result<Box<dyn Fn(&GenericMessage) -> Result<(), String>>, String> {
         let publisher = self
             .node
-            .create_dynamic_publisher(message_type.clone(), topic.reliable().transient_local())
+            .create_dynamic_publisher(
+                MessageTypeName {
+                    package_name: message_type.package_name.clone(),
+                    type_name: message_type.type_name.clone(),
+                },
+                topic.reliable().transient_local(),
+            )
             .map_err(|e| format!("Failed to create publisher: {}", e))?;
 
         let publish_fn = move |msg: &GenericMessage| {

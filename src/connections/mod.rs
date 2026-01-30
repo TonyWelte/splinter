@@ -7,8 +7,6 @@ use ros2::ConnectionROS2;
 
 use crate::common::generic_message::{GenericMessage, InterfaceType, MessageMetadata};
 
-use rclrs::MessageTypeName;
-
 #[derive(Debug, Clone, PartialEq)]
 pub enum Parameters {
     Bool(bool),
@@ -76,7 +74,7 @@ pub trait Connection {
     fn list_nodes(&self) -> Vec<NodeName>;
 
     /// Get the type of a specific topic.
-    fn get_topic_type(&self, topic: &str) -> Option<MessageTypeName>;
+    fn get_topic_type(&self, topic: &str) -> Option<InterfaceType>;
 
     fn subscribe(
         &mut self,
@@ -87,7 +85,7 @@ pub trait Connection {
     fn create_publisher(
         &mut self,
         topic: &str,
-        message_type: &MessageTypeName,
+        message_type: &InterfaceType,
     ) -> Result<Box<PublisherFunc>, String>;
 
     fn get_publisher_names_and_types_by_node(
@@ -124,8 +122,11 @@ pub trait Connection {
 }
 
 #[enum_dispatch]
+#[derive(Debug)]
 pub enum ConnectionType {
     // Mcap(ConnectionMcap),
+    // Foxglove(ConnectionFoxglove),
+    // Rosbridge(ConnectionRosbridge),
     ROS2(ConnectionROS2),
 }
 

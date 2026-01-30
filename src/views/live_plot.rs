@@ -22,7 +22,7 @@ use crate::{
     },
     connections::{Connection, ConnectionType},
     // generic_message::{GenericField, GenericMessage},
-    views::TuiView,
+    views::{AcceptsField, FieldInfo, FromField, TuiView},
 };
 
 use crossterm::event::{Event as CrosstermEvent, KeyCode, KeyEventKind};
@@ -77,9 +77,9 @@ impl LivePlotState {
                         .duration_since(SystemTime::UNIX_EPOCH)
                         .expect("Timestamp before UNIX EPOCH")
                         .as_secs_f64();
-                    // TODO: Handle error properly
-                    let value = get_field(&msg, &selected_fields_copy).unwrap();
-                    mut_plot.push((stamp, value));
+                    if let Some(value) = get_field(&msg, &selected_fields_copy) {
+                        mut_plot.push((stamp, value));
+                    }
                 },
             )
             .expect("Failed to subscribe to topic");
@@ -119,6 +119,7 @@ fn get_field(message: &GenericMessage, field_index_path: &[usize]) -> Option<f64
         AnyTypeRef::Array(v) => Some(v.len() as f64),
         AnyTypeRef::Sequence(v) => Some(v.len() as f64),
         AnyTypeRef::BoundedSequence(v) => Some(v.len() as f64),
+        _ => None, // Unsupported type for plotting
     }
 }
 
@@ -159,6 +160,36 @@ impl TuiView for LivePlotState {
 
     fn needs_redraw(&mut self) -> bool {
         true
+    }
+
+    fn render(&mut self, area: Rect, buf: &mut Buffer) {
+        LivePlotWidget::render(area, buf, self);
+    }
+
+    fn as_field_acceptor(&mut self) -> Option<&mut dyn AcceptsField> {
+        Some(self)
+    }
+}
+
+impl FromField for LivePlotState {
+    fn from_field(field_info: FieldInfo) -> Self {
+        LivePlotState::new(
+            field_info.topic,
+            field_info.field,
+            field_info.field_name,
+            field_info.connection,
+        )
+    }
+}
+
+impl AcceptsField for LivePlotState {
+    fn accepts_field(&mut self, field_info: FieldInfo) {
+        self.add_graph_line(
+            field_info.topic,
+            field_info.field,
+            field_info.field_name,
+            field_info.connection,
+        );
     }
 }
 
