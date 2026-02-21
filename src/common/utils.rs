@@ -1,3 +1,39 @@
+use ratatui::{style::{Modifier, Style}, text::Span};
+
+/// Builds a list of `Span`s from `text`, bolding each character whose byte index appears in
+/// `indices` (as produced by the nucleo fuzzy-match scorer).
+pub fn build_highlighted_spans(text: String, indices: Vec<u32>) -> Vec<Span<'static>> {
+    let mut spans: Vec<Span<'static>> = vec![];
+    if indices.is_empty() {
+        spans.push(Span::raw(text));
+    } else {
+        let first_idx = *indices.first().unwrap() as usize;
+        if first_idx != 0 {
+            spans.push(Span::raw(text[..first_idx].to_string()));
+        }
+        for window in indices.windows(2) {
+            let idx = window[0] as usize;
+            let next_idx = window[1] as usize;
+            spans.push(Span::styled(
+                text[idx..idx + 1].to_string(),
+                Style::new().add_modifier(Modifier::BOLD),
+            ));
+            if next_idx > idx + 1 {
+                spans.push(Span::raw(text[idx + 1..next_idx].to_string()));
+            }
+        }
+        let last_idx = *indices.last().unwrap() as usize;
+        spans.push(Span::styled(
+            text[last_idx..last_idx + 1].to_string(),
+            Style::new().add_modifier(Modifier::BOLD),
+        ));
+        if text.len() > last_idx + 1 {
+            spans.push(Span::raw(text[last_idx + 1..].to_string()));
+        }
+    }
+    spans
+}
+
 pub fn truncate_namespaces(name: &str, indices: &[u32], max_len: usize) -> (String, Vec<u32>) {
     if name.len() <= max_len {
         return (name.to_string(), indices.to_vec());

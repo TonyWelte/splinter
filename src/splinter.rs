@@ -52,14 +52,14 @@ fn main() -> Result<()> {
     // Handle commands
     let app = match args.commands {
         Some(Commands::Topic(topic_args)) => match topic_args.command {
-            TopicCommands::List => App::new(AppArgs::TopicList),
-            TopicCommands::Echo { name } => App::new(AppArgs::RawMessage(name)),
+            TopicCommands::List => App::new(AppArgs::TopicList)?,
+            TopicCommands::Echo { name } => App::new(AppArgs::RawMessage(name))?,
             TopicCommands::Pub { name, message } => {
-                App::new(AppArgs::TopicPublisher(name, message))
+                App::new(AppArgs::TopicPublisher(name, message))?
             }
-            TopicCommands::Hz { name } => App::new(AppArgs::HzPlot(name)),
+            TopicCommands::Hz { name } => App::new(AppArgs::HzPlot(name))?,
         },
-        Some(Commands::Node) => App::new(AppArgs::NodeList),
+        Some(Commands::Node) => App::new(AppArgs::NodeList)?,
         None => App::default(),
     };
 

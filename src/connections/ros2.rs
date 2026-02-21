@@ -372,45 +372,38 @@ impl Connection for ConnectionROS2 {
         let topics: Vec<(String, InterfaceType)> = topics
             .into_iter()
             .filter_map(|(name, types)| {
-                types.first().map(|type_name| {
-                    let interface_type = InterfaceType::new(type_name);
-                    (name, interface_type)
-                })
+                types
+                    .first()
+                    .and_then(|type_name| InterfaceType::new(type_name).ok())
+                    .map(|interface_type| (name, interface_type))
             })
             .collect();
 
         Ok(topics)
     }
 
-    fn list_nodes(&self) -> Vec<NodeName> {
+    fn list_nodes(&self) -> Result<Vec<NodeName>, String> {
         self.node
             .get_node_names()
-            .expect("Failed to get node names")
-            .iter()
-            .map(|node_name_info| NodeName {
-                name: node_name_info.name.clone(),
-                namespace: node_name_info.namespace.clone(),
+            .map_err(|e| format!("Failed to get node names: {}", e))
+            .map(|node_names| {
+                node_names
+                    .iter()
+                    .map(|node_name_info| NodeName {
+                        name: node_name_info.name.clone(),
+                        namespace: node_name_info.namespace.clone(),
+                    })
+                    .collect()
             })
-            .collect()
     }
 
     /// Get the type of a specific topic.
     fn get_topic_type(&self, topic: &str) -> Option<InterfaceType> {
-        let topics = self.node.get_topic_names_and_types().ok()?;
-
-        topics
+        self.list_topics()
+            .ok()?
             .into_iter()
-            .find(|(name, _types)| name == topic)
-            .and_then(|(_name, types)| {
-                types.first().map(|type_name| {
-                    let parts: Vec<&str> = type_name.split('/').collect();
-                    InterfaceType {
-                        package_name: parts.first().unwrap_or(&"").to_string(),
-                        category: parts.get(1).unwrap_or(&"").to_string(),
-                        type_name: parts.get(2).unwrap_or(&"").to_string(),
-                    }
-                })
-            })
+            .find(|(name, _)| name == topic)
+            .map(|(_, interface_type)| interface_type)
     }
 
     fn get_publisher_names_and_types_by_node(

@@ -13,7 +13,7 @@ use crate::{
     common::{
         event::Event,
         style::{HEADER_STYLE, SELECTED_STYLE},
-        utils::truncate_namespaces,
+        utils::{build_highlighted_spans, truncate_namespaces},
     },
     connections::{Connection, ConnectionType, NodeName},
     views::{ConnectionInfo, FromConnection, NodeInfo, TuiView},
@@ -28,39 +28,7 @@ impl ListItemTrait for NodeName {
     fn to_line(&self, width: usize, selected: bool, indices: Vec<u32>) -> Line<'_> {
         let (truncated_name, new_indices) = truncate_namespaces(&self.full_name(), &indices, width);
 
-        let mut spans = vec![];
-        if new_indices.is_empty() {
-            spans.push(Span::raw(truncated_name));
-        } else {
-            let first_idx = new_indices.first().unwrap();
-            if *first_idx != 0 {
-                spans.push(Span::raw(truncated_name[..*first_idx as usize].to_string()));
-            }
-
-            for window in new_indices.windows(2) {
-                let idx = window[0] as usize;
-                let next_idx = window[1] as usize;
-                spans.push(Span::styled(
-                    truncated_name[idx..idx + 1].to_string(),
-                    Style::default().bold(),
-                ));
-                if next_idx > idx + 1 {
-                    spans.push(Span::raw(truncated_name[idx + 1..next_idx].to_string()));
-                }
-            }
-
-            let last_idx = new_indices.last().unwrap();
-            let idx = *last_idx as usize;
-            spans.push(Span::styled(
-                truncated_name[idx..idx + 1].to_string(),
-                Style::default().bold(),
-            ));
-            if truncated_name.len() > idx + 1 {
-                spans.push(Span::raw(truncated_name[idx + 1..].to_string()));
-            }
-        }
-
-        let mut line = Line::from(spans);
+        let mut line = Line::from(build_highlighted_spans(truncated_name, new_indices));
 
         if selected {
             line = line.set_style(SELECTED_STYLE);
@@ -77,23 +45,30 @@ pub struct NodeListState {
 
     node_list_state: ListWidgetState<NodeName>,
 
+    last_update: std::time::Instant,
     needs_redraw: bool,
 }
 
 impl NodeListState {
     pub fn new(connection: Rc<RefCell<ConnectionType>>) -> Self {
         // Initialize node list from connection
-        let nodes = connection.borrow().list_nodes();
+        let nodes = connection.borrow().list_nodes().unwrap_or_default();
 
         Self {
             connection,
             node_list_state: ListWidgetState::new(nodes, None),
+            last_update: std::time::Instant::now(),
             needs_redraw: true,
         }
     }
 
     pub fn update(&mut self) {
-        let node_list_items: Vec<NodeName> = self.connection.borrow().list_nodes();
+        const UPDATE_INTERVAL: std::time::Duration = std::time::Duration::from_millis(500);
+        if self.last_update.elapsed() < UPDATE_INTERVAL {
+            return;
+        }
+        self.last_update = std::time::Instant::now();
+        let node_list_items: Vec<NodeName> = self.connection.borrow().list_nodes().unwrap_or_default();
         self.node_list_state.update(node_list_items);
         self.needs_redraw = true;
     }
@@ -132,11 +107,21 @@ impl TuiView for NodeListState {
     }
 
     fn get_help_text(&self) -> String {
-        todo!("Add help text")
+        "Node List View Help:\n\
+        Normal Mode:\n\
+        - 'j' or ↓: Move down in the node list.\n\
+        - 'k' or ↑: Move up in the node list.\n\
+        - 'Enter': Open the details view for the selected node.\n\
+        Search Mode:\n\
+        - '/': Enter search mode.\n\
+        - Type to filter nodes.\n\
+        - 'Backspace': Remove the last character from the search filter.\n\
+        - 'Esc'/'Enter': Exit search mode."
+            .to_string()
     }
 
     fn needs_redraw(&mut self) -> bool {
-        if self.needs_redraw {
+        if self.needs_redraw || self.node_list_state.needs_redraw() {
             self.needs_redraw = false;
             return true;
         }

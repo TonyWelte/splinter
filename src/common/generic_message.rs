@@ -12,20 +12,25 @@ pub struct InterfaceType {
 }
 
 impl InterfaceType {
-    pub fn new(full_type: &str) -> Self {
+    pub fn new(full_type: &str) -> Result<Self, String> {
         let parts: Vec<&str> = full_type.split('/').collect();
         if parts.len() != 3 {
-            panic!("Invalid type format");
+            return Err(format!(
+                "Invalid type format: '{}' (expected 'package/category/type')",
+                full_type
+            ));
         }
-        Self {
+        Ok(Self {
             package_name: parts[0].to_string(),
             category: parts[1].to_string(),
             type_name: parts[2].to_string(),
-        }
+        })
     }
+}
 
-    pub fn to_string(&self) -> String {
-        format!("{}/{}/{}", self.package_name, self.category, self.type_name)
+impl std::fmt::Display for InterfaceType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}/{}/{}", self.package_name, self.category, self.type_name)
     }
 }
 

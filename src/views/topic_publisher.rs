@@ -184,8 +184,10 @@ impl TuiView for TopicPublisherState {
                             self.needs_redraw = true;
                             Event::None
                         } else {
-                            self.publisher.as_ref()(&self.message);
-                            Event::None
+                            match self.publisher.as_ref()(&self.message) {
+                                Ok(()) => Event::None,
+                                Err(e) => Event::Error(format!("Failed to publish: {}", e)),
+                            }
                         }
                     }
                     KeyCode::Char('j') | KeyCode::Down => {

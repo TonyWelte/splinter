@@ -43,7 +43,11 @@ impl RawMessageState {
         let needs_redraw = Arc::new(AtomicBool::new(true));
         let needs_redraw_copy = needs_redraw.clone();
 
-        // Wait until the topic type is available or timeout after 1 second
+        // Wait until the topic type is available or timeout after 1 second.
+        // FIXME: This busy-waits on the main thread, blocking the TUI event loop for up to
+        // 1 second during view creation. A non-blocking approach (e.g. moving the subscription
+        // setup to a background thread or using a retry mechanism in handle_event) would
+        // avoid this freeze.
         let mut message_type_wait_time = 0;
         while connection.borrow().get_topic_type(&topic).is_none() {
             std::thread::sleep(std::time::Duration::from_millis(100));
@@ -70,7 +74,7 @@ impl RawMessageState {
             message,
             _connection: connection,
             selected_fields: Vec::new(),
-            message_widget_state: MessageWidgetState::new().auto_scroll(),
+            message_widget_state: MessageWidgetState::new(),
             needs_redraw,
         }
     }

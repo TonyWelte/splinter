@@ -71,7 +71,7 @@ pub trait Connection {
     fn list_topics(&self) -> Result<Vec<(String, InterfaceType)>, String>;
 
     /// Get the list of nodes in the connection.
-    fn list_nodes(&self) -> Vec<NodeName>;
+    fn list_nodes(&self) -> Result<Vec<NodeName>, String>;
 
     /// Get the type of a specific topic.
     fn get_topic_type(&self, topic: &str) -> Option<InterfaceType>;

@@ -42,6 +42,9 @@ type NewConnectionFactoryClosure = dyn Fn(ConnectionInfo) -> Rc<RefCell<dyn TuiV
 type NewFieldFactoryClosure = dyn Fn(FieldInfo) -> Rc<RefCell<dyn TuiView>> + Send + Sync;
 type NewNodeFactoryClosure = dyn Fn(NodeInfo) -> Rc<RefCell<dyn TuiView>> + Send + Sync;
 
+// NOTE: This factory map is currently unused — it is kept as scaffolding for future
+// multi-connection support (see Event::NewConnection and the commented-out connection types
+// in connections/mod.rs).
 static FROM_NEW_CONNECTION_FACTORIES: once_cell::sync::Lazy<
     HashMap<&'static str, Box<NewConnectionFactoryClosure>>,
 > = once_cell::sync::Lazy::new(|| {
@@ -74,7 +77,9 @@ pub struct App {
 
     needs_redraw: bool,
 
-    metrics: AppMetrics,
+    /// When `Some`, key events are recorded and displayed as an overlay.
+    /// Useful for debugging and creating animated GIFs. Set to `Some(AppMetrics::default())` to enable.
+    metrics: Option<AppMetrics>,
 }
 
 // List of TuiViews supported:
@@ -116,7 +121,7 @@ impl Default for App {
             active_widget_index: 0,
             popup_view: PopupView::None,
             needs_redraw: true,
-            metrics: AppMetrics::default(),
+            metrics: None,
         }
     }
 }
@@ -135,7 +140,7 @@ fn check_ctrl_c(event: &CrosstermEvent) -> bool {
 }
 
 impl App {
-    pub fn new(args: AppArgs) -> Self {
+    pub fn new(args: AppArgs) -> Result<Self> {
         let should_exit = false;
         let connection = Rc::new(RefCell::new(ConnectionType::ROS2(ConnectionROS2::new())));
         let view = match args {
@@ -152,7 +157,8 @@ impl App {
                 Views::RawMessage(raw_message_state)
             }
             AppArgs::TopicPublisher(topic, topic_type) => {
-                let topic_type = InterfaceType::new(&topic_type);
+                let topic_type = InterfaceType::new(&topic_type)
+                    .map_err(color_eyre::eyre::Error::msg)?;
                 let topic_publisher_state =
                     TopicPublisherState::new(topic, topic_type, connection.clone());
                 Views::TopicPublisher(topic_publisher_state)
@@ -163,14 +169,14 @@ impl App {
             }
         };
 
-        Self {
+        Ok(Self {
             should_exit,
             widgets: vec![Rc::new(RefCell::new(view))],
             active_widget_index: 0,
             popup_view: PopupView::None,
             needs_redraw: true,
-            metrics: AppMetrics::default(),
-        }
+            metrics: None,
+        })
     }
 
     pub fn run(mut self, mut terminal: DefaultTerminal) -> Result<()> {
@@ -191,7 +197,9 @@ impl App {
                 || popup_needs_redraw
             {
                 self.needs_redraw = false;
-                self.metrics.draw_count += 1;
+                if let Some(m) = &mut self.metrics {
+                    m.draw_count += 1;
+                }
                 terminal.draw(|frame| frame.render_widget(&mut self, frame.area()))?;
             }
             if let Ok(is_event_available) = event::poll(Duration::from_millis(100)) {
@@ -211,8 +219,10 @@ impl App {
     }
 
     fn handle_event(&mut self, event: Event) {
-        // Log all events for debugging purposes
-        self.metrics.events.push(event.clone());
+        // Log events only when the event overlay is active (for debugging / animated GIFs)
+        if let Some(m) = &mut self.metrics {
+            m.events.push(event.clone());
+        }
 
         let event = match &mut self.popup_view {
             PopupView::None => self.widgets[self.active_widget_index]
@@ -262,7 +272,7 @@ impl App {
                         if let Some(active_view) = self.widgets.get(self.active_widget_index) {
                             let mut help_text = active_view.borrow().get_help_text();
                             help_text.push_str("\n\n");
-                            help_text.push_str(&self.get_help_test());
+                            help_text.push_str(&self.get_help_text());
                             self.popup_view = PopupView::Error(TextPopup::info(help_text));
                         }
                     }
@@ -270,7 +280,7 @@ impl App {
                 }
             }
             Event::NewConnection(_) => {
-                todo!("Handle new connection event");
+                // TODO: Handle new connection event once multi-connection support is implemented.
             }
             Event::NewNode(node_info) => {
                 // List existing TuiViews that accept nodes
@@ -328,7 +338,7 @@ impl App {
         }
     }
 
-    fn get_help_test(&self) -> String {
+    fn get_help_text(&self) -> String {
         "App Help:\n\
         - 'Tab': Switch to the next panel.\n\
         - 'Shift+Tab': Switch to the previous panel.\n\
@@ -380,8 +390,9 @@ impl Widget for &mut App {
             PopupView::None => {}
         }
 
-        // Uncomment to show pressed keys at the bottom for debugging / creating animated GIFs
-        // self.render_event(area, buf);
+        if self.metrics.is_some() {
+            self.render_event(area, buf);
+        }
     }
 }
 
@@ -395,6 +406,7 @@ impl App {
     }
 
     pub fn render_event(&self, area: Rect, buf: &mut Buffer) {
+        let Some(metrics) = &self.metrics else { return };
         // Display all key events at the bottom in a bordered text box for the animated GIF
         let event_log_area = Rect {
             x: area.x + area.width / 3,
@@ -418,8 +430,7 @@ impl App {
             },
             _ => "".to_string(),
         };
-        let recent_events = self
-            .metrics
+        let recent_events = metrics
             .events
             .iter()
             .rev()

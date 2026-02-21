@@ -347,36 +347,40 @@ impl NodeDetailState {
             .get_publisher_names_and_types_by_node(&self.node)
             .unwrap_or_default()
             .iter()
-            .map(|(topic, types)| InterfaceListItem {
-                full_name: topic.clone(),
-                type_name: InterfaceType::new(&types.first().cloned().unwrap_or_default()),
+            .filter_map(|(topic, types)| {
+                InterfaceType::new(&types.first().cloned().unwrap_or_default())
+                    .ok()
+                    .map(|type_name| InterfaceListItem { full_name: topic.clone(), type_name })
             })
             .collect();
         let subscriptions = connection
             .get_subscription_names_and_types_by_node(&self.node)
             .unwrap_or_default()
             .iter()
-            .map(|(topic, types)| InterfaceListItem {
-                full_name: topic.clone(),
-                type_name: InterfaceType::new(&types.first().cloned().unwrap_or_default()),
+            .filter_map(|(topic, types)| {
+                InterfaceType::new(&types.first().cloned().unwrap_or_default())
+                    .ok()
+                    .map(|type_name| InterfaceListItem { full_name: topic.clone(), type_name })
             })
             .collect();
         let clients = connection
             .get_client_names_and_types_by_node(&self.node)
             .unwrap_or_default()
             .iter()
-            .map(|(service, types)| InterfaceListItem {
-                full_name: service.clone(),
-                type_name: InterfaceType::new(&types.first().cloned().unwrap_or_default()),
+            .filter_map(|(service, types)| {
+                InterfaceType::new(&types.first().cloned().unwrap_or_default())
+                    .ok()
+                    .map(|type_name| InterfaceListItem { full_name: service.clone(), type_name })
             })
             .collect();
         let services = connection
             .get_service_names_and_types_by_node(&self.node)
             .unwrap_or_default()
             .iter()
-            .map(|(service, types)| InterfaceListItem {
-                full_name: service.clone(),
-                type_name: InterfaceType::new(&types.first().cloned().unwrap_or_default()),
+            .filter_map(|(service, types)| {
+                InterfaceType::new(&types.first().cloned().unwrap_or_default())
+                    .ok()
+                    .map(|type_name| InterfaceListItem { full_name: service.clone(), type_name })
             })
             .collect();
 

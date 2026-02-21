@@ -42,10 +42,6 @@ impl MessageWidgetState {
         }
     }
 
-    pub fn auto_scroll(mut self) -> Self {
-        self.auto_scroll = true;
-        self
-    }
 }
 
 impl<'a> MessageWidget<'a> {
