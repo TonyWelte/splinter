@@ -74,7 +74,7 @@ impl RawMessageState {
             message,
             _connection: connection,
             selected_fields: Vec::new(),
-            message_widget_state: MessageWidgetState::new(),
+            message_widget_state: MessageWidgetState::new(true),
             needs_redraw,
         }
     }

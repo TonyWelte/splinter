@@ -103,61 +103,18 @@ impl<'a> ValueWidget<'a> {
                         + 1
                 }
                 GenericField::Simple(_) => 1,
-                GenericField::Array(ArrayField::Message(inner_messages)) => {
-                    let mut height = 1; // +1 for the field name
-                    for (i, inner_message) in inner_messages.iter().enumerate() {
-                        if i != selection[0] {
-                            height +=
-                                MessageWidget::new(inner_message).height(width.saturating_sub(2));
-                        } else {
-                            height += MessageWidget::new(inner_message)
-                                .with_selection(&selection[1..])
-                                .selection_height(width.saturating_sub(2));
-                            break;
-                        }
-                    }
-                    height
-                }
-                GenericField::Array(array_value) => {
-                    ArrayWidget::new(self.name, array_value).height(width)
-                }
-                GenericField::Sequence(SequenceField::Message(inner_messages)) => {
-                    let mut height = 1; // +1 for the field name
-                    for (i, inner_message) in inner_messages.iter().enumerate() {
-                        if i != selection[0] {
-                            height += MessageWidget::new(inner_message).height(width);
-                        } else {
-                            height += MessageWidget::new(inner_message)
-                                .with_selection(&selection[1..])
-                                .selection_height(width);
-                            break;
-                        }
-                    }
-                    height
-                }
+                GenericField::Array(array_value) => ArrayWidget::new(self.name, array_value)
+                    .with_selection(selection)
+                    .selection_height(width),
                 GenericField::Sequence(sequence_value) => {
-                    SequenceWidget::new(self.name, sequence_value).height(width)
-                    // +1 for the field name
-                    // -2 for the indentation
-                }
-                GenericField::BoundedSequence(BoundedSequenceField::Message(inner_messages, _)) => {
-                    let mut height = 1; // +1 for the field name
-                    for (i, inner_message) in inner_messages.iter().enumerate() {
-                        if i != selection[0] {
-                            height += MessageWidget::new(inner_message).height(width);
-                        } else {
-                            height += MessageWidget::new(inner_message)
-                                .with_selection(&selection[1..])
-                                .selection_height(width);
-                            break;
-                        }
-                    }
-                    height
+                    SequenceWidget::new(self.name, sequence_value)
+                        .with_selection(selection)
+                        .selection_height(width)
                 }
                 GenericField::BoundedSequence(sequence_value) => {
-                    BoundedSequenceWidget::new(self.name, sequence_value).height(width)
-                    // +1 for the field name
-                    // -2 for the indentation
+                    BoundedSequenceWidget::new(self.name, sequence_value)
+                        .with_selection(selection)
+                        .selection_height(width)
                 }
             }
         } else {

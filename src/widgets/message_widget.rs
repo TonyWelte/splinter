@@ -30,18 +30,17 @@ pub struct MessageWidgetState {
 
 impl Default for MessageWidgetState {
     fn default() -> Self {
-        Self::new()
+        Self::new(false)
     }
 }
 
 impl MessageWidgetState {
-    pub fn new() -> Self {
+    pub fn new(auto_scroll: bool) -> Self {
         Self {
             scroll_offset: 0,
-            auto_scroll: true,
+            auto_scroll,
         }
     }
-
 }
 
 impl<'a> MessageWidget<'a> {
@@ -103,7 +102,7 @@ impl<'a> MessageWidget<'a> {
 
 impl<'a> Widget for MessageWidget<'a> {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        let mut state = MessageWidgetState::new();
+        let mut state = MessageWidgetState::default();
         StatefulWidget::render(self, area, buf, &mut state);
     }
 }
@@ -201,7 +200,7 @@ mod tests {
         assert_eq!(widget.selection_height(50), 15); // Select pose.pose.orientation.y field
 
         let widget = MessageWidget::new(&generic_message).with_selection(&[2, 1, 5]);
-        assert_eq!(widget.selection_height(50), 27); // Select pose.covariance.5 field
+        assert_eq!(widget.selection_height(50), 20); // Select pose.covariance.5 field
 
         let widget = MessageWidget::new(&generic_message).with_selection(&[2, 1, 35]);
         assert_eq!(widget.selection_height(50), 27); // Select pose.covariance.35 field

@@ -3,20 +3,23 @@ use std::{cell::RefCell, rc::Rc};
 use ratatui::{
     prelude::{Buffer, Rect},
     text::Line,
-    widgets::{Block, BorderType, Widget},
+    widgets::{Block, BorderType, StatefulWidget, Widget},
 };
 use rclrs::*;
 
 use crate::{
     common::{
         event::Event,
-        generic_message::{AnyTypeMutableRef, BoundedSequenceField, GenericMessage, InterfaceType, Length, SequenceField},
-        generic_message_selector::{FieldCategory, GenericMessageSelector, get_field_category},
+        generic_message::{
+            AnyTypeMutableRef, BoundedSequenceField, GenericMessage, InterfaceType, Length,
+            SequenceField,
+        },
+        generic_message_selector::{get_field_category, FieldCategory, GenericMessageSelector},
         style::HEADER_STYLE,
     },
     connections::{Connection, ConnectionType},
     views::{FromTopic, TopicInfo, TuiView},
-    widgets::message_widget::MessageWidget,
+    widgets::message_widget::{MessageWidget, MessageWidgetState},
 };
 
 use crossterm::event::{Event as CrosstermEvent, KeyCode};
@@ -31,6 +34,7 @@ pub struct TopicPublisherState {
     selected_fields: Vec<usize>,
     is_editing: bool,
     field_content: String,
+    message_widget_state: MessageWidgetState,
     needs_redraw: bool,
 }
 
@@ -58,6 +62,7 @@ impl TopicPublisherState {
             selected_fields: Vec::new(),
             is_editing: false,
             field_content: String::new(),
+            message_widget_state: MessageWidgetState::new(true),
             needs_redraw: true,
         }
     }
@@ -225,7 +230,9 @@ impl TuiView for TopicPublisherState {
                                             "Cannot resize sequence of messages".to_string(),
                                         );
                                     }
-                                    AnyTypeMutableRef::BoundedSequence(BoundedSequenceField::Message(_, _)) => {
+                                    AnyTypeMutableRef::BoundedSequence(
+                                        BoundedSequenceField::Message(_, _),
+                                    ) => {
                                         return Event::Error(
                                             "Cannot resize sequence of messages".to_string(),
                                         );
@@ -259,7 +266,9 @@ impl TuiView for TopicPublisherState {
                                             "Cannot resize sequence of messages".to_string(),
                                         );
                                     }
-                                    AnyTypeMutableRef::BoundedSequence(BoundedSequenceField::Message(_, _)) => {
+                                    AnyTypeMutableRef::BoundedSequence(
+                                        BoundedSequenceField::Message(_, _),
+                                    ) => {
                                         return Event::Error(
                                             "Cannot resize sequence of messages".to_string(),
                                         );
@@ -391,6 +400,6 @@ impl TopicPublisherWidget {
             }
         }
 
-        message_widget.render(area, buf);
+        StatefulWidget::render(message_widget, area, buf, &mut state.message_widget_state);
     }
 }

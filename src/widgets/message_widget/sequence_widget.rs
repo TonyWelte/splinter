@@ -64,7 +64,7 @@ impl<'a> SequenceWidget<'a> {
             SequenceField::Message(inner_messages) => {
                 let mut height = 1;
                 for inner_message in inner_messages.iter().take(self.max_objects) {
-                    height += MessageWidget::new(inner_message).height(width);
+                    height += MessageWidget::new(inner_message).height(width.saturating_sub(2));
                 }
                 if inner_messages.len() > self.max_objects {
                     height += 1; // For the "..." line
@@ -90,6 +90,52 @@ impl<'a> SequenceWidget<'a> {
                     height += 1; // For the "..." line
                 }
                 height
+            }
+        }
+    }
+
+    /// Returns the cumulative height from the top of this widget down to and including
+    /// the row that contains the selected element. Returns 0 if there is no selection.
+    pub fn selection_height(&self, width: u16) -> u16 {
+        let Some(selection) = self.selection else {
+            return 0;
+        };
+        if selection.is_empty() {
+            return 1; // Only the header line is "selected"
+        }
+        let selected_index = selection[0];
+        match &self.value {
+            SequenceField::Message(inner_messages) => {
+                let mut height = 1; // +1 for the header line
+                for (i, inner_message) in inner_messages.iter().take(self.max_objects).enumerate() {
+                    if i != selected_index {
+                        height += MessageWidget::new(inner_message).height(width.saturating_sub(2));
+                    } else {
+                        height += MessageWidget::new(inner_message)
+                            .with_selection(&selection[1..])
+                            .selection_height(width.saturating_sub(2))
+                            .max(1); // At least 1 for the first line of the selected message
+                        break;
+                    }
+                }
+                height
+            }
+            SequenceField::String(_)
+            | SequenceField::WString(_)
+            | SequenceField::BoundedString(_)
+            | SequenceField::BoundedWString(_) => {
+                // 1 for the header line, then one line per element up to and including the selected one
+                1 + selected_index as u16 + 1
+            }
+            _ => {
+                // Primitive elements are packed 10 columns each
+                let elems_per_row = width / 10;
+                if elems_per_row == 0 {
+                    1 + selected_index as u16 + 1
+                } else {
+                    // 1 for the header line, then rows before the selected row, plus 1 for the selected row
+                    1 + selected_index as u16 / elems_per_row + 1
+                }
             }
         }
     }
