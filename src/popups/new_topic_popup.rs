@@ -1,5 +1,5 @@
-use std::{cell::RefCell, rc::Rc};
 use indexmap::IndexMap;
+use std::{cell::RefCell, rc::Rc};
 
 use crossterm::event::{Event as CrosstermEvent, KeyCode, KeyEventKind};
 use ratatui::widgets::{Block, BorderType, Widget};
@@ -10,8 +10,8 @@ use crate::{
     common::event::Event,
     popups::TuiPopup,
     views::{
-        hz_plot::HzPlotState, raw_message::RawMessageState, topic_publisher::TopicPublisherState,
-        FromTopic, TopicInfo, TuiView,
+        hz_plot::HzPlotState, raw_message::RawMessageState, topic_graph::TopicGraphState,
+        topic_publisher::TopicPublisherState, FromTopic, TopicInfo, TuiView,
     },
     widgets::select_view_widget::SelectViewWidget,
 };
@@ -41,6 +41,13 @@ static FROM_NEW_TOPIC_FACTORIES: once_cell::sync::Lazy<
         "hz_plot",
         Box::new(|topic_info: TopicInfo| {
             Rc::new(RefCell::new(HzPlotState::from_topic(topic_info))) as Rc<RefCell<dyn TuiView>>
+        }) as Box<NewTopicFactoryClosure>,
+    );
+    m.insert(
+        "topic_graph",
+        Box::new(|topic_info: TopicInfo| {
+            Rc::new(RefCell::new(TopicGraphState::from_topic(topic_info)))
+                as Rc<RefCell<dyn TuiView>>
         }) as Box<NewTopicFactoryClosure>,
     );
     m

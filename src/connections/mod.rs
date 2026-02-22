@@ -59,6 +59,12 @@ impl NodeName {
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct NamedInterface {
+    pub name: String,
+    pub type_name: InterfaceType,
+}
+
 type PublisherFunc = dyn Fn(&GenericMessage) -> Result<(), String>;
 
 // Connection trait
@@ -91,22 +97,22 @@ pub trait Connection {
     fn get_publisher_names_and_types_by_node(
         &self,
         node_name: &NodeName,
-    ) -> Result<HashMap<String, Vec<String>>, String>;
+    ) -> Result<Vec<NamedInterface>, String>;
 
     fn get_subscription_names_and_types_by_node(
         &self,
         node_name: &NodeName,
-    ) -> Result<HashMap<String, Vec<String>>, String>;
+    ) -> Result<Vec<NamedInterface>, String>;
 
     fn get_client_names_and_types_by_node(
         &self,
         node_name: &NodeName,
-    ) -> Result<HashMap<String, Vec<String>>, String>;
+    ) -> Result<Vec<NamedInterface>, String>;
 
     fn get_service_names_and_types_by_node(
         &self,
         node_name: &NodeName,
-    ) -> Result<HashMap<String, Vec<String>>, String>;
+    ) -> Result<Vec<NamedInterface>, String>;
 
     fn get_parameters_by_node(
         &self,
@@ -119,6 +125,12 @@ pub trait Connection {
         parameter_name: &str,
         parameter: Parameters,
     ) -> Result<(), String>;
+
+    /// Get the nodes that publish to the given topic.
+    fn get_publishers_info_by_topic(&self, topic: &str) -> Result<Vec<NodeName>, String>;
+
+    /// Get the nodes that subscribe to the given topic.
+    fn get_subscriptions_info_by_topic(&self, topic: &str) -> Result<Vec<NodeName>, String>;
 }
 
 #[enum_dispatch]

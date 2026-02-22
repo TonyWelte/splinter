@@ -12,19 +12,15 @@ use crossterm::event::{Event as CrosstermEvent, KeyCode};
 use crate::{
     common::{
         event::Event,
-        generic_message::InterfaceType,
         style::{HEADER_STYLE, SELECTED_STYLE},
     },
-    connections::{Connection, ConnectionType, NodeName, Parameters},
+    connections::{Connection, ConnectionType, NamedInterface, NodeName, Parameters},
     views::{AcceptsNode, FromNode, NodeInfo, TopicInfo, TuiView},
     widgets::{
         list_widget::{ListWidget, ListWidgetState},
         parameter_list_widget::ParameterListWidget,
     },
 };
-
-mod interface_list_item;
-use interface_list_item::InterfaceListItem;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum DetailSection {
@@ -313,10 +309,10 @@ pub struct NodeDetailState {
     connection: Rc<RefCell<ConnectionType>>,
     node: NodeName,
 
-    publisher_list_state: ListWidgetState<InterfaceListItem>,
-    subscriber_list_state: ListWidgetState<InterfaceListItem>,
-    client_list_state: ListWidgetState<InterfaceListItem>,
-    service_list_state: ListWidgetState<InterfaceListItem>,
+    publisher_list_state: ListWidgetState<NamedInterface>,
+    subscriber_list_state: ListWidgetState<NamedInterface>,
+    client_list_state: ListWidgetState<NamedInterface>,
+    service_list_state: ListWidgetState<NamedInterface>,
     parameter_list_state: ParameterListView,
     parameter_list_error: Option<String>,
 
@@ -347,56 +343,16 @@ impl NodeDetailState {
         let connection = self.connection.borrow();
         let publishers = connection
             .get_publisher_names_and_types_by_node(&self.node)
-            .unwrap_or_default()
-            .iter()
-            .filter_map(|(topic, types)| {
-                InterfaceType::new(&types.first().cloned().unwrap_or_default())
-                    .ok()
-                    .map(|type_name| InterfaceListItem {
-                        full_name: topic.clone(),
-                        type_name,
-                    })
-            })
-            .collect();
+            .unwrap_or_default();
         let subscriptions = connection
             .get_subscription_names_and_types_by_node(&self.node)
-            .unwrap_or_default()
-            .iter()
-            .filter_map(|(topic, types)| {
-                InterfaceType::new(&types.first().cloned().unwrap_or_default())
-                    .ok()
-                    .map(|type_name| InterfaceListItem {
-                        full_name: topic.clone(),
-                        type_name,
-                    })
-            })
-            .collect();
+            .unwrap_or_default();
         let clients = connection
             .get_client_names_and_types_by_node(&self.node)
-            .unwrap_or_default()
-            .iter()
-            .filter_map(|(service, types)| {
-                InterfaceType::new(&types.first().cloned().unwrap_or_default())
-                    .ok()
-                    .map(|type_name| InterfaceListItem {
-                        full_name: service.clone(),
-                        type_name,
-                    })
-            })
-            .collect();
+            .unwrap_or_default();
         let services = connection
             .get_service_names_and_types_by_node(&self.node)
-            .unwrap_or_default()
-            .iter()
-            .filter_map(|(service, types)| {
-                InterfaceType::new(&types.first().cloned().unwrap_or_default())
-                    .ok()
-                    .map(|type_name| InterfaceListItem {
-                        full_name: service.clone(),
-                        type_name,
-                    })
-            })
-            .collect();
+            .unwrap_or_default();
 
         self.publisher_list_state.update(publishers);
         self.subscriber_list_state.update(subscriptions);
@@ -548,7 +504,7 @@ impl NodeDetailState {
                             if let Some(item) = self.publisher_list_state.get_selected() {
                                 return Event::NewTopic(TopicInfo {
                                     connection: self.connection.clone(),
-                                    topic: item.full_name.clone(),
+                                    topic: item.name.clone(),
                                     type_name: item.type_name.clone(),
                                 });
                             }
@@ -557,7 +513,7 @@ impl NodeDetailState {
                             if let Some(item) = self.subscriber_list_state.get_selected() {
                                 return Event::NewTopic(TopicInfo {
                                     connection: self.connection.clone(),
-                                    topic: item.full_name.clone(),
+                                    topic: item.name.clone(),
                                     type_name: item.type_name.clone(),
                                 });
                             }
@@ -645,25 +601,25 @@ impl NodeDetailWidget {
         let width = inner_area.width;
 
         // Pre-calculate the height of each section's list content.
-        let publisher_list = ListWidget::<InterfaceListItem>::new()
+        let publisher_list = ListWidget::<NamedInterface>::new()
             .auto_scroll(false)
             .enable_search(false)
             .show_mode(false);
         let publisher_list_height = publisher_list.height(&state.publisher_list_state) as u16;
 
-        let subscriber_list = ListWidget::<InterfaceListItem>::new()
+        let subscriber_list = ListWidget::<NamedInterface>::new()
             .auto_scroll(false)
             .enable_search(false)
             .show_mode(false);
         let subscriber_list_height = subscriber_list.height(&state.subscriber_list_state) as u16;
 
-        let client_list = ListWidget::<InterfaceListItem>::new()
+        let client_list = ListWidget::<NamedInterface>::new()
             .auto_scroll(false)
             .enable_search(false)
             .show_mode(false);
         let client_list_height = client_list.height(&state.client_list_state) as u16;
 
-        let service_list = ListWidget::<InterfaceListItem>::new()
+        let service_list = ListWidget::<NamedInterface>::new()
             .auto_scroll(false)
             .enable_search(false)
             .show_mode(false);

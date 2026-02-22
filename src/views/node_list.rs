@@ -2,7 +2,6 @@ use std::{cell::RefCell, rc::Rc};
 
 use ratatui::{
     prelude::{Buffer, Rect},
-    style::Styled,
     text::Line,
     widgets::{Block, BorderType, StatefulWidget},
 };
@@ -10,33 +9,11 @@ use ratatui::{
 use crossterm::event::{Event as CrosstermEvent, KeyCode};
 
 use crate::{
-    common::{
-        event::Event,
-        style::{HEADER_STYLE, SELECTED_STYLE},
-        utils::{build_highlighted_spans, truncate_namespaces},
-    },
+    common::{event::Event, style::HEADER_STYLE},
     connections::{Connection, ConnectionType, NodeName},
     views::{ConnectionInfo, FromConnection, NodeInfo, TuiView},
-    widgets::list_widget::{ListItemTrait, ListWidget, ListWidgetState},
+    widgets::list_widget::{ListWidget, ListWidgetState},
 };
-
-impl ListItemTrait for NodeName {
-    fn search_text(&self) -> String {
-        self.full_name()
-    }
-
-    fn to_line(&self, width: usize, selected: bool, indices: Vec<u32>) -> Line<'_> {
-        let (truncated_name, new_indices) = truncate_namespaces(&self.full_name(), &indices, width);
-
-        let mut line = Line::from(build_highlighted_spans(truncated_name, new_indices));
-
-        if selected {
-            line = line.set_style(SELECTED_STYLE);
-        }
-
-        line
-    }
-}
 
 pub struct NodeListWidget;
 
@@ -68,7 +45,8 @@ impl NodeListState {
             return;
         }
         self.last_update = std::time::Instant::now();
-        let node_list_items: Vec<NodeName> = self.connection.borrow().list_nodes().unwrap_or_default();
+        let node_list_items: Vec<NodeName> =
+            self.connection.borrow().list_nodes().unwrap_or_default();
         self.node_list_state.update(node_list_items);
         self.needs_redraw = true;
     }

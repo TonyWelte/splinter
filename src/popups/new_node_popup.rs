@@ -10,7 +10,9 @@ use ratatui::{buffer::Buffer, layout::Rect};
 use crate::{
     common::event::Event,
     popups::TuiPopup,
-    views::{node_details::NodeDetailState, FromNode, NodeInfo, TuiView},
+    views::{
+        node_details::NodeDetailState, topic_graph::TopicGraphState, FromNode, NodeInfo, TuiView,
+    },
     widgets::select_view_widget::SelectViewWidget,
 };
 
@@ -24,8 +26,13 @@ static FROM_NEW_NODE_FACTORIES: once_cell::sync::Lazy<
     m.insert(
         "node_details",
         Box::new(|node_info: NodeInfo| {
-            Rc::new(RefCell::new(NodeDetailState::from_node(node_info)))
-                as Rc<RefCell<dyn TuiView>>
+            Rc::new(RefCell::new(NodeDetailState::from_node(node_info))) as Rc<RefCell<dyn TuiView>>
+        }) as Box<NewNodeFactoryClosure>,
+    );
+    m.insert(
+        "topic_graph",
+        Box::new(|node_info: NodeInfo| {
+            Rc::new(RefCell::new(TopicGraphState::from_node(node_info))) as Rc<RefCell<dyn TuiView>>
         }) as Box<NewNodeFactoryClosure>,
     );
     m

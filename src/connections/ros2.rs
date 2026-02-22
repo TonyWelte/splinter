@@ -7,7 +7,7 @@ use std::time::SystemTime;
 use crate::common::generic_message::{
     ArrayField, GenericField, GenericMessage, InterfaceType, MessageMetadata, SimpleField,
 };
-use crate::connections::{Connection, NodeName, Parameters};
+use crate::connections::{Connection, NamedInterface, NodeName, Parameters};
 
 use rcl_interfaces::msg::ParameterValue;
 use rclrs::*;
@@ -409,41 +409,85 @@ impl Connection for ConnectionROS2 {
     fn get_publisher_names_and_types_by_node(
         &self,
         node_name: &NodeName,
-    ) -> Result<HashMap<String, Vec<String>>, String> {
+    ) -> Result<Vec<NamedInterface>, String> {
         self.node
             .get_publisher_names_and_types_by_node(&node_name.name, &node_name.namespace)
             .map_err(|_| {
                 format!("Failed to get publishers for node: {}", node_name.name).to_string()
+            })
+            .map(|map| {
+                map.into_iter()
+                    .filter_map(|(name, types)| {
+                        types
+                            .into_iter()
+                            .next()
+                            .and_then(|t| InterfaceType::new(&t).ok())
+                            .map(|type_name| NamedInterface { name, type_name })
+                    })
+                    .collect()
             })
     }
 
     fn get_subscription_names_and_types_by_node(
         &self,
         node_name: &NodeName,
-    ) -> Result<HashMap<String, Vec<String>>, String> {
+    ) -> Result<Vec<NamedInterface>, String> {
         self.node
             .get_subscription_names_and_types_by_node(&node_name.name, &node_name.namespace)
             .map_err(|_| {
                 format!("Failed to get subscriptions for node: {}", node_name.name).to_string()
+            })
+            .map(|map| {
+                map.into_iter()
+                    .filter_map(|(name, types)| {
+                        types
+                            .into_iter()
+                            .next()
+                            .and_then(|t| InterfaceType::new(&t).ok())
+                            .map(|type_name| NamedInterface { name, type_name })
+                    })
+                    .collect()
             })
     }
 
     fn get_client_names_and_types_by_node(
         &self,
         node_name: &NodeName,
-    ) -> Result<HashMap<String, Vec<String>>, String> {
+    ) -> Result<Vec<NamedInterface>, String> {
         self.node
             .get_client_names_and_types_by_node(&node_name.name, &node_name.namespace)
             .map_err(|_| format!("Failed to get clients for node: {}", node_name.name).to_string())
+            .map(|map| {
+                map.into_iter()
+                    .filter_map(|(name, types)| {
+                        types
+                            .into_iter()
+                            .next()
+                            .and_then(|t| InterfaceType::new(&t).ok())
+                            .map(|type_name| NamedInterface { name, type_name })
+                    })
+                    .collect()
+            })
     }
 
     fn get_service_names_and_types_by_node(
         &self,
         node_name: &NodeName,
-    ) -> Result<HashMap<String, Vec<String>>, String> {
+    ) -> Result<Vec<NamedInterface>, String> {
         self.node
             .get_service_names_and_types_by_node(&node_name.name, &node_name.namespace)
             .map_err(|_| format!("Failed to get services for node: {}", node_name.name).to_string())
+            .map(|map| {
+                map.into_iter()
+                    .filter_map(|(name, types)| {
+                        types
+                            .into_iter()
+                            .next()
+                            .and_then(|t| InterfaceType::new(&t).ok())
+                            .map(|type_name| NamedInterface { name, type_name })
+                    })
+                    .collect()
+            })
     }
 
     fn subscribe(
@@ -685,5 +729,40 @@ impl Connection for ConnectionROS2 {
         }
 
         Ok(())
+    }
+
+    fn get_publishers_info_by_topic(&self, topic: &str) -> Result<Vec<NodeName>, String> {
+        self.node
+            .get_publishers_info_by_topic(topic)
+            .map_err(|e| format!("Failed to get publishers info for topic '{}': {}", topic, e))
+            .map(|infos| {
+                infos
+                    .into_iter()
+                    .map(|i| NodeName {
+                        name: i.node_name,
+                        namespace: i.node_namespace,
+                    })
+                    .collect()
+            })
+    }
+
+    fn get_subscriptions_info_by_topic(&self, topic: &str) -> Result<Vec<NodeName>, String> {
+        self.node
+            .get_subscriptions_info_by_topic(topic)
+            .map_err(|e| {
+                format!(
+                    "Failed to get subscriptions info for topic '{}': {}",
+                    topic, e
+                )
+            })
+            .map(|infos| {
+                infos
+                    .into_iter()
+                    .map(|i| NodeName {
+                        name: i.node_name,
+                        namespace: i.node_namespace,
+                    })
+                    .collect()
+            })
     }
 }

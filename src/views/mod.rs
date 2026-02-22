@@ -1,10 +1,21 @@
 use std::{cell::RefCell, fmt::Debug, rc::Rc};
 
-use ratatui::{buffer::Buffer, layout::Rect};
+use ratatui::{
+    buffer::Buffer,
+    layout::Rect,
+    style::{Color, Style, Styled},
+    text::{Line, Span},
+};
 
 use crate::{
-    common::{event::Event, generic_message::InterfaceType},
-    connections::{ConnectionType, NodeName},
+    common::{
+        event::Event,
+        generic_message::InterfaceType,
+        style::SELECTED_STYLE,
+        utils::{build_highlighted_spans, truncate_namespaces},
+    },
+    connections::{ConnectionType, NamedInterface, NodeName},
+    widgets::list_widget::ListItemTrait,
 };
 
 pub mod hz_plot;
@@ -12,6 +23,7 @@ pub mod live_plot;
 pub mod node_details;
 pub mod node_list;
 pub mod raw_message;
+pub mod topic_graph;
 pub mod topic_list;
 pub mod topic_publisher;
 
@@ -136,5 +148,43 @@ pub trait AcceptsField {
     /// Defaults to `true` (accept all) so existing views are not broken.
     fn accepts_field_type(&self, _field_type: &FieldInfoType) -> bool {
         true
+    }
+}
+
+// ─── Common ListItemTrait impls ───────────────────────────────────────────────
+
+impl ListItemTrait for NodeName {
+    fn search_text(&self) -> String {
+        self.full_name()
+    }
+
+    fn to_line(&self, width: usize, selected: bool, indices: Vec<u32>) -> Line<'_> {
+        let (truncated_name, new_indices) = truncate_namespaces(&self.full_name(), &indices, width);
+        let mut line = Line::from(build_highlighted_spans(truncated_name, new_indices));
+        if selected {
+            line = line.set_style(SELECTED_STYLE);
+        }
+        line
+    }
+}
+
+impl ListItemTrait for NamedInterface {
+    fn search_text(&self) -> String {
+        self.name.clone()
+    }
+
+    fn to_line(&self, width: usize, selected: bool, indices: Vec<u32>) -> Line<'_> {
+        let (truncated_name, new_indices) = truncate_namespaces(&self.name, &indices, width);
+        let mut spans = build_highlighted_spans(truncated_name, new_indices);
+        spans.push(Span::raw(" "));
+        spans.push(Span::styled(
+            self.type_name.to_string(),
+            Style::default().fg(Color::DarkGray),
+        ));
+        let mut line = Line::from(spans);
+        if selected {
+            line = line.set_style(SELECTED_STYLE);
+        }
+        line
     }
 }
