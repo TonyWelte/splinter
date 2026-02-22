@@ -2,8 +2,8 @@ use std::{cell::RefCell, rc::Rc};
 
 use ratatui::{
     prelude::{Buffer, Rect},
-    style::{Style, Styled, Stylize},
-    text::{Line, Span},
+    style::Styled,
+    text::Line,
     widgets::{Block, BorderType, StatefulWidget},
 };
 

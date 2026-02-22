@@ -4,8 +4,11 @@ use indexmap::IndexMap;
 use crossterm::event::{Event as CrosstermEvent, KeyCode, KeyEventKind};
 use ratatui::widgets::{Block, BorderType, Widget};
 
+use ratatui::{buffer::Buffer, layout::Rect};
+
 use crate::{
     common::event::Event,
+    popups::TuiPopup,
     views::{
         hz_plot::HzPlotState, raw_message::RawMessageState, topic_publisher::TopicPublisherState,
         FromTopic, TopicInfo, TuiView,
@@ -116,6 +119,20 @@ impl NewTopicPopupState {
         } else {
             false
         }
+    }
+}
+
+impl TuiPopup for NewTopicPopupState {
+    fn handle_event(&mut self, event: Event) -> Event {
+        NewTopicPopupState::handle_event(self, event)
+    }
+
+    fn needs_redraw(&mut self) -> bool {
+        NewTopicPopupState::needs_redraw(self)
+    }
+
+    fn render(&self, area: Rect, buf: &mut Buffer) {
+        NewTopicPopupState::render(self, area, buf);
     }
 }
 

@@ -1,15 +1,6 @@
 use std::{cell::RefCell, fmt::Debug, rc::Rc};
 
-use enum_dispatch::enum_dispatch;
-
-use hz_plot::HzPlotState;
-use live_plot::LivePlotState;
-use node_details::NodeDetailState;
-use node_list::NodeListState;
 use ratatui::{buffer::Buffer, layout::Rect};
-use raw_message::RawMessageState;
-use topic_list::TopicListState;
-use topic_publisher::TopicPublisherState;
 
 use crate::{
     common::{event::Event, generic_message::InterfaceType},
@@ -24,18 +15,6 @@ pub mod raw_message;
 pub mod topic_list;
 pub mod topic_publisher;
 
-#[enum_dispatch]
-pub enum Views {
-    TopicList(TopicListState),
-    RawMessage(RawMessageState),
-    LivePlot(LivePlotState),
-    HzPlot(HzPlotState),
-    NodeList(NodeListState),
-    NodeDetails(NodeDetailState),
-    TopicPublisher(TopicPublisherState),
-}
-
-#[enum_dispatch(Views)]
 pub trait TuiView {
     fn handle_event(&mut self, event: Event) -> Event;
 

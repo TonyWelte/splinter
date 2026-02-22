@@ -18,14 +18,14 @@ use crate::popups::new_node_popup::NewNodePopupState;
 use crate::popups::new_topic_popup::NewTopicPopupState;
 use crate::popups::new_field_popup::NewFieldPopupState;
 use crate::popups::text_popup::TextPopup;
-use crate::popups::PopupView;
+use crate::popups::TuiPopup;
 use crate::views::hz_plot::HzPlotState;
 use crate::views::raw_message::RawMessageState;
 use crate::views::topic_publisher::TopicPublisherState;
 use crate::views::{
     node_list::NodeListState,
     topic_list::TopicListState,
-    FromConnection, TuiView, Views,
+    FromConnection, TuiView,
 };
 use crate::views::{FieldInfo, NodeInfo};
 use crate::common::event::Event;
@@ -73,7 +73,7 @@ pub struct App {
     widgets: Vec<Rc<RefCell<dyn TuiView>>>,
     active_widget_index: usize,
 
-    popup_view: PopupView,
+    popup_view: Option<Box<dyn TuiPopup>>,
 
     needs_redraw: bool,
 
@@ -115,11 +115,11 @@ impl Default for App {
         Self {
             should_exit,
             widgets: vec![
-                Rc::new(RefCell::new(Views::TopicList(topic_list))),
-                Rc::new(RefCell::new(Views::NodeList(node_list))),
+                Rc::new(RefCell::new(topic_list)),
+                Rc::new(RefCell::new(node_list)),
             ],
             active_widget_index: 0,
-            popup_view: PopupView::None,
+            popup_view: None,
             needs_redraw: true,
             metrics: None,
         }
@@ -143,37 +143,37 @@ impl App {
     pub fn new(args: AppArgs) -> Result<Self> {
         let should_exit = false;
         let connection = Rc::new(RefCell::new(ConnectionType::ROS2(ConnectionROS2::new())));
-        let view = match args {
+        let view: Rc<RefCell<dyn TuiView>> = match args {
             AppArgs::TopicList => {
                 let topic_list = TopicListState::new(connection.clone());
-                Views::TopicList(topic_list)
+                Rc::new(RefCell::new(topic_list))
             }
             AppArgs::NodeList => {
                 let node_list = NodeListState::new(connection.clone());
-                Views::NodeList(node_list)
+                Rc::new(RefCell::new(node_list))
             }
             AppArgs::RawMessage(topic) => {
                 let raw_message_state = RawMessageState::new(topic, connection.clone());
-                Views::RawMessage(raw_message_state)
+                Rc::new(RefCell::new(raw_message_state))
             }
             AppArgs::TopicPublisher(topic, topic_type) => {
                 let topic_type = InterfaceType::new(&topic_type)
                     .map_err(color_eyre::eyre::Error::msg)?;
                 let topic_publisher_state =
                     TopicPublisherState::new(topic, topic_type, connection.clone());
-                Views::TopicPublisher(topic_publisher_state)
+                Rc::new(RefCell::new(topic_publisher_state))
             }
             AppArgs::HzPlot(topic) => {
                 let hz_plot_state = HzPlotState::new(topic, connection.clone());
-                Views::HzPlot(hz_plot_state)
+                Rc::new(RefCell::new(hz_plot_state))
             }
         };
 
         Ok(Self {
             should_exit,
-            widgets: vec![Rc::new(RefCell::new(view))],
+            widgets: vec![view],
             active_widget_index: 0,
-            popup_view: PopupView::None,
+            popup_view: None,
             needs_redraw: true,
             metrics: None,
         })
@@ -181,15 +181,7 @@ impl App {
 
     pub fn run(mut self, mut terminal: DefaultTerminal) -> Result<()> {
         while !self.should_exit {
-            let popup_needs_redraw = match &mut self.popup_view {
-                PopupView::None => false,
-                // PopupView::AddLine(state) => state.needs_redraw(),
-                // PopupView::AddHz(state) => state.needs_redraw(),
-                PopupView::Error(state) => state.needs_redraw(),
-                PopupView::NewNode(state) => state.needs_redraw(),
-                PopupView::NewTopic(state) => state.needs_redraw(),
-                PopupView::NewField(state) => state.needs_redraw(),
-            };
+            let popup_needs_redraw = self.popup_view.as_mut().is_some_and(|p| p.needs_redraw());
             if self.widgets[self.active_widget_index]
                 .borrow_mut()
                 .needs_redraw()
@@ -225,13 +217,10 @@ impl App {
         }
 
         let event = match &mut self.popup_view {
-            PopupView::None => self.widgets[self.active_widget_index]
+            None => self.widgets[self.active_widget_index]
                 .borrow_mut()
                 .handle_event(event),
-            PopupView::Error(data) => data.handle_event(event),
-            PopupView::NewNode(data) => data.handle_event(event),
-            PopupView::NewTopic(data) => data.handle_event(event),
-            PopupView::NewField(data) => data.handle_event(event),
+            Some(popup) => popup.handle_event(event),
         };
 
         match event {
@@ -273,7 +262,7 @@ impl App {
                             let mut help_text = active_view.borrow().get_help_text();
                             help_text.push_str("\n\n");
                             help_text.push_str(&self.get_help_text());
-                            self.popup_view = PopupView::Error(TextPopup::info(help_text));
+                            self.popup_view = Some(Box::new(TextPopup::info(help_text)));
                         }
                     }
                     _ => {}
@@ -293,7 +282,7 @@ impl App {
                     })
                     .collect::<Vec<_>>();
                 self.popup_view =
-                    PopupView::NewNode(NewNodePopupState::new(node_info, candidate_views));
+                    Some(Box::new(NewNodePopupState::new(node_info, candidate_views)));
             }
             Event::NewTopic(topic_info) => {
                 // List existing TuiViews that accept topics
@@ -306,7 +295,7 @@ impl App {
                     })
                     .collect::<Vec<_>>();
                 self.popup_view =
-                    PopupView::NewTopic(NewTopicPopupState::new(topic_info, candidate_views));
+                    Some(Box::new(NewTopicPopupState::new(topic_info, candidate_views)));
             }
             Event::NewField(field_info) => {
                 // List existing TuiViews that accept fields
@@ -319,19 +308,19 @@ impl App {
                     })
                     .collect::<Vec<_>>();
                 self.popup_view =
-                    PopupView::NewField(NewFieldPopupState::new(field_info, candidate_views));
+                    Some(Box::new(NewFieldPopupState::new(field_info, candidate_views)));
             }
             Event::NewView(new_view) => {
                 self.widgets.push(new_view);
                 self.active_widget_index = self.widgets.len() - 1;
-                self.popup_view = PopupView::None;
+                self.popup_view = None;
             }
             Event::ClosePopup => {
-                self.popup_view = PopupView::None;
+                self.popup_view = None;
                 self.needs_redraw = true;
             }
             Event::Error(err_msg) => {
-                self.popup_view = PopupView::Error(TextPopup::error(err_msg));
+                self.popup_view = Some(Box::new(TextPopup::error(err_msg)));
             }
             Event::Key(_) => {}
             Event::None => {}
@@ -374,20 +363,8 @@ impl Widget for &mut App {
             width: area.width / 2,
             height: area.height / 2,
         };
-        match &mut self.popup_view {
-            PopupView::Error(state) => {
-                state.render(popup_area, buf);
-            }
-            PopupView::NewNode(state) => {
-                state.render(popup_area, buf);
-            }
-            PopupView::NewTopic(state) => {
-                state.render(popup_area, buf);
-            }
-            PopupView::NewField(state) => {
-                state.render(popup_area, buf);
-            }
-            PopupView::None => {}
+        if let Some(popup) = &self.popup_view {
+            popup.render(popup_area, buf);
         }
 
         if self.metrics.is_some() {

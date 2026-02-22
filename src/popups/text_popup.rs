@@ -1,7 +1,7 @@
 use crossterm::event::{Event as CrosstermEvent, KeyEventKind};
-use ratatui::widgets::{BorderType, Clear, Paragraph, Widget, Wrap};
+use ratatui::{buffer::Buffer, layout::Rect, widgets::{BorderType, Clear, Paragraph, Widget, Wrap}};
 
-use crate::common::{event::Event, style::HEADER_STYLE};
+use crate::{common::{event::Event, style::HEADER_STYLE}, popups::TuiPopup};
 
 pub struct TextPopup {
     title: String,
@@ -43,6 +43,20 @@ impl TextPopup {
         } else {
             false
         }
+    }
+}
+
+impl TuiPopup for TextPopup {
+    fn handle_event(&mut self, event: Event) -> Event {
+        TextPopup::handle_event(self, event)
+    }
+
+    fn needs_redraw(&mut self) -> bool {
+        TextPopup::needs_redraw(self)
+    }
+
+    fn render(&self, area: Rect, buf: &mut Buffer) {
+        TextPopup::render(self, area, buf);
     }
 }
 

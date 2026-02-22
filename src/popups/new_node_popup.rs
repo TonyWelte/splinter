@@ -5,8 +5,11 @@ use indexmap::IndexMap;
 use crossterm::event::{Event as CrosstermEvent, KeyCode, KeyEventKind};
 use ratatui::widgets::{Block, BorderType, Widget};
 
+use ratatui::{buffer::Buffer, layout::Rect};
+
 use crate::{
     common::event::Event,
+    popups::TuiPopup,
     views::{node_details::NodeDetailState, FromNode, NodeInfo, TuiView},
     widgets::select_view_widget::SelectViewWidget,
 };
@@ -101,6 +104,20 @@ impl NewNodePopupState {
         } else {
             false
         }
+    }
+}
+
+impl TuiPopup for NewNodePopupState {
+    fn handle_event(&mut self, event: Event) -> Event {
+        NewNodePopupState::handle_event(self, event)
+    }
+
+    fn needs_redraw(&mut self) -> bool {
+        NewNodePopupState::needs_redraw(self)
+    }
+
+    fn render(&self, area: Rect, buf: &mut Buffer) {
+        NewNodePopupState::render(self, area, buf);
     }
 }
 

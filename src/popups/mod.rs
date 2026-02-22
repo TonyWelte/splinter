@@ -3,15 +3,12 @@ pub mod new_topic_popup;
 pub mod new_field_popup;
 pub mod text_popup;
 
-use new_node_popup::NewNodePopupState;
-use new_field_popup::NewFieldPopupState;
-use new_topic_popup::NewTopicPopupState;
-use text_popup::TextPopup;
+use ratatui::{buffer::Buffer, layout::Rect};
 
-pub enum PopupView {
-    None,
-    Error(TextPopup),
-    NewNode(NewNodePopupState),
-    NewTopic(NewTopicPopupState),
-    NewField(NewFieldPopupState),
+use crate::common::event::Event;
+
+pub trait TuiPopup {
+    fn handle_event(&mut self, event: Event) -> Event;
+    fn needs_redraw(&mut self) -> bool;
+    fn render(&self, area: Rect, buf: &mut Buffer);
 }
