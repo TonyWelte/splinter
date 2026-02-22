@@ -527,7 +527,16 @@ impl NodeDetailState {
                      * If parameters is selected, edit that parameter
                      */
                     match active_detail {
-                        DetailSection::Publishers | DetailSection::Subscribers => {
+                        DetailSection::Publishers => {
+                            if let Some(item) = self.publisher_list_state.get_selected() {
+                                return Event::NewTopic(TopicInfo {
+                                    connection: self.connection.clone(),
+                                    topic: item.full_name.clone(),
+                                    type_name: item.type_name.clone(),
+                                });
+                            }
+                        }
+                        DetailSection::Subscribers => {
                             if let Some(item) = self.subscriber_list_state.get_selected() {
                                 return Event::NewTopic(TopicInfo {
                                     connection: self.connection.clone(),
