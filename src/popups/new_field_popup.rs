@@ -1,5 +1,5 @@
-use std::{cell::RefCell, rc::Rc};
 use indexmap::IndexMap;
+use std::{cell::RefCell, rc::Rc};
 
 use crossterm::event::{Event as CrosstermEvent, KeyCode, KeyEventKind};
 use ratatui::widgets::{Block, BorderType, Widget};
@@ -8,32 +8,38 @@ use ratatui::{buffer::Buffer, layout::Rect};
 
 use crate::{
     common::event::Event,
-    popups::TuiPopup,
-    views::{
-        FieldInfo, FromField, TuiView, live_plot::LivePlotState
-    },
+    popups::{text_popup::TextPopup, TuiPopup},
+    views::{live_plot::LivePlotState, FieldInfo, FieldInfoType, FromField, TuiView},
     widgets::select_view_widget::SelectViewWidget,
 };
 
 // TODO: Make this configurable via plugins
+type NewFieldFactoryPredicate = dyn Fn(&FieldInfoType) -> bool + Send + Sync;
 type NewFieldFactoryClosure = dyn Fn(FieldInfo) -> Rc<RefCell<dyn TuiView>> + Send + Sync;
 
+/// Each entry is a (type_predicate, factory) pair.
+/// The predicate determines which field types this factory supports.
 static FROM_NEW_FIELD_FACTORIES: once_cell::sync::Lazy<
-    IndexMap<&'static str, Box<NewFieldFactoryClosure>>,
+    IndexMap<&'static str, (Box<NewFieldFactoryPredicate>, Box<NewFieldFactoryClosure>)>,
 > = once_cell::sync::Lazy::new(|| {
     let mut m = IndexMap::new();
     m.insert(
         "plot",
-        Box::new(|field_info: FieldInfo| {
-            Rc::new(RefCell::new(LivePlotState::from_field(field_info)))
-                as Rc<RefCell<dyn TuiView>>
-        }) as Box<NewFieldFactoryClosure>,
+        (
+            Box::new(|ft: &FieldInfoType| ft.is_numeric()) as Box<NewFieldFactoryPredicate>,
+            Box::new(|field_info: FieldInfo| {
+                Rc::new(RefCell::new(LivePlotState::from_field(field_info)))
+                    as Rc<RefCell<dyn TuiView>>
+            }) as Box<NewFieldFactoryClosure>,
+        ),
     );
     m
 });
 
 pub struct NewFieldPopupState {
     field: FieldInfo,
+    /// Factory keys from FROM_NEW_FIELD_FACTORIES that are compatible with the field's type.
+    applicable_factory_keys: Vec<&'static str>,
     views: Vec<Rc<RefCell<dyn TuiView>>>,
     selected: usize,
 
@@ -41,13 +47,28 @@ pub struct NewFieldPopupState {
 }
 
 impl NewFieldPopupState {
-    pub fn new(field: FieldInfo, candidate_views: Vec<Rc<RefCell<dyn TuiView>>>) -> Self {
-        Self {
+    pub fn new(
+        field: FieldInfo,
+        candidate_views: Vec<Rc<RefCell<dyn TuiView>>>,
+    ) -> Box<dyn TuiPopup> {
+        let applicable_factory_keys = FROM_NEW_FIELD_FACTORIES
+            .iter()
+            .filter(|(_, (predicate, _))| predicate(&field.field_type))
+            .map(|(key, _)| *key)
+            .collect::<Vec<_>>();
+        if applicable_factory_keys.is_empty() && candidate_views.is_empty() {
+            return Box::new(TextPopup::error(format!(
+                "No views available for field '{}' of type {}.",
+                field.field_name, field.field_type
+            )));
+        }
+        Box::new(Self {
             field,
+            applicable_factory_keys,
             views: candidate_views,
             selected: 0,
             needs_redraw: true,
-        }
+        })
     }
 
     pub fn handle_event(&mut self, event: Event) -> Event {
@@ -62,27 +83,24 @@ impl NewFieldPopupState {
                     return Event::None;
                 }
                 KeyCode::Char('j') | KeyCode::Down => {
-                    if self.selected < self.views.len() + FROM_NEW_FIELD_FACTORIES.len() - 1 {
+                    let total = self.applicable_factory_keys.len() + self.views.len();
+                    if self.selected + 1 < total {
                         self.selected += 1;
                     }
                     self.needs_redraw = true;
                     return Event::None;
                 }
                 KeyCode::Enter => {
-                    if self.selected < FROM_NEW_FIELD_FACTORIES.len() {
-                        let factory_index = self.selected;
-                        let factory_key = FROM_NEW_FIELD_FACTORIES
-                            .keys()
-                            .nth(factory_index)
-                            .expect("Factory index out of bounds");
-                        let factory = FROM_NEW_FIELD_FACTORIES
-                            .get(factory_key)
-                            .expect("Factory key not found");
+                    if self.selected < self.applicable_factory_keys.len() {
+                        let key = self.applicable_factory_keys[self.selected];
+                        let (_, factory) = FROM_NEW_FIELD_FACTORIES
+                            .get(key)
+                            .expect("Applicable factory key not found in global map");
                         let new_view = factory(self.field.clone());
                         return Event::NewView(new_view);
                     } else {
-                        let mut view =
-                            self.views[self.selected - FROM_NEW_FIELD_FACTORIES.len()].borrow_mut();
+                        let view_index = self.selected - self.applicable_factory_keys.len();
+                        let mut view = self.views[view_index].borrow_mut();
                         if let Some(accepts_field) = view.as_field_acceptor() {
                             accepts_field.accepts_field(self.field.clone());
                         }
@@ -124,14 +142,15 @@ impl TuiPopup for NewFieldPopupState {
 
 impl NewFieldPopupState {
     pub fn render(&self, area: ratatui::layout::Rect, buf: &mut ratatui::buffer::Buffer) {
-        let mut views: Vec<(usize, String)> = FROM_NEW_FIELD_FACTORIES
-            .keys()
+        let mut views: Vec<(usize, String)> = self
+            .applicable_factory_keys
+            .iter()
             .enumerate()
             .map(|(i, k)| (i, format!("New {}", k)))
             .collect();
         views.extend(self.views.iter().enumerate().map(|(i, v)| {
             (
-                i + FROM_NEW_FIELD_FACTORIES.len(),
+                i + self.applicable_factory_keys.len(),
                 format!("Add to existing {}", v.borrow().name()),
             )
         }));

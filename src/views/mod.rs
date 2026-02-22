@@ -88,11 +88,29 @@ pub trait AcceptsNode {
 }
 
 #[derive(Debug, Clone)]
-enum FieldInfoType {
+pub enum FieldInfoType {
     Float,   // e.g., Float32, Float64
     Integer, // e.g., Boolean, Int8, Uint16, Int32, etc.
     String,
     Message(InterfaceType),
+}
+
+impl FieldInfoType {
+    /// Returns true for numeric types (Float, Integer) that can be plotted.
+    pub fn is_numeric(&self) -> bool {
+        matches!(self, FieldInfoType::Float | FieldInfoType::Integer)
+    }
+}
+
+impl std::fmt::Display for FieldInfoType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            FieldInfoType::Float => write!(f, "float"),
+            FieldInfoType::Integer => write!(f, "integer"),
+            FieldInfoType::String => write!(f, "string"),
+            FieldInfoType::Message(t) => write!(f, "message ({})", t),
+        }
+    }
 }
 
 // Information about a field
@@ -112,4 +130,11 @@ pub trait FromField: TuiView {
 
 pub trait AcceptsField {
     fn accepts_field(&mut self, field_info: FieldInfo);
+
+    /// Whether this view can accept a field of the given type.
+    /// Implementations should override this to restrict which field types they support.
+    /// Defaults to `true` (accept all) so existing views are not broken.
+    fn accepts_field_type(&self, _field_type: &FieldInfoType) -> bool {
+        true
+    }
 }

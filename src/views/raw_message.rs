@@ -159,7 +159,15 @@ impl TuiView for RawMessageState {
                                 field_type: FieldInfoType::Float,
                             })
                         }
-                        Ok(_) => Event::NewField(FieldInfo {
+                        Ok(FieldType::Boolean)
+                        | Ok(FieldType::Int8)
+                        | Ok(FieldType::Int16)
+                        | Ok(FieldType::Int32)
+                        | Ok(FieldType::Int64)
+                        | Ok(FieldType::Uint8)
+                        | Ok(FieldType::Uint16)
+                        | Ok(FieldType::Uint32)
+                        | Ok(FieldType::Uint64) => Event::NewField(FieldInfo {
                             connection: self._connection.clone(),
                             topic: self.topic.clone(),
                             type_name: message.type_name().clone(),
@@ -169,6 +177,20 @@ impl TuiView for RawMessageState {
                                 .unwrap_or_else(|_| "this is a bug".to_string()),
                             field_type: FieldInfoType::Integer,
                         }),
+                        Ok(FieldType::String) => Event::NewField(FieldInfo {
+                            connection: self._connection.clone(),
+                            topic: self.topic.clone(),
+                            type_name: message.type_name().clone(),
+                            field: self.selected_fields.clone(),
+                            field_name: message
+                                .get_field_name(&self.selected_fields)
+                                .unwrap_or_else(|_| "this is a bug".to_string()),
+                            field_type: FieldInfoType::String,
+                        }),
+                        Ok(_) => Event::Error(
+                            "Selected field is not a primitive type that can be plotted"
+                                .to_string(),
+                        ),
                         Err(e) => Event::Error(format!("Failed to get field type: {}", e)),
                     }
                 }

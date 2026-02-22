@@ -22,7 +22,7 @@ use crate::{
     },
     connections::{Connection, ConnectionType},
     // generic_message::{GenericField, GenericMessage},
-    views::{AcceptsField, FieldInfo, FromField, TuiView},
+    views::{AcceptsField, FieldInfo, FieldInfoType, FromField, TuiView},
 };
 
 use crossterm::event::{Event as CrosstermEvent, KeyCode, KeyEventKind};
@@ -190,6 +190,10 @@ impl AcceptsField for LivePlotState {
             field_info.field_name,
             field_info.connection,
         );
+    }
+
+    fn accepts_field_type(&self, field_type: &FieldInfoType) -> bool {
+        field_type.is_numeric()
     }
 }
 

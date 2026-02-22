@@ -177,7 +177,7 @@ trait AsStrIter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rclrs::{dynamic_message::DynamicMessage, MessageTypeName};
+    use rclrs::{DynamicMessage, MessageTypeName};
 
     #[test]
     fn test_message_widget_selection_height() {

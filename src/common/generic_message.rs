@@ -30,7 +30,11 @@ impl InterfaceType {
 
 impl std::fmt::Display for InterfaceType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}/{}/{}", self.package_name, self.category, self.type_name)
+        write!(
+            f,
+            "{}/{}/{}",
+            self.package_name, self.category, self.type_name
+        )
     }
 }
 
@@ -1712,7 +1716,7 @@ impl GenericMessage {
 mod tests {
     use super::*;
 
-    use rclrs::{dynamic_message::DynamicMessage, SimpleValueMut, ValueMut};
+    use rclrs::{DynamicMessage, SimpleValueMut, ValueMut};
 
     #[test]
     fn test_generic_message_from_dynamic_message() {

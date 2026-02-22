@@ -12,24 +12,20 @@ use ratatui::{
     DefaultTerminal,
 };
 
+use crate::common::event::Event;
+use crate::common::generic_message::InterfaceType;
 use crate::connections::ros2::ConnectionROS2;
 use crate::connections::ConnectionType;
+use crate::popups::new_field_popup::NewFieldPopupState;
 use crate::popups::new_node_popup::NewNodePopupState;
 use crate::popups::new_topic_popup::NewTopicPopupState;
-use crate::popups::new_field_popup::NewFieldPopupState;
 use crate::popups::text_popup::TextPopup;
 use crate::popups::TuiPopup;
 use crate::views::hz_plot::HzPlotState;
 use crate::views::raw_message::RawMessageState;
 use crate::views::topic_publisher::TopicPublisherState;
-use crate::views::{
-    node_list::NodeListState,
-    topic_list::TopicListState,
-    FromConnection, TuiView,
-};
+use crate::views::{node_list::NodeListState, topic_list::TopicListState, FromConnection, TuiView};
 use crate::views::{FieldInfo, NodeInfo};
-use crate::common::event::Event;
-use crate::common::generic_message::InterfaceType;
 use crate::{common::style::SELECTED_STYLE, views::ConnectionInfo};
 
 #[derive(Default)]
@@ -157,8 +153,8 @@ impl App {
                 Rc::new(RefCell::new(raw_message_state))
             }
             AppArgs::TopicPublisher(topic, topic_type) => {
-                let topic_type = InterfaceType::new(&topic_type)
-                    .map_err(color_eyre::eyre::Error::msg)?;
+                let topic_type =
+                    InterfaceType::new(&topic_type).map_err(color_eyre::eyre::Error::msg)?;
                 let topic_publisher_state =
                     TopicPublisherState::new(topic, topic_type, connection.clone());
                 Rc::new(RefCell::new(topic_publisher_state))
@@ -294,21 +290,28 @@ impl App {
                         w_borrowed.as_topic_acceptor().map(|_| w.clone())
                     })
                     .collect::<Vec<_>>();
-                self.popup_view =
-                    Some(Box::new(NewTopicPopupState::new(topic_info, candidate_views)));
+                self.popup_view = Some(Box::new(NewTopicPopupState::new(
+                    topic_info,
+                    candidate_views,
+                )));
             }
             Event::NewField(field_info) => {
-                // List existing TuiViews that accept fields
+                // List existing TuiViews that accept fields compatible with this field's type
                 let candidate_views = self
                     .widgets
                     .iter()
                     .filter_map(|w| {
                         let mut w_borrowed = w.borrow_mut();
-                        w_borrowed.as_field_acceptor().map(|_| w.clone())
+                        w_borrowed.as_field_acceptor().and_then(|acceptor| {
+                            if acceptor.accepts_field_type(&field_info.field_type) {
+                                Some(w.clone())
+                            } else {
+                                None
+                            }
+                        })
                     })
                     .collect::<Vec<_>>();
-                self.popup_view =
-                    Some(Box::new(NewFieldPopupState::new(field_info, candidate_views)));
+                self.popup_view = Some(NewFieldPopupState::new(field_info, candidate_views));
             }
             Event::NewView(new_view) => {
                 self.widgets.push(new_view);
