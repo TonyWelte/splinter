@@ -18,7 +18,6 @@ rclrs = "*"
 rosidl_runtime_rs = "*"
 rcl_interfaces = "*"
 
-[dev-dependencies]
 std_msgs = "*"
 test_msgs = "*"
 nav_msgs = "*"
