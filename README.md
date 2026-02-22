@@ -75,14 +75,14 @@ chmod +x splinter_install.sh
 | New Connections: Foxglove bridge          | Remote visualization support                    |
 | New Connections: Rosbridge                | Web-based ROS2 interaction                      |
 | New Connections: Multi-connection support | Manage multiple ROS2 connections simultaneously |
-| Services                                  | List and call ROS2 services                     |
-| Grid view                                 | Customizable widget layouts                     |
+| Services                                  | Whenever DynamicServices are added to rclrs     |
+| Grid layout                               | Customizable widget layouts                     |
 
 ## Why Rust ?
 
 I picked Rust to learn the language, period. Is it a good choice for this project? Absolutely not.
 
-As of now, the dynamic message support Splinter needs to function isn’t even merged into ros2_rust. If you’re writing a TUI for ROS2, use Python. Save yourself the trouble.
+If you’re writing a TUI for ROS2, use Python. Save yourself the trouble.
 
 Don’t get me wrong, Rust is a fantastic language. But wrestling with static types for a tool that has to handle messages whose types are only known at runtime? That’s just masochism.
 
