@@ -98,6 +98,35 @@ impl RawMessageState {
         }
     }
 
+    pub fn select_far_down(&mut self) {
+        if let Some(message) = self.message.lock().unwrap().as_ref() {
+            if self.selected_fields.is_empty() {
+                self.selected_fields.push(0);
+            }
+            *self.selected_fields.last_mut().unwrap() += 1;
+            if message.get_field_type(&self.selected_fields).is_err() {
+                *self.selected_fields.last_mut().unwrap() -= 1;
+            }
+            self.set_needs_redraw();
+        }
+    }
+
+    pub fn select_far_up(&mut self) {
+        if let Some(_) = self.message.lock().unwrap().as_ref() {
+            if let Some(last_selected) = self.selected_fields.last() {
+                if *last_selected == 0 {
+                    // If we're already at the top of the current level, jump to the top of the parent level
+                    self.selected_fields.pop();
+                } else {
+                    // Otherwise, jump to the top of the current level
+                    self.selected_fields.pop();
+                    self.selected_fields.push(0);
+                }
+            }
+            self.set_needs_redraw();
+        }
+    }
+
     pub fn select_left(&mut self) {
         if let Some(message) = self.message.lock().unwrap().as_ref() {
             self.selected_fields = GenericMessageSelector::new(message).left(&self.selected_fields);
@@ -129,11 +158,25 @@ impl TuiView for RawMessageState {
             }
             match key_event.code {
                 KeyCode::Char('j') | KeyCode::Down => {
-                    self.select_down();
+                    if key_event
+                        .modifiers
+                        .contains(crossterm::event::KeyModifiers::SHIFT)
+                    {
+                        self.select_far_down();
+                    } else {
+                        self.select_down();
+                    }
                     Event::None
                 }
                 KeyCode::Char('k') | KeyCode::Up => {
-                    self.select_up();
+                    if key_event
+                        .modifiers
+                        .contains(crossterm::event::KeyModifiers::SHIFT)
+                    {
+                        self.select_far_up();
+                    } else {
+                        self.select_up();
+                    }
                     Event::None
                 }
                 KeyCode::Char('G') => {

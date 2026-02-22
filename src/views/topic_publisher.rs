@@ -11,8 +11,8 @@ use crate::{
     common::{
         event::Event,
         generic_message::{
-            AnyTypeMutableRef, BoundedSequenceField, GenericMessage, InterfaceType, Length,
-            SequenceField,
+            AnyTypeMutableRef, BoundedSequenceField, GenericField, GenericMessage, InterfaceType,
+            Length, SequenceField, SimpleField,
         },
         generic_message_selector::{get_field_category, FieldCategory, GenericMessageSelector},
         style::HEADER_STYLE,
@@ -76,6 +76,61 @@ impl TopicPublisherState {
     pub fn select_previous_field(&mut self) {
         self.selected_fields = GenericMessageSelector::new(&self.message).up(&self.selected_fields);
         self.needs_redraw = true;
+    }
+
+    pub fn select_far_down(&mut self) {
+        if self.selected_fields.is_empty() {
+            self.selected_fields.push(0);
+        }
+        *self.selected_fields.last_mut().unwrap() += 1;
+        if self.message.get_field_type(&self.selected_fields).is_err() {
+            *self.selected_fields.last_mut().unwrap() -= 1;
+        }
+        self.needs_redraw = true;
+    }
+
+    pub fn select_far_up(&mut self) {
+        if let Some(last_selected) = self.selected_fields.last() {
+            if *last_selected == 0 {
+                self.selected_fields.pop();
+            } else {
+                self.selected_fields.pop();
+                self.selected_fields.push(0);
+            }
+        }
+        self.needs_redraw = true;
+    }
+
+    pub fn select_last(&mut self) {
+        self.selected_fields = GenericMessageSelector::new(&self.message).last_field_path();
+        self.needs_redraw = true;
+    }
+
+    /// Returns true if the message has a `header` field of type `std_msgs/msg/Header`.
+    pub fn has_header_stamp(&self) -> bool {
+        if let Some(GenericField::Simple(SimpleField::Message(header))) = self.message.get("header")
+        {
+            let t = header.type_name();
+            return t.package_name == "std_msgs" && t.category == "msg" && t.type_name == "Header";
+        }
+        false
+    }
+
+    /// Sets header.stamp.sec and header.stamp.nanosec to the current system time.
+    fn apply_auto_stamp(&mut self) {
+        use std::time::SystemTime;
+        let now = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap_or_default();
+        // header.stamp.sec = [0, 0, 0]
+        if let Ok(AnyTypeMutableRef::Int32(sec)) = self.message.get_mut_deep_index(&[0, 0, 0]) {
+            *sec = now.as_secs() as i32;
+        }
+        // header.stamp.nanosec = [0, 0, 1]
+        if let Ok(AnyTypeMutableRef::Uint32(nanosec)) = self.message.get_mut_deep_index(&[0, 0, 1])
+        {
+            *nanosec = now.subsec_nanos();
+        }
     }
 
     pub fn commit_edit(&mut self) -> Result<(), String> {
@@ -189,6 +244,9 @@ impl TuiView for TopicPublisherState {
                             self.needs_redraw = true;
                             Event::None
                         } else {
+                            if self.has_header_stamp() {
+                                self.apply_auto_stamp();
+                            }
                             match self.publisher.as_ref()(&self.message) {
                                 Ok(()) => Event::None,
                                 Err(e) => Event::Error(format!("Failed to publish: {}", e)),
@@ -200,6 +258,12 @@ impl TuiView for TopicPublisherState {
                             self.field_content.push('j');
                             self.needs_redraw = true;
                             Event::None
+                        } else if key_event
+                            .modifiers
+                            .contains(crossterm::event::KeyModifiers::SHIFT)
+                        {
+                            self.select_far_down();
+                            Event::None
                         } else {
                             self.select_next_field();
                             Event::None
@@ -209,6 +273,12 @@ impl TuiView for TopicPublisherState {
                         if self.is_editing {
                             self.field_content.push('k');
                             self.needs_redraw = true;
+                            Event::None
+                        } else if key_event
+                            .modifiers
+                            .contains(crossterm::event::KeyModifiers::SHIFT)
+                        {
+                            self.select_far_up();
                             Event::None
                         } else {
                             self.select_previous_field();
@@ -315,6 +385,15 @@ impl TuiView for TopicPublisherState {
                             event
                         }
                     }
+                    KeyCode::Char('G') => {
+                        if self.is_editing {
+                            self.field_content.push('G');
+                            self.needs_redraw = true;
+                        } else {
+                            self.select_last();
+                        }
+                        Event::None
+                    }
                     KeyCode::Char(c) => {
                         if self.is_editing {
                             self.field_content.push(c);
@@ -347,6 +426,7 @@ impl TuiView for TopicPublisherState {
         "Topic Publisher View Help:\n\
         - 'j' or ↓: Move down in the message fields.\n\
         - 'k' or ↑: Move up in the message fields.\n\
+        - 'G': Jump to the last field in the message.\n\
         - 'l' or →: Increase size of sequence field.\n\
         - 'h' or ←: Decrease size of sequence field.\n\
         - 'p': Publish the current message (only when not editing).\n\
@@ -401,5 +481,26 @@ impl TopicPublisherWidget {
         }
 
         StatefulWidget::render(message_widget, area, buf, &mut state.message_widget_state);
+
+        // If the message has header.stamp fields, draw an "auto stamp" indicator
+        // on the right side of the "stamp:" row (2nd row of the inner area, y+2
+        // because y+0 is the top border and y+1 is "header:", y+2 is "  stamp:").
+        if state.has_header_stamp() && area.height > 2 {
+            use ratatui::style::{Color, Style};
+            let label = " [auto stamp] ";
+            let inner_x = area.x + 1; // inside left border
+            let inner_width = area.width.saturating_sub(2);
+            let stamp_row = area.y + 2; // border(1) + header:(1) + stamp:(this row)
+            let label_len = label.len() as u16;
+            if inner_width >= label_len {
+                let label_x = inner_x + inner_width - label_len;
+                buf.set_string(
+                    label_x,
+                    stamp_row,
+                    label,
+                    Style::default().fg(Color::Yellow),
+                );
+            }
+        }
     }
 }
