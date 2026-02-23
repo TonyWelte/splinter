@@ -318,6 +318,7 @@ pub struct NodeDetailState {
     client_list_state: ListWidgetState<InterfaceListItem>,
     service_list_state: ListWidgetState<InterfaceListItem>,
     parameter_list_state: ParameterListView,
+    parameter_list_error: Option<String>,
 
     active_section: MainDetailSection,
 
@@ -334,6 +335,7 @@ impl NodeDetailState {
             client_list_state: ListWidgetState::new(vec![], None),
             service_list_state: ListWidgetState::new(vec![], None),
             parameter_list_state: ParameterListView::new(connection, node, BTreeMap::new(), None),
+            parameter_list_error: None,
             active_section: MainDetailSection::Section(DetailSection::Publishers),
             needs_redraw: true,
         };
@@ -350,7 +352,10 @@ impl NodeDetailState {
             .filter_map(|(topic, types)| {
                 InterfaceType::new(&types.first().cloned().unwrap_or_default())
                     .ok()
-                    .map(|type_name| InterfaceListItem { full_name: topic.clone(), type_name })
+                    .map(|type_name| InterfaceListItem {
+                        full_name: topic.clone(),
+                        type_name,
+                    })
             })
             .collect();
         let subscriptions = connection
@@ -360,7 +365,10 @@ impl NodeDetailState {
             .filter_map(|(topic, types)| {
                 InterfaceType::new(&types.first().cloned().unwrap_or_default())
                     .ok()
-                    .map(|type_name| InterfaceListItem { full_name: topic.clone(), type_name })
+                    .map(|type_name| InterfaceListItem {
+                        full_name: topic.clone(),
+                        type_name,
+                    })
             })
             .collect();
         let clients = connection
@@ -370,7 +378,10 @@ impl NodeDetailState {
             .filter_map(|(service, types)| {
                 InterfaceType::new(&types.first().cloned().unwrap_or_default())
                     .ok()
-                    .map(|type_name| InterfaceListItem { full_name: service.clone(), type_name })
+                    .map(|type_name| InterfaceListItem {
+                        full_name: service.clone(),
+                        type_name,
+                    })
             })
             .collect();
         let services = connection
@@ -380,7 +391,10 @@ impl NodeDetailState {
             .filter_map(|(service, types)| {
                 InterfaceType::new(&types.first().cloned().unwrap_or_default())
                     .ok()
-                    .map(|type_name| InterfaceListItem { full_name: service.clone(), type_name })
+                    .map(|type_name| InterfaceListItem {
+                        full_name: service.clone(),
+                        type_name,
+                    })
             })
             .collect();
 
@@ -395,10 +409,13 @@ impl NodeDetailState {
                 // Convert HashMap to BTreeMap for consistent ordering
                 let params = params.into_iter().collect();
                 self.parameter_list_state.update(params);
+                self.parameter_list_error = None;
                 self.needs_redraw = true;
             }
-            Err(_err) => {
-                // TODO: Error handling
+            Err(err) => {
+                self.parameter_list_state.reset();
+                self.parameter_list_error =
+                    Some(format!("Failed to get parameters: {}", err).to_string());
                 self.needs_redraw = true;
             }
         }
@@ -680,7 +697,10 @@ impl NodeDetailWidget {
                     publishers_y + 1 + sel
                 }
                 DetailSection::Subscribers => {
-                    let sel = state.subscriber_list_state.get_selected_index().unwrap_or(0) as u16;
+                    let sel = state
+                        .subscriber_list_state
+                        .get_selected_index()
+                        .unwrap_or(0) as u16;
                     subscribers_y + 1 + sel
                 }
                 DetailSection::Clients => {
@@ -721,7 +741,15 @@ impl NodeDetailWidget {
         .bold();
         Span::raw("Publishers:")
             .style(publisher_title_style)
-            .render(Rect { x: 0, y: publishers_y, width, height: 1 }, &mut extended_buffer);
+            .render(
+                Rect {
+                    x: 0,
+                    y: publishers_y,
+                    width,
+                    height: 1,
+                },
+                &mut extended_buffer,
+            );
         if publisher_list_height > 0 {
             StatefulWidget::render(
                 publisher_list,
@@ -747,7 +775,15 @@ impl NodeDetailWidget {
         .bold();
         Span::raw("Subscriptions:")
             .style(subscriber_title_style)
-            .render(Rect { x: 0, y: subscribers_y, width, height: 1 }, &mut extended_buffer);
+            .render(
+                Rect {
+                    x: 0,
+                    y: subscribers_y,
+                    width,
+                    height: 1,
+                },
+                &mut extended_buffer,
+            );
         if subscriber_list_height > 0 {
             StatefulWidget::render(
                 subscriber_list,
@@ -771,9 +807,15 @@ impl NodeDetailWidget {
             _ => Style::default(),
         }
         .bold();
-        Span::raw("Clients:")
-            .style(client_title_style)
-            .render(Rect { x: 0, y: clients_y, width, height: 1 }, &mut extended_buffer);
+        Span::raw("Clients:").style(client_title_style).render(
+            Rect {
+                x: 0,
+                y: clients_y,
+                width,
+                height: 1,
+            },
+            &mut extended_buffer,
+        );
         if client_list_height > 0 {
             StatefulWidget::render(
                 client_list,
@@ -797,9 +839,15 @@ impl NodeDetailWidget {
             _ => Style::default(),
         }
         .bold();
-        Span::raw("Services:")
-            .style(service_title_style)
-            .render(Rect { x: 0, y: services_y, width, height: 1 }, &mut extended_buffer);
+        Span::raw("Services:").style(service_title_style).render(
+            Rect {
+                x: 0,
+                y: services_y,
+                width,
+                height: 1,
+            },
+            &mut extended_buffer,
+        );
         if service_list_height > 0 {
             StatefulWidget::render(
                 service_list,
@@ -825,7 +873,15 @@ impl NodeDetailWidget {
         .bold();
         Span::raw("Parameters:")
             .style(parameter_title_style)
-            .render(Rect { x: 0, y: parameters_y, width, height: 1 }, &mut extended_buffer);
+            .render(
+                Rect {
+                    x: 0,
+                    y: parameters_y,
+                    width,
+                    height: 1,
+                },
+                &mut extended_buffer,
+            );
         if param_list_height > 0 {
             let param_widget = ParameterListWidget::new(&state.parameter_list_state.parameters)
                 .selected(state.parameter_list_state.selected)
@@ -842,6 +898,30 @@ impl NodeDetailWidget {
                 },
                 &mut extended_buffer,
             );
+        } else {
+            // If there are no parameters, show the error message if there is one
+            if let Some(error) = &state.parameter_list_error {
+                Span::raw(error).render(
+                    Rect {
+                        x: 2,
+                        y: parameters_y + 1,
+                        width: width.saturating_sub(2),
+                        height: 1,
+                    },
+                    &mut extended_buffer,
+                );
+            } else {
+                // This branch probably won't be hit since nodes always have `use_sim_time`
+                Span::raw("No parameters").render(
+                    Rect {
+                        x: 2,
+                        y: parameters_y + 1,
+                        width: width.saturating_sub(2),
+                        height: 1,
+                    },
+                    &mut extended_buffer,
+                );
+            }
         }
 
         // Copy the visible slice of the extended buffer into the actual buffer.

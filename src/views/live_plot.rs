@@ -276,7 +276,7 @@ impl LivePlotWidget {
             .bounds([min_y, max_y])
             .labels(
                 (0..=5)
-                    .map(|i| format!("{:.1}", min_y + i as f64 * (max_y - min_y) / 5.0))
+                    .map(|i| format!("{:.4}", min_y + i as f64 * (max_y - min_y) / 5.0))
                     .collect::<Vec<_>>(),
             );
 
