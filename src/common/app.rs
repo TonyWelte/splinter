@@ -84,6 +84,7 @@ pub struct App {
 // - NodeDetails -> FromNode
 // - NodeList -> FromConnection
 // - RawMessage -> FromTopic
+// - StateGraph -> FromField, AcceptsField (Integer, String)
 // - TopicList -> FromConnection
 // - TopicPublisher -> FromTopic
 //
@@ -91,7 +92,7 @@ pub struct App {
 // - NewConnection -> NodeList, TopicList
 // - NewNode -> NodeDetails
 // - NewTopic -> RawMessage, TopicPublisher, HzPlot
-// - NewField -> LiveHzPlot
+// - NewField -> LiveHzPlot, StateGraph
 // for any existing view
 
 pub enum AppArgs {

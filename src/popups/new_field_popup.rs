@@ -9,7 +9,10 @@ use ratatui::{buffer::Buffer, layout::Rect};
 use crate::{
     common::event::Event,
     popups::{text_popup::TextPopup, TuiPopup},
-    views::{live_plot::LivePlotState, FieldInfo, FieldInfoType, FromField, TuiView},
+    views::{
+        live_plot::LivePlotState, state_graph::StateGraphViewState, FieldInfo, FieldInfoType,
+        FromField, TuiView,
+    },
     widgets::select_view_widget::SelectViewWidget,
 };
 
@@ -29,6 +32,18 @@ static FROM_NEW_FIELD_FACTORIES: once_cell::sync::Lazy<
             Box::new(|ft: &FieldInfoType| ft.is_numeric()) as Box<NewFieldFactoryPredicate>,
             Box::new(|field_info: FieldInfo| {
                 Rc::new(RefCell::new(LivePlotState::from_field(field_info)))
+                    as Rc<RefCell<dyn TuiView>>
+            }) as Box<NewFieldFactoryClosure>,
+        ),
+    );
+    m.insert(
+        "state graph",
+        (
+            Box::new(|ft: &FieldInfoType| {
+                matches!(ft, FieldInfoType::Integer | FieldInfoType::String)
+            }) as Box<NewFieldFactoryPredicate>,
+            Box::new(|field_info: FieldInfo| {
+                Rc::new(RefCell::new(StateGraphViewState::from_field(field_info)))
                     as Rc<RefCell<dyn TuiView>>
             }) as Box<NewFieldFactoryClosure>,
         ),

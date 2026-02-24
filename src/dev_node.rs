@@ -1,5 +1,9 @@
 use rclrs::*;
-use std::{sync::Arc, thread, time::Duration};
+use std::{
+    sync::Arc,
+    thread,
+    time::{Duration, Instant},
+};
 
 // Node publishing all test_msgs types
 struct DevNode {
@@ -26,6 +30,7 @@ struct DevNode {
     publisher_nested: Arc<PublisherState<test_msgs::msg::Nested>>,
     publisher_sinusoid: Arc<PublisherState<test_msgs::msg::MultiNested>>,
     publisher_long_name: Arc<PublisherState<test_msgs::msg::BasicTypes>>,
+    publisher_states: Arc<PublisherState<test_msgs::msg::BasicTypes>>,
     subcriber_odometry: Arc<SubscriptionState<nav_msgs::msg::Odometry, Arc<NodeState>>>,
 }
 
@@ -99,6 +104,8 @@ impl DevNode {
             .create_publisher("/long/name/to/test/the/display/truncation/in/the/ui/component")
             .unwrap();
 
+        let publisher_states = node.create_publisher("states").unwrap();
+
         let subcriber_odometry = node
             .create_subscription("odometry", |msg: nav_msgs::msg::Odometry| {
                 println!(
@@ -132,6 +139,7 @@ impl DevNode {
             publisher_nested,
             publisher_sinusoid,
             publisher_long_name,
+            publisher_states,
             subcriber_odometry,
         })
     }
@@ -191,6 +199,114 @@ impl DevNode {
         self.publisher_sinusoid.publish(msg)?;
         Ok(())
     }
+
+    /// Publish state values with random transitions on a single `BasicTypes` message.
+    /// Each of the 13 fields transitions independently at a random interval drawn
+    /// from an exponential-ish distribution (some very short, producing bursts).
+    ///
+    /// Fields and their state vocabularies:
+    /// | field          | vocabulary                          |
+    /// |----------------|-------------------------------------|
+    /// | bool_value     | false / true                        |
+    /// | byte_value     | 0–4                                 |
+    /// | char_value     | 0–3                                 |
+    /// | float32_value  | 0.0 / 0.25 / 0.5 / 0.75 / 1.0      |
+    /// | float64_value  | 0.0 / 1.0 / 2.0 / 3.0              |
+    /// | int8_value     | -2 / -1 / 0 / 1 / 2 / 3            |
+    /// | uint8_value    | 0–5                                 |
+    /// | int16_value    | 0 / 100 / 200 / 300                 |
+    /// | uint16_value   | 0 / 10 / 20 / 30 / 40               |
+    /// | int32_value    | 0–3  (mirrors original state_int)   |
+    /// | uint32_value   | 0–4                                 |
+    /// | int64_value    | 0–5                                 |
+    /// | uint64_value   | 0–3                                 |
+    fn publish_states(
+        &self,
+        rng: &mut u64,
+        state_msg: &mut test_msgs::msg::BasicTypes,
+        next_changes: &mut [f64; 13],
+        t: f64,
+    ) -> Result<(), RclrsError> {
+        if t >= next_changes[0] {
+            state_msg.bool_value = (lcg_next(rng) % 2) == 1;
+            next_changes[0] = t + random_interval(rng);
+        }
+        if t >= next_changes[1] {
+            state_msg.byte_value = (lcg_next(rng) % 5) as u8;
+            next_changes[1] = t + random_interval(rng);
+        }
+        if t >= next_changes[2] {
+            state_msg.char_value = (lcg_next(rng) % 4) as u8;
+            next_changes[2] = t + random_interval(rng);
+        }
+        if t >= next_changes[3] {
+            let levels: [f32; 5] = [0.0, 0.25, 0.5, 0.75, 1.0];
+            state_msg.float32_value = levels[lcg_next(rng) as usize % levels.len()];
+            next_changes[3] = t + random_interval(rng);
+        }
+        if t >= next_changes[4] {
+            let levels: [f64; 4] = [0.0, 1.0, 2.0, 3.0];
+            state_msg.float64_value = levels[lcg_next(rng) as usize % levels.len()];
+            next_changes[4] = t + random_interval(rng);
+        }
+        if t >= next_changes[5] {
+            let states: [i8; 6] = [-2, -1, 0, 1, 2, 3];
+            state_msg.int8_value = states[lcg_next(rng) as usize % states.len()];
+            next_changes[5] = t + random_interval(rng);
+        }
+        if t >= next_changes[6] {
+            state_msg.uint8_value = (lcg_next(rng) % 6) as u8;
+            next_changes[6] = t + random_interval(rng);
+        }
+        if t >= next_changes[7] {
+            let states: [i16; 4] = [0, 100, 200, 300];
+            state_msg.int16_value = states[lcg_next(rng) as usize % states.len()];
+            next_changes[7] = t + random_interval(rng);
+        }
+        if t >= next_changes[8] {
+            state_msg.uint16_value = (lcg_next(rng) % 5 * 10) as u16;
+            next_changes[8] = t + random_interval(rng);
+        }
+        if t >= next_changes[9] {
+            state_msg.int32_value = (lcg_next(rng) % 4) as i32;
+            next_changes[9] = t + random_interval(rng);
+        }
+        if t >= next_changes[10] {
+            state_msg.uint32_value = (lcg_next(rng) % 5) as u32;
+            next_changes[10] = t + random_interval(rng);
+        }
+        if t >= next_changes[11] {
+            state_msg.int64_value = (lcg_next(rng) % 6) as i64;
+            next_changes[11] = t + random_interval(rng);
+        }
+        if t >= next_changes[12] {
+            state_msg.uint64_value = lcg_next(rng) % 4;
+            next_changes[12] = t + random_interval(rng);
+        }
+
+        self.publisher_states.publish(state_msg.clone())?;
+        Ok(())
+    }
+}
+
+/// Simple linear congruential generator (LCG) PRNG.
+/// Returns the next pseudo-random value and advances the state.
+fn lcg_next(state: &mut u64) -> u64 {
+    *state = state
+        .wrapping_mul(6364136223846793005)
+        .wrapping_add(1442695040888963407);
+    *state >> 33
+}
+
+/// Produce a random interval with a distribution biased towards short bursts.
+/// Returns values in the range \[0.05, 4.0\] seconds.
+/// Roughly 20% of the time the interval is ≤0.3s, which — at the 100ms
+/// publish rate — puts 3+ state transitions inside a single character cell.
+fn random_interval(rng: &mut u64) -> f64 {
+    let r = (lcg_next(rng) % 1000) as f64 / 1000.0; // uniform in [0, 1)
+                                                    // Exponential-ish mapping: many short intervals, some long ones.
+                                                    // 0.05 + 3.95 * r^2  →  r=0 ⇒ 0.05s, r=0.27 ⇒ ~0.34s, r=1 ⇒ 4.0s
+    0.05 + 3.95 * r * r
 }
 
 fn main() -> Result<(), RclrsError> {
@@ -198,10 +314,18 @@ fn main() -> Result<(), RclrsError> {
     let node = DevNode::new(&executor).unwrap();
 
     thread::spawn(move || {
+        let start = Instant::now();
+        // Seed the PRNG from the current time
+        let mut rng: u64 = start.elapsed().as_nanos() as u64 ^ 0xDEAD_BEEF;
+        let mut state_msg = test_msgs::msg::BasicTypes::default();
+        let mut next_changes = [0.0f64; 13];
+
         let mut t = 0.0;
         loop {
             thread::sleep(Duration::from_millis(100));
             node.publish_signal(t).unwrap();
+            node.publish_states(&mut rng, &mut state_msg, &mut next_changes, t)
+                .unwrap();
             t += 0.1;
 
             // Publish all other test messages at a slower rate

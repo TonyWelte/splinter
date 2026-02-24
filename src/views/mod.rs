@@ -23,6 +23,7 @@ pub mod live_plot;
 pub mod node_details;
 pub mod node_list;
 pub mod raw_message;
+pub mod state_graph;
 pub mod topic_graph;
 pub mod topic_list;
 pub mod topic_publisher;
