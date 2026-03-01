@@ -32,6 +32,7 @@ struct DevNode {
     publisher_long_name: Arc<PublisherState<test_msgs::msg::BasicTypes>>,
     publisher_states: Arc<PublisherState<test_msgs::msg::BasicTypes>>,
     subcriber_odometry: Arc<SubscriptionState<nav_msgs::msg::Odometry, Arc<NodeState>>>,
+    service_basic_types: Arc<ServiceState<test_msgs::srv::BasicTypes, Arc<NodeState>>>,
 }
 
 impl DevNode {
@@ -115,6 +116,34 @@ impl DevNode {
             })
             .unwrap();
 
+        let service_basic_types = node
+            .create_service(
+                "basic_types",
+                |request: test_msgs::srv::BasicTypes_Request| {
+                    println!(
+                        "Received service request: bool_value={}",
+                        request.bool_value
+                    );
+                    test_msgs::srv::BasicTypes_Response {
+                        bool_value: !request.bool_value,
+                        byte_value: request.byte_value + 1,
+                        char_value: request.char_value + 1,
+                        float32_value: request.float32_value + 1.0,
+                        float64_value: request.float64_value + 1.0,
+                        int8_value: request.int8_value + 1,
+                        int16_value: request.int16_value + 1,
+                        int32_value: request.int32_value + 1,
+                        int64_value: request.int64_value + 1,
+                        uint8_value: request.uint8_value + 1,
+                        uint16_value: request.uint16_value + 1,
+                        uint32_value: request.uint32_value + 1,
+                        uint64_value: request.uint64_value + 1,
+                        string_value: format!("{} response", request.string_value),
+                    }
+                },
+            )
+            .unwrap();
+
         Ok(Self {
             param_bool,
             param_integer,
@@ -141,6 +170,7 @@ impl DevNode {
             publisher_long_name,
             publisher_states,
             subcriber_odometry,
+            service_basic_types,
         })
     }
 

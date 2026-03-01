@@ -75,7 +75,6 @@ chmod +x splinter_install.sh
 | New Connections: Foxglove bridge          | Remote visualization support                    |
 | New Connections: Rosbridge                | Web-based ROS2 interaction                      |
 | New Connections: Multi-connection support | Manage multiple ROS2 connections simultaneously |
-| Services                                  | Whenever DynamicServices are added to rclrs     |
 | Grid layout                               | Customizable widget layouts                     |
 
 ## Why Rust ?

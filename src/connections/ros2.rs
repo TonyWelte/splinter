@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 use std::fmt::Debug;
-use std::sync::{Arc, Mutex};
+use std::future::Future;
+use std::sync::Arc;
 use std::thread::{spawn, JoinHandle};
-use std::time::SystemTime;
+use std::time::{Duration, SystemTime};
 
 use crate::common::generic_message::{
     ArrayField, GenericField, GenericMessage, InterfaceType, MessageMetadata, SimpleField,
@@ -17,6 +18,24 @@ use rcl_interfaces::srv::{
     GetParameters, GetParameters_Request, GetParameters_Response, ListParameters,
     ListParameters_Request, ListParameters_Response,
 };
+
+const DEFAULT_SERVICE_TIMEOUT: Duration = Duration::from_millis(500);
+
+/// Submit an async task to the already-spinning background executor and block
+/// the calling thread until the result arrives (or the timeout expires).
+fn run_blocking<T: Send + 'static>(
+    node: &Node,
+    timeout: Duration,
+    f: impl Future<Output = T> + Send + 'static,
+) -> Result<T, String> {
+    let (tx, rx) = std::sync::mpsc::channel();
+    let _promise = node.commands().run(async move {
+        let result = f.await;
+        let _ = tx.send(result);
+    });
+    rx.recv_timeout(timeout)
+        .map_err(|e| format!("Service call failed (timeout: {timeout:?}): {e}"))
+}
 
 pub struct ConnectionROS2 {
     // Fields for the ROS2 connection
@@ -568,92 +587,51 @@ impl Connection for ConnectionROS2 {
             node_name.namespace.clone()
         };
 
-        // Executor
-        let mut executor = Context::default_from_env()
-            .map_err(|_| "Error creating context")?
-            .create_basic_executor();
-
-        // Get parameters list
+        // List parameters
         let service_name = format!("{}{}/list_parameters", namespace, &node_name.name);
         let client = self
             .node
             .create_client::<ListParameters>(&service_name)
-            .map_err(|_| format!("Failed to create client for sevice: {}", &service_name))?;
+            .map_err(|_| format!("Failed to create client for service: {}", &service_name))?;
 
-        client
-            .service_is_ready()
-            .map_err(|_| format!("Service not available for sevice: {}", &service_name))?;
-
-        let response = Arc::new(Mutex::new(Option::<ListParameters_Response>::None));
-        let response_clone = Arc::clone(&response);
-
-        let promise = executor.commands().run(async move {
+        let param_names = run_blocking(&self.node, DEFAULT_SERVICE_TIMEOUT, async move {
             client.notify_on_service_ready().await.unwrap();
-
             let request = ListParameters_Request {
                 prefixes: vec![],
                 depth: ListParameters_Request::DEPTH_RECURSIVE,
             };
-
-            // TODO(@TonyWelte): Handle error
-            let response: ListParameters_Response = client.call(&request).unwrap().await.unwrap();
-
-            response_clone.lock().unwrap().replace(response);
-        });
-
-        executor
-            .spin(
-                SpinOptions::new()
-                    .until_promise_resolved(promise)
-                    .timeout(std::time::Duration::from_millis(100)),
-            )
-            .first_error()
-            .map_err(|_| format!("Error when running service: {}", &service_name))?;
-
-        let response = response.lock().unwrap().take();
-
-        let param_names = response
-            .ok_or(format!("Service call failed to service: {}", &service_name))?
-            .result
-            .names;
+            client
+                .call::<_, ListParameters_Response>(&request)
+                .unwrap()
+                .await
+                .unwrap()
+        })?
+        .result
+        .names;
 
         // Get parameter values
         let service_name = format!("{}{}/get_parameters", namespace, &node_name.name);
         let client = self
             .node
             .create_client::<GetParameters>(&service_name)
-            .map_err(|_| format!("Failed to create client for node: {}", node_name.name))?;
-
-        let response = Arc::new(Mutex::new(Option::<GetParameters_Response>::None));
-        let response_clone = Arc::clone(&response);
+            .map_err(|_| format!("Failed to create client for service: {}", &service_name))?;
 
         let request = GetParameters_Request {
             names: param_names.clone(),
         };
 
-        let promise = executor.commands().run(async move {
-            client.notify_on_service_ready().await.unwrap();
+        let response: GetParameters_Response =
+            run_blocking(&self.node, DEFAULT_SERVICE_TIMEOUT, async move {
+                client.notify_on_service_ready().await.unwrap();
+                client
+                    .call::<_, GetParameters_Response>(&request)
+                    .unwrap()
+                    .await
+                    .unwrap()
+            })?;
 
-            // TODO: Handle error
-            let response: GetParameters_Response = client.call(&request).unwrap().await.unwrap();
-
-            response_clone.lock().unwrap().replace(response);
-        });
-
-        executor
-            .spin(
-                SpinOptions::new()
-                    .until_promise_resolved(promise)
-                    .timeout(std::time::Duration::from_millis(100)),
-            )
-            .first_error()
-            .map_err(|_| format!("Error when running service: {}", &service_name))?;
-
-        let response = response.lock().unwrap().take();
-
-        let parameters = response.ok_or("Service call failed")?;
-        let mut params_map = HashMap::new();
-        for (name, value) in param_names.iter().zip(parameters.values.iter()) {
+        let mut params_map: HashMap<String, Parameters> = HashMap::new();
+        for (name, value) in param_names.iter().zip(response.values.iter()) {
             params_map.insert(name.clone(), value.into());
         }
 
@@ -666,32 +644,17 @@ impl Connection for ConnectionROS2 {
         parameter_name: &str,
         parameter: Parameters,
     ) -> Result<(), String> {
-        // Executor
-        let mut executor = Context::default_from_env()
-            .map_err(|_| "Error creating context")?
-            .create_basic_executor();
-
         let namespace = if node_name.namespace.is_empty() {
             "/".to_string()
         } else {
             node_name.namespace.clone()
         };
 
-        // Set parameter
         let service_name = format!("{}{}/set_parameters", namespace, &node_name.name);
         let client = self
             .node
             .create_client::<rcl_interfaces::srv::SetParameters>(&service_name)
-            .map_err(|_| format!("Failed to create client for sevice: {}", &service_name))?;
-
-        client
-            .service_is_ready()
-            .map_err(|_| format!("Service not available for sevice: {}", &service_name))?;
-
-        let response = Arc::new(Mutex::new(
-            Option::<rcl_interfaces::srv::SetParameters_Response>::None,
-        ));
-        let response_clone = Arc::clone(&response);
+            .map_err(|_| format!("Failed to create client for service: {}", &service_name))?;
 
         let request = rcl_interfaces::srv::SetParameters_Request {
             parameters: vec![rcl_interfaces::msg::Parameter {
@@ -700,27 +663,15 @@ impl Connection for ConnectionROS2 {
             }],
         };
 
-        let promise = executor.commands().run(async move {
-            client.notify_on_service_ready().await.unwrap();
-
-            let response = client.call(&request).unwrap().await.unwrap();
-            response_clone.lock().unwrap().replace(response);
-        });
-
-        executor
-            .spin(
-                SpinOptions::new()
-                    .until_promise_resolved(promise)
-                    .timeout(std::time::Duration::from_millis(100)),
-            )
-            .first_error()
-            .map_err(|_| format!("Error when running service: {}", &service_name))?;
-
-        let response = response
-            .lock()
-            .unwrap()
-            .take()
-            .ok_or("Service call failed".to_string())?;
+        let response: rcl_interfaces::srv::SetParameters_Response =
+            run_blocking(&self.node, DEFAULT_SERVICE_TIMEOUT, async move {
+                client.notify_on_service_ready().await.unwrap();
+                client
+                    .call::<_, rcl_interfaces::srv::SetParameters_Response>(&request)
+                    .unwrap()
+                    .await
+                    .unwrap()
+            })?;
 
         for result in response.results {
             if !result.successful {
@@ -764,5 +715,93 @@ impl Connection for ConnectionROS2 {
                     })
                     .collect()
             })
+    }
+
+    fn list_services(&self) -> Result<Vec<(String, InterfaceType)>, String> {
+        let services = self
+            .node
+            .get_service_names_and_types()
+            .map_err(|_| "Failed to get service names and types".to_string())?;
+
+        let services: Vec<(String, InterfaceType)> = services
+            .into_iter()
+            .filter_map(|(name, types)| {
+                types
+                    .first()
+                    .and_then(|type_name| InterfaceType::new(type_name).ok())
+                    .map(|interface_type| (name, interface_type))
+            })
+            .collect();
+
+        Ok(services)
+    }
+
+    fn get_service_type(&self, service_name: &str) -> Option<InterfaceType> {
+        self.list_services()
+            .ok()?
+            .into_iter()
+            .find(|(name, _)| name == service_name)
+            .map(|(_, interface_type)| interface_type)
+    }
+
+    fn get_service_request_template(
+        &self,
+        service_type: &InterfaceType,
+    ) -> Result<GenericMessage, String> {
+        let service_type_name: ServiceTypeName = format!(
+            "{}/srv/{}",
+            service_type.package_name, service_type.type_name
+        )
+        .as_str()
+        .try_into()
+        .map_err(|e| format!("Invalid service type: {e:?}"))?;
+
+        let metadata = DynamicServiceMetadata::new(service_type_name)
+            .map_err(|e| format!("Failed to load service metadata: {e:?}"))?;
+
+        let request = metadata
+            .request_metadata
+            .create()
+            .map_err(|e| format!("Failed to create request template: {e:?}"))?;
+
+        Ok(GenericMessage::from(request.view()))
+    }
+
+    fn call_service(
+        &self,
+        service_name: &str,
+        service_type: &InterfaceType,
+        request: &GenericMessage,
+    ) -> Result<GenericMessage, String> {
+        let service_type_name: ServiceTypeName = format!(
+            "{}/srv/{}",
+            service_type.package_name, service_type.type_name
+        )
+        .as_str()
+        .try_into()
+        .map_err(|e| format!("Invalid service type: {e:?}"))?;
+
+        let metadata = DynamicServiceMetadata::new(service_type_name)
+            .map_err(|e| format!("Failed to load service metadata: {e:?}"))?;
+
+        let request_metadata = metadata.request_metadata.clone();
+
+        let client = self
+            .node
+            .create_dynamic_client(metadata, service_name)
+            .map_err(|e| format!("Failed to create dynamic client: {e}"))?;
+
+        // Build the DynamicMessage request from the GenericMessage
+        let mut dynamic_request = request_metadata
+            .create()
+            .map_err(|e| format!("Failed to create request message: {e:?}"))?;
+        populate_message(dynamic_request.view_mut(), request);
+
+        let (response, _info) = run_blocking(&self.node, DEFAULT_SERVICE_TIMEOUT, async move {
+            client.notify_on_service_ready().await.unwrap();
+            client.call(dynamic_request).unwrap().await.unwrap()
+        })?;
+
+        Ok(GenericMessage::from(response.view()))
     }
 }

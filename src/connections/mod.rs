@@ -131,6 +131,28 @@ pub trait Connection {
 
     /// Get the nodes that subscribe to the given topic.
     fn get_subscriptions_info_by_topic(&self, topic: &str) -> Result<Vec<NodeName>, String>;
+
+    /// List all services available in the connection.
+    fn list_services(&self) -> Result<Vec<(String, InterfaceType)>, String>;
+
+    /// Get the type of a specific service.
+    fn get_service_type(&self, service_name: &str) -> Option<InterfaceType>;
+
+    /// Return a default-initialized request GenericMessage for the given service type.
+    /// The UI can use this to discover the request fields and build a form.
+    fn get_service_request_template(
+        &self,
+        service_type: &InterfaceType,
+    ) -> Result<GenericMessage, String>;
+
+    /// Call a service. Sends `request`, blocks until the response arrives
+    /// (or timeout), and returns the response as a GenericMessage.
+    fn call_service(
+        &self,
+        service_name: &str,
+        service_type: &InterfaceType,
+        request: &GenericMessage,
+    ) -> Result<GenericMessage, String>;
 }
 
 #[enum_dispatch]

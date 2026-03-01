@@ -15,7 +15,7 @@ use crate::{
         style::{HEADER_STYLE, SELECTED_STYLE},
     },
     connections::{Connection, ConnectionType, NamedInterface, NodeName, Parameters},
-    views::{AcceptsNode, FromNode, NodeInfo, TopicInfo, TuiView},
+    views::{service_call::ServiceCallState, AcceptsNode, FromNode, NodeInfo, TopicInfo, TuiView},
     widgets::{
         list_widget::{ListWidget, ListWidgetState},
         parameter_list_widget::ParameterListWidget,
@@ -524,9 +524,14 @@ impl NodeDetailState {
                             );
                         }
                         DetailSection::Services => {
-                            return Event::Error(
-                                "Service interaction not implemented yet".to_string(),
-                            );
+                            if let Some(item) = self.service_list_state.get_selected() {
+                                let new_view = Rc::new(RefCell::new(ServiceCallState::new(
+                                    item.name.clone(),
+                                    item.type_name.clone(),
+                                    self.connection.clone(),
+                                )));
+                                return Event::NewView(new_view);
+                            }
                         }
                         DetailSection::Parameters => {
                             // TODO

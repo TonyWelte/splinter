@@ -14,12 +14,15 @@ use crate::{
             AnyTypeMutableRef, BoundedSequenceField, GenericField, GenericMessage, InterfaceType,
             Length, SequenceField, SimpleField,
         },
-        generic_message_selector::{get_field_category, FieldCategory, GenericMessageSelector},
+        generic_message_selector::{get_field_category, FieldCategory},
         style::HEADER_STYLE,
     },
     connections::{Connection, ConnectionType},
-    views::{FromTopic, TopicInfo, TuiView},
-    widgets::message_widget::{MessageWidget, MessageWidgetState},
+    views::{
+        message_pane::{commit_field_edit, MessagePaneState},
+        FromTopic, TopicInfo, TuiView,
+    },
+    widgets::message_widget::MessageWidget,
 };
 
 use crossterm::event::{Event as CrosstermEvent, KeyCode};
@@ -31,10 +34,9 @@ pub struct TopicPublisherState {
     _connection: Rc<RefCell<ConnectionType>>,
     publisher: Box<dyn Fn(&GenericMessage) -> Result<(), String>>,
     message: GenericMessage,
-    selected_fields: Vec<usize>,
+    pane: MessagePaneState,
     is_editing: bool,
     field_content: String,
-    message_widget_state: MessageWidgetState,
     needs_redraw: bool,
 }
 
@@ -59,51 +61,11 @@ impl TopicPublisherState {
             _connection: connection,
             publisher,
             message: generic_message,
-            selected_fields: Vec::new(),
+            pane: MessagePaneState::new(),
             is_editing: false,
             field_content: String::new(),
-            message_widget_state: MessageWidgetState::new(true),
             needs_redraw: true,
         }
-    }
-
-    pub fn select_next_field(&mut self) {
-        self.selected_fields =
-            GenericMessageSelector::new(&self.message).down(&self.selected_fields);
-        self.needs_redraw = true;
-    }
-
-    pub fn select_previous_field(&mut self) {
-        self.selected_fields = GenericMessageSelector::new(&self.message).up(&self.selected_fields);
-        self.needs_redraw = true;
-    }
-
-    pub fn select_far_down(&mut self) {
-        if self.selected_fields.is_empty() {
-            self.selected_fields.push(0);
-        }
-        *self.selected_fields.last_mut().unwrap() += 1;
-        if self.message.get_field_type(&self.selected_fields).is_err() {
-            *self.selected_fields.last_mut().unwrap() -= 1;
-        }
-        self.needs_redraw = true;
-    }
-
-    pub fn select_far_up(&mut self) {
-        if let Some(last_selected) = self.selected_fields.last() {
-            if *last_selected == 0 {
-                self.selected_fields.pop();
-            } else {
-                self.selected_fields.pop();
-                self.selected_fields.push(0);
-            }
-        }
-        self.needs_redraw = true;
-    }
-
-    pub fn select_last(&mut self) {
-        self.selected_fields = GenericMessageSelector::new(&self.message).last_field_path();
-        self.needs_redraw = true;
     }
 
     /// Returns true if the message has a `header` field of type `std_msgs/msg/Header`.
@@ -135,97 +97,11 @@ impl TopicPublisherState {
 
     pub fn commit_edit(&mut self) -> Result<(), String> {
         self.needs_redraw = true;
-
-        // Update the message with the new field content
-        let value = self.message.get_mut_deep_index(&self.selected_fields)?;
-        match value {
-            AnyTypeMutableRef::Float(v) => {
-                *v = self
-                    .field_content
-                    .parse::<f32>()
-                    .map_err(|e| format!("Failed to parse float: {}", e))?;
-                Ok(())
-            }
-            AnyTypeMutableRef::Double(v) => {
-                *v = self
-                    .field_content
-                    .parse::<f64>()
-                    .map_err(|e| format!("Failed to parse double: {}", e))?;
-                Ok(())
-            }
-            AnyTypeMutableRef::Boolean(v) => {
-                *v = self
-                    .field_content
-                    .parse::<bool>()
-                    .map_err(|e| format!("Failed to parse boolean: {}", e))?;
-                Ok(())
-            }
-            AnyTypeMutableRef::Uint8(v) => {
-                *v = self
-                    .field_content
-                    .parse::<u8>()
-                    .map_err(|e| format!("Failed to parse uint8: {}", e))?;
-                Ok(())
-            }
-            AnyTypeMutableRef::Int8(v) => {
-                *v = self
-                    .field_content
-                    .parse::<i8>()
-                    .map_err(|e| format!("Failed to parse int8: {}", e))?;
-                Ok(())
-            }
-            AnyTypeMutableRef::Uint16(v) => {
-                *v = self
-                    .field_content
-                    .parse::<u16>()
-                    .map_err(|e| format!("Failed to parse uint16: {}", e))?;
-                Ok(())
-            }
-            AnyTypeMutableRef::Int16(v) => {
-                *v = self
-                    .field_content
-                    .parse::<i16>()
-                    .map_err(|e| format!("Failed to parse int16: {}", e))?;
-                Ok(())
-            }
-            AnyTypeMutableRef::Uint32(v) => {
-                *v = self
-                    .field_content
-                    .parse::<u32>()
-                    .map_err(|e| format!("Failed to parse uint32: {}", e))?;
-                Ok(())
-            }
-            AnyTypeMutableRef::Int32(v) => {
-                *v = self
-                    .field_content
-                    .parse::<i32>()
-                    .map_err(|e| format!("Failed to parse int32: {}", e))?;
-                Ok(())
-            }
-            AnyTypeMutableRef::Uint64(v) => {
-                *v = self
-                    .field_content
-                    .parse::<u64>()
-                    .map_err(|e| format!("Failed to parse uint64: {}", e))?;
-                Ok(())
-            }
-            AnyTypeMutableRef::Int64(v) => {
-                *v = self
-                    .field_content
-                    .parse::<i64>()
-                    .map_err(|e| format!("Failed to parse int64: {}", e))?;
-                Ok(())
-            }
-            AnyTypeMutableRef::String(v) => {
-                *v = self.field_content.clone();
-                Ok(())
-            }
-            AnyTypeMutableRef::Array(_)
-            | AnyTypeMutableRef::Sequence(_)
-            | AnyTypeMutableRef::BoundedSequence(_) => {
-                Err("Cannot edit non-primitive field".to_string())
-            }
-        }
+        commit_field_edit(
+            &mut self.message,
+            &self.pane.selected_fields,
+            &self.field_content,
+        )
     }
 }
 
@@ -253,37 +129,17 @@ impl TuiView for TopicPublisherState {
                             }
                         }
                     }
-                    KeyCode::Char('j') | KeyCode::Down => {
-                        if self.is_editing {
-                            self.field_content.push('j');
+                    KeyCode::Char('j')
+                    | KeyCode::Down
+                    | KeyCode::Char('k')
+                    | KeyCode::Up
+                    | KeyCode::Char('G')
+                        if !self.is_editing =>
+                    {
+                        if self.pane.handle_nav_key(key_event, &self.message) {
                             self.needs_redraw = true;
-                            Event::None
-                        } else if key_event
-                            .modifiers
-                            .contains(crossterm::event::KeyModifiers::SHIFT)
-                        {
-                            self.select_far_down();
-                            Event::None
-                        } else {
-                            self.select_next_field();
-                            Event::None
                         }
-                    }
-                    KeyCode::Char('k') | KeyCode::Up => {
-                        if self.is_editing {
-                            self.field_content.push('k');
-                            self.needs_redraw = true;
-                            Event::None
-                        } else if key_event
-                            .modifiers
-                            .contains(crossterm::event::KeyModifiers::SHIFT)
-                        {
-                            self.select_far_up();
-                            Event::None
-                        } else {
-                            self.select_previous_field();
-                            Event::None
-                        }
+                        Event::None
                     }
                     KeyCode::Char('h') | KeyCode::Left => {
                         self.needs_redraw = true;
@@ -292,7 +148,7 @@ impl TuiView for TopicPublisherState {
                             Event::None
                         } else {
                             if let Ok(field) =
-                                self.message.get_mut_deep_index(&self.selected_fields)
+                                self.message.get_mut_deep_index(&self.pane.selected_fields)
                             {
                                 match field {
                                     AnyTypeMutableRef::Sequence(SequenceField::Message(_)) => {
@@ -328,7 +184,7 @@ impl TuiView for TopicPublisherState {
                             Event::None
                         } else {
                             if let Ok(field) =
-                                self.message.get_mut_deep_index(&self.selected_fields)
+                                self.message.get_mut_deep_index(&self.pane.selected_fields)
                             {
                                 match field {
                                     AnyTypeMutableRef::Sequence(SequenceField::Message(_)) => {
@@ -374,7 +230,7 @@ impl TuiView for TopicPublisherState {
                             self.field_content.clear();
                             self.needs_redraw = true;
                             Event::None
-                        } else if get_field_category(&self.message, &self.selected_fields)
+                        } else if get_field_category(&self.message, &self.pane.selected_fields)
                             == Some(FieldCategory::Base)
                         {
                             self.is_editing = true;
@@ -384,15 +240,6 @@ impl TuiView for TopicPublisherState {
                         } else {
                             event
                         }
-                    }
-                    KeyCode::Char('G') => {
-                        if self.is_editing {
-                            self.field_content.push('G');
-                            self.needs_redraw = true;
-                        } else {
-                            self.select_last();
-                        }
-                        Event::None
                     }
                     KeyCode::Char(c) => {
                         if self.is_editing {
@@ -473,14 +320,14 @@ impl TopicPublisherWidget {
             .border_type(BorderType::Rounded);
 
         let mut message_widget = MessageWidget::new(&state.message).block(block);
-        if !state.selected_fields.is_empty() {
-            message_widget = message_widget.with_selection(&state.selected_fields);
+        if !state.pane.selected_fields.is_empty() {
+            message_widget = message_widget.with_selection(&state.pane.selected_fields);
             if state.is_editing {
                 message_widget = message_widget.with_edit(&state.field_content);
             }
         }
 
-        StatefulWidget::render(message_widget, area, buf, &mut state.message_widget_state);
+        StatefulWidget::render(message_widget, area, buf, &mut state.pane.widget_state);
 
         // If the message has header.stamp fields, draw an "auto stamp" indicator
         // on the right side of the "stamp:" row (2nd row of the inner area, y+2

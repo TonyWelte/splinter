@@ -20,9 +20,11 @@ use crate::{
 
 pub mod hz_plot;
 pub mod live_plot;
+pub mod message_pane;
 pub mod node_details;
 pub mod node_list;
 pub mod raw_message;
+pub mod service_call;
 pub mod state_graph;
 pub mod topic_graph;
 pub mod topic_list;
