@@ -104,11 +104,11 @@ impl TuiView for HzPlotState {
                 return event;
             }
             match key_event.code {
-                KeyCode::Char('h') | KeyCode::Left => {
+                KeyCode::Char('+') => {
                     self.max_duration += 1.0; // Increase the maximum duration
                     Event::None
                 }
-                KeyCode::Char('l') | KeyCode::Right => {
+                KeyCode::Char('-') => {
                     if self.max_duration > 1.0 {
                         self.max_duration -= 1.0; // Decrease the maximum duration
                     }
@@ -127,8 +127,8 @@ impl TuiView for HzPlotState {
 
     fn get_help_text(&self) -> String {
         "Hz Plot View Help:\n\
-        - 'h' or ←: Increase the time window for the frequency plot.\n\
-        - 'l' or →: Decrease the time window for the frequency plot."
+        - '+': Increase the time window for the frequency plot.\n\
+        - '-': Decrease the time window for the frequency plot."
             .to_string()
     }
 

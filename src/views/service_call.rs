@@ -142,7 +142,16 @@ impl ServiceCallState {
                 self.call_service();
                 Event::None
             }
-            KeyCode::Tab if !self.is_editing => {
+            KeyCode::Char('l') if !self.is_editing => {
+                self.focus = FocusPane::Response;
+                self.needs_redraw = true;
+                Event::None
+            }
+            KeyCode::Char('l') if self.is_editing => {
+                self.field_content.push('l');
+                Event::None
+            }
+            KeyCode::Right if !self.is_editing => {
                 self.focus = FocusPane::Response;
                 self.needs_redraw = true;
                 Event::None
@@ -159,10 +168,10 @@ impl ServiceCallState {
                 }
                 Event::None
             }
-            KeyCode::Char('h') | KeyCode::Left => {
+            KeyCode::Char('-') => {
                 self.needs_redraw = true;
                 if self.is_editing {
-                    self.field_content.push('h');
+                    self.field_content.push('-');
                     Event::None
                 } else {
                     if let Ok(field) = self
@@ -191,10 +200,10 @@ impl ServiceCallState {
                     Event::None
                 }
             }
-            KeyCode::Char('l') | KeyCode::Right => {
+            KeyCode::Char('+') => {
                 self.needs_redraw = true;
                 if self.is_editing {
-                    self.field_content.push('l');
+                    self.field_content.push('+');
                     Event::None
                 } else {
                     if let Ok(field) = self
@@ -271,7 +280,7 @@ impl ServiceCallState {
                 self.call_service();
                 Event::None
             }
-            KeyCode::BackTab => {
+            KeyCode::Char('h') | KeyCode::Left => {
                 self.focus = FocusPane::Request;
                 self.needs_redraw = true;
                 Event::None
@@ -312,13 +321,13 @@ impl TuiView for ServiceCallState {
     fn get_help_text(&self) -> String {
         "Service Call View Help:\n\
         - 'c': Call the service with the current request.\n\
-        - 'Tab': Switch focus to the response pane.\n\
-        - 'Shift+Tab': Switch focus to the request pane.\n\
+        - 'l' or →: Switch focus to the response pane.\n\
+        - 'h' or ←: Switch focus to the request pane.\n\
         - 'j' or ↓: Move down in the message fields.\n\
         - 'k' or ↑: Move up in the message fields.\n\
         - 'G': Jump to the last field.\n\
-        - 'l' or →: Increase size of sequence field (request only).\n\
-        - 'h' or ←: Decrease size of sequence field (request only).\n\
+        - '+': Increase size of sequence field (request only).\n\
+        - '-': Decrease size of sequence field (request only).\n\
         - 'Enter': Toggle edit mode for primitive fields (request only).\n\
         - 'Backspace': Remove last character when editing."
             .to_string()

@@ -141,10 +141,10 @@ impl TuiView for TopicPublisherState {
                         }
                         Event::None
                     }
-                    KeyCode::Char('h') | KeyCode::Left => {
+                    KeyCode::Char('-') => {
                         self.needs_redraw = true;
                         if self.is_editing {
-                            self.field_content.push('h');
+                            self.field_content.push('-');
                             Event::None
                         } else {
                             if let Ok(field) =
@@ -177,10 +177,10 @@ impl TuiView for TopicPublisherState {
                             Event::None
                         }
                     }
-                    KeyCode::Char('l') | KeyCode::Right => {
+                    KeyCode::Char('+') => {
                         self.needs_redraw = true;
                         if self.is_editing {
-                            self.field_content.push('l');
+                            self.field_content.push('+');
                             Event::None
                         } else {
                             if let Ok(field) =
@@ -274,8 +274,8 @@ impl TuiView for TopicPublisherState {
         - 'j' or ↓: Move down in the message fields.\n\
         - 'k' or ↑: Move up in the message fields.\n\
         - 'G': Jump to the last field in the message.\n\
-        - 'l' or →: Increase size of sequence field.\n\
-        - 'h' or ←: Decrease size of sequence field.\n\
+        - '+': Increase size of sequence field.\n\
+        - '-': Decrease size of sequence field.\n\
         - 'p': Publish the current message (only when not editing).\n\
         - 'Enter': Toggle edit mode for primitive fields and commit changes when exiting edit mode.\n\
         - 'Backspace': Remove last character from the field content when editing."

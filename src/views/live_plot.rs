@@ -130,11 +130,11 @@ impl TuiView for LivePlotState {
                 return event;
             }
             match key_event.code {
-                KeyCode::Char('h') | KeyCode::Left => {
+                KeyCode::Char('+') => {
                     self.max_duration += 1.0; // Increase the maximum duration
                     Event::None
                 }
-                KeyCode::Char('l') | KeyCode::Right => {
+                KeyCode::Char('-') => {
                     if self.max_duration > 1.0 {
                         self.max_duration -= 1.0; // Decrease the maximum duration
                     }
@@ -153,8 +153,8 @@ impl TuiView for LivePlotState {
 
     fn get_help_text(&self) -> String {
         "Live Plot View Help:\n\
-        - 'h' or ←: Increase the time window for the live plot.\n\
-        - 'l' or →: Decrease the time window for the live plot."
+        - '+': Increase the time window for the live plot.\n\
+        - '-': Decrease the time window for the live plot."
             .to_string()
     }
 

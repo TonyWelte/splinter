@@ -162,11 +162,11 @@ impl TuiView for StateGraphViewState {
                 return event;
             }
             match key_event.code {
-                KeyCode::Char('h') | KeyCode::Left => {
+                KeyCode::Char('+') => {
                     self.max_duration += 5.0;
                     Event::None
                 }
-                KeyCode::Char('l') | KeyCode::Right => {
+                KeyCode::Char('-') => {
                     if self.max_duration > 5.0 {
                         self.max_duration -= 5.0;
                     }
@@ -196,8 +196,8 @@ impl TuiView for StateGraphViewState {
 
     fn get_help_text(&self) -> String {
         "State Graph View Help:\n\
-        - 'h' or ←: Increase the time window.\n\
-        - 'l' or →: Decrease the time window.\n\
+        - '+': Increase the time window.\n\
+        - '-': Decrease the time window.\n\
         - 'j' or ↓: Scroll down.\n\
         - 'k' or ↑: Scroll up.\n\n\
         Each row shows a field's state over time.\n\
