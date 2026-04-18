@@ -1,9 +1,9 @@
 <package format="3">
   <name>splinter</name>
-  <version>0.0.0</version>
-  <description>TODO: Package description</description>
+  <version>0.1.0</version>
+  <description>A terminal user interface for ROS 2 topics and nodes.</description>
   <maintainer email="tony.welte@gmail.com">Anthony Welte</maintainer>
-  <license>TODO: License declaration</license>
+  <license>Apache-2.0</license>
 
   <depend>rclrs</depend>
   <depend>std_msgs</depend>

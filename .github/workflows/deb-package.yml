@@ -1,0 +1,89 @@
+name: Debian Package
+
+'on':
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  package:
+    strategy:
+      max-parallel: 1
+      matrix:
+        include:
+          - ros_distribution: jazzy
+            os_version: noble
+            docker_image: rostooling/setup-ros-docker:ubuntu-noble-ros-jazzy-ros-base-latest
+          - ros_distribution: kilted
+            os_version: noble
+            docker_image: rostooling/setup-ros-docker:ubuntu-noble-ros-kilted-ros-base-latest
+          - ros_distribution: rolling
+            os_version: noble
+            docker_image: rostooling/setup-ros-docker:ubuntu-noble-ros-rolling-ros-base-latest
+    runs-on: ubuntu-latest
+    continue-on-error: ${{ matrix.ros_distribution == 'rolling' }}
+    container:
+      image: ${{ matrix.docker_image }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup ROS environment
+        uses: ros-tooling/setup-ros@v0.7
+        with:
+          required-ros-distributions: ${{ matrix.ros_distribution }}
+          use-ros2-testing: ${{ matrix.ros_distribution == 'rolling' }}
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install packaging tools
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            python3-bloom \
+            debhelper \
+            fakeroot \
+            dpkg-dev \
+            python3-pip \
+            python3-vcstool
+
+      - name: Import ros2_rust support-splinter dependencies
+        run: |
+          vcs import . < tools/packages.repos
+          vcs import . < ros2_rust/ros2_rust_${{ matrix.ros_distribution }}.repos
+
+      - name: Install colcon Rust plugins
+        run: |
+          rm -f /usr/lib/python3.12/EXTERNALLY-MANAGED || true
+          pip3 install git+https://github.com/colcon/colcon-cargo.git
+          pip3 install git+https://github.com/colcon/colcon-ros-cargo.git
+
+      - name: Generate Debian packaging with bloom
+        run: |
+          rm -rf debian
+          bloom-generate rosdebian \
+            --ros-distro ${{ matrix.ros_distribution }} \
+            --os-name ubuntu \
+            --os-version ${{ matrix.os_version }} \
+            --skip-keys "rclrs test_msgs"
+
+      - name: Build Debian binary package
+        run: |
+          . /opt/ros/${{ matrix.ros_distribution }}/setup.sh
+          dpkg-buildpackage -b -uc -us
+
+      - name: Upload Debian artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: deb-${{ matrix.ros_distribution }}
+          path: |
+            ../*.deb
+            ../*.ddeb
+            ../*.buildinfo
+            ../*.changes
+          if-no-files-found: error

@@ -1,0 +1,78 @@
+name: CI
+
+'on':
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - ros_distribution: jazzy
+            docker_image: rostooling/setup-ros-docker:ubuntu-noble-ros-jazzy-ros-base-latest
+          - ros_distribution: kilted
+            docker_image: rostooling/setup-ros-docker:ubuntu-noble-ros-kilted-ros-base-latest
+          - ros_distribution: rolling
+            docker_image: rostooling/setup-ros-docker:ubuntu-noble-ros-rolling-ros-base-latest
+    runs-on: ubuntu-latest
+    continue-on-error: ${{ matrix.ros_distribution == 'rolling' }}
+    container:
+      image: ${{ matrix.docker_image }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup ROS environment
+        uses: ros-tooling/setup-ros@v0.7
+        with:
+          required-ros-distributions: ${{ matrix.ros_distribution }}
+          use-ros2-testing: ${{ matrix.ros_distribution == 'rolling' }}
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Install CI dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends python3-vcstool
+
+      - name: Import ros2_rust support-splinter dependencies
+        run: |
+          vcs import . < tools/packages.repos
+          vcs import . < ros2_rust/ros2_rust_${{ matrix.ros_distribution }}.repos
+
+      - name: Install colcon Rust plugins
+        run: |
+          rm -f /usr/lib/python3.12/EXTERNALLY-MANAGED || true
+          pip3 install git+https://github.com/colcon/colcon-cargo.git
+          pip3 install git+https://github.com/colcon/colcon-ros-cargo.git
+
+      - name: Check Rust formatting
+        run: |
+          rustup toolchain install nightly
+          cargo +nightly fmt --all -- --check
+
+      - name: Build package with colcon
+        run: |
+          . /opt/ros/${{ matrix.ros_distribution }}/setup.sh
+          colcon build --event-handlers console_direct+ --packages-up-to splinter
+
+      - name: Run clippy
+        run: |
+          . /opt/ros/${{ matrix.ros_distribution }}/setup.sh
+          cargo clippy --all-targets -- -D warnings
+
+      - name: Run tests
+        run: |
+          . /opt/ros/${{ matrix.ros_distribution }}/setup.sh
+          colcon test --event-handlers console_direct+ --packages-select splinter
+          colcon test-result --verbose

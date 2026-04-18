@@ -50,6 +50,39 @@ chmod +x splinter_install.sh
 - Installs Rust (if not already installed) and required system dependencies.
 - Creates a `splinter_ws` ROS2 workspace, sets up `ros2_rust` and Splinter, and builds the project.
 
+## CI/CD and Debian Packages
+
+This repository includes GitHub Actions workflows for:
+
+- Continuous integration builds and checks on ROS 2 Jazzy, Kilted, and Rolling.
+- Debian package generation as downloadable build artifacts.
+
+### Generate Debian artifacts
+
+1. Push a version tag:
+
+    ```sh
+    git tag v0.1.0
+    git push origin v0.1.0
+    ```
+
+2. Open the **Debian Package** workflow run in GitHub Actions.
+3. Download the artifact named `deb-<ros_distribution>`.
+
+### Install from artifact
+
+After extracting the artifact, install the `.deb` package:
+
+```sh
+sudo apt install ./ros-<ros_distro>-splinter_*.deb
+```
+
+If your system reports missing dependencies, run:
+
+```sh
+sudo apt -f install
+```
+
 ## Roadmap
 
 ### Upcoming Features
