@@ -32,7 +32,7 @@ pub struct TopicPublisherWidget;
 pub struct TopicPublisherState {
     topic: String,
     _connection: Rc<RefCell<ConnectionType>>,
-    publisher: Box<dyn Fn(&GenericMessage) -> Result<(), String>>,
+    publisher: Box<dyn Fn(&GenericMessage) -> Result<Vec<String>, String>>,
     message: GenericMessage,
     pane: MessagePaneState,
     is_editing: bool,
@@ -124,7 +124,11 @@ impl TuiView for TopicPublisherState {
                                 self.apply_auto_stamp();
                             }
                             match self.publisher.as_ref()(&self.message) {
-                                Ok(()) => Event::None,
+                                Ok(warnings) if !warnings.is_empty() => Event::Error(format!(
+                                    "Published with warnings:\n{}",
+                                    warnings.join("\n")
+                                )),
+                                Ok(_) => Event::None,
                                 Err(e) => Event::Error(format!("Failed to publish: {}", e)),
                             }
                         }
@@ -224,12 +228,13 @@ impl TuiView for TopicPublisherState {
                         if self.is_editing {
                             // Update the message with the new field content
                             self.is_editing = false;
-                            self.commit_edit().unwrap_or_else(|e| {
-                                eprintln!("Failed to commit edit: {}", e);
-                            });
+                            let commit_result = self.commit_edit();
                             self.field_content.clear();
                             self.needs_redraw = true;
-                            Event::None
+                            match commit_result {
+                                Ok(()) => Event::None,
+                                Err(e) => Event::Error(format!("Failed to commit edit: {}", e)),
+                            }
                         } else if get_field_category(&self.message, &self.pane.selected_fields)
                             == Some(FieldCategory::Base)
                         {

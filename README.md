@@ -52,12 +52,6 @@ chmod +x splinter_install.sh
 
 ## Roadmap
 
-### Current Priorities
-
-| Feature                      | Notes                                          |
-| ---------------------------- | ---------------------------------------------- |
-| GenericMessage (non-copying) | Preparing for MCAP and Foxglove bridge support |
-
 ### Upcoming Features
 
 | Feature                 | Notes                            |

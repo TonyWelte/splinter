@@ -2,7 +2,7 @@ use indexmap::IndexMap;
 use rclrs::{
     ArrayValue, BoundedSequenceValue, DynamicMessageView, SequenceValue, SimpleValue, Value,
 };
-use std::{ops::Index, time::SystemTime};
+use std::{f64::consts::E, ops::Index, time::SystemTime};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct InterfaceType {
@@ -775,7 +775,16 @@ impl GenericField {
                     SimpleField::Uint64(v) => Ok(AnyTypeMutableRef::Uint64(v)),
                     SimpleField::Int64(v) => Ok(AnyTypeMutableRef::Int64(v)),
                     SimpleField::String(v) => Ok(AnyTypeMutableRef::String(v)),
-                    _ => Err("Unsupported simple field type for mutable reference".to_string()),
+                    SimpleField::LongDouble(_) => Err("Unsupported long double type".to_string()),
+                    SimpleField::Char(v) => Ok(AnyTypeMutableRef::Uint8(v)),
+                    SimpleField::WChar(v) => Ok(AnyTypeMutableRef::Uint16(v)),
+                    SimpleField::Octet(v) => Ok(AnyTypeMutableRef::Uint8(v)),
+                    SimpleField::BoundedString(v) => Ok(AnyTypeMutableRef::String(v)),
+                    SimpleField::WString(v) => Ok(AnyTypeMutableRef::String(v)),
+                    SimpleField::BoundedWString(v) => Ok(AnyTypeMutableRef::String(v)),
+                    SimpleField::Message(_) => {
+                        unreachable!("Handled by the outer match arm")
+                    }
                 }
             }
             GenericField::Array(array_field) => {
@@ -838,7 +847,31 @@ impl GenericField {
                         }
                         v[index].get_mut_deep_index(&field_index_path[1..])
                     }
-                    _ => Err("Unsupported array field type for mutable reference".to_string()),
+                    ArrayField::LongDouble(_) => Err("Unsupported long double type".to_string()),
+                    ArrayField::Char(v) => v
+                        .get_mut(index)
+                        .map(AnyTypeMutableRef::Uint8)
+                        .ok_or_else(|| "Index out of bounds".to_string()),
+                    ArrayField::WChar(v) => v
+                        .get_mut(index)
+                        .map(AnyTypeMutableRef::Uint16)
+                        .ok_or_else(|| "Index out of bounds".to_string()),
+                    ArrayField::Octet(v) => v
+                        .get_mut(index)
+                        .map(AnyTypeMutableRef::Uint8)
+                        .ok_or_else(|| "Index out of bounds".to_string()),
+                    ArrayField::BoundedString(v) => v
+                        .get_mut(index)
+                        .map(AnyTypeMutableRef::String)
+                        .ok_or_else(|| "Index out of bounds".to_string()),
+                    ArrayField::WString(v) => v
+                        .get_mut(index)
+                        .map(AnyTypeMutableRef::String)
+                        .ok_or_else(|| "Index out of bounds".to_string()),
+                    ArrayField::BoundedWString(v) => v
+                        .get_mut(index)
+                        .map(AnyTypeMutableRef::String)
+                        .ok_or_else(|| "Index out of bounds".to_string()),
                 }
             }
             GenericField::Sequence(sequence_field) => {
@@ -901,7 +934,31 @@ impl GenericField {
                         }
                         v[index].get_mut_deep_index(&field_index_path[1..])
                     }
-                    _ => Err("Unsupported array field type for mutable reference".to_string()),
+                    SequenceField::LongDouble(_) => Err("Unsupported long double type".to_string()),
+                    SequenceField::Char(v) => v
+                        .get_mut(index)
+                        .map(AnyTypeMutableRef::Uint8)
+                        .ok_or_else(|| "Index out of bounds".to_string()),
+                    SequenceField::WChar(v) => v
+                        .get_mut(index)
+                        .map(AnyTypeMutableRef::Uint16)
+                        .ok_or_else(|| "Index out of bounds".to_string()),
+                    SequenceField::Octet(v) => v
+                        .get_mut(index)
+                        .map(AnyTypeMutableRef::Uint8)
+                        .ok_or_else(|| "Index out of bounds".to_string()),
+                    SequenceField::BoundedString(v) => v
+                        .get_mut(index)
+                        .map(AnyTypeMutableRef::String)
+                        .ok_or_else(|| "Index out of bounds".to_string()),
+                    SequenceField::WString(v) => v
+                        .get_mut(index)
+                        .map(AnyTypeMutableRef::String)
+                        .ok_or_else(|| "Index out of bounds".to_string()),
+                    SequenceField::BoundedWString(v) => v
+                        .get_mut(index)
+                        .map(AnyTypeMutableRef::String)
+                        .ok_or_else(|| "Index out of bounds".to_string()),
                 }
             }
             GenericField::BoundedSequence(sequence_field) => {
@@ -964,7 +1021,33 @@ impl GenericField {
                         }
                         v[index].get_mut_deep_index(&field_index_path[1..])
                     }
-                    _ => Err("Unsupported array field type for mutable reference".to_string()),
+                    BoundedSequenceField::LongDouble(_, _) => {
+                        Err("Unsupported long double type".to_string())
+                    }
+                    BoundedSequenceField::Char(v, _) => v
+                        .get_mut(index)
+                        .map(AnyTypeMutableRef::Uint8)
+                        .ok_or_else(|| "Index out of bounds".to_string()),
+                    BoundedSequenceField::WChar(v, _) => v
+                        .get_mut(index)
+                        .map(AnyTypeMutableRef::Uint16)
+                        .ok_or_else(|| "Index out of bounds".to_string()),
+                    BoundedSequenceField::Octet(v, _) => v
+                        .get_mut(index)
+                        .map(AnyTypeMutableRef::Uint8)
+                        .ok_or_else(|| "Index out of bounds".to_string()),
+                    BoundedSequenceField::BoundedString(v, _) => v
+                        .get_mut(index)
+                        .map(AnyTypeMutableRef::String)
+                        .ok_or_else(|| "Index out of bounds".to_string()),
+                    BoundedSequenceField::WString(v, _) => v
+                        .get_mut(index)
+                        .map(AnyTypeMutableRef::String)
+                        .ok_or_else(|| "Index out of bounds".to_string()),
+                    BoundedSequenceField::BoundedWString(v, _) => v
+                        .get_mut(index)
+                        .map(AnyTypeMutableRef::String)
+                        .ok_or_else(|| "Index out of bounds".to_string()),
                 }
             }
         }

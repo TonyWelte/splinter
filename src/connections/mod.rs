@@ -65,7 +65,10 @@ pub struct NamedInterface {
     pub type_name: InterfaceType,
 }
 
-type PublisherFunc = dyn Fn(&GenericMessage) -> Result<(), String>;
+/// The publisher closure returns the (possibly empty) list of field-level conversion warnings on
+/// success, or a fatal error string on failure. A non-empty warnings list means the message was
+/// sent but some fields could not be converted and were left at their default values.
+type PublisherFunc = dyn Fn(&GenericMessage) -> Result<Vec<String>, String>;
 
 // Connection trait
 #[enum_dispatch(ConnectionType)]
@@ -145,14 +148,16 @@ pub trait Connection {
         service_type: &InterfaceType,
     ) -> Result<GenericMessage, String>;
 
-    /// Call a service. Sends `request`, blocks until the response arrives
-    /// (or timeout), and returns the response as a GenericMessage.
+    /// Call a service. Sends `request`, blocks until the response arrives (or timeout), and
+    /// returns the response together with any field-level conversion warnings that were produced
+    /// while building the request. A non-empty warnings list means some request fields could not
+    /// be converted and were sent as their default values.
     fn call_service(
         &self,
         service_name: &str,
         service_type: &InterfaceType,
         request: &GenericMessage,
-    ) -> Result<GenericMessage, String>;
+    ) -> Result<(GenericMessage, Vec<String>), String>;
 }
 
 #[enum_dispatch]

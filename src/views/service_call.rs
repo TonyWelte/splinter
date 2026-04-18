@@ -74,6 +74,7 @@ pub struct ServiceCallState {
     response: Option<GenericMessage>,
     response_pane: MessagePaneState,
     response_error: Option<String>,
+    response_warnings: Vec<String>,
 
     focus: FocusPane,
     needs_redraw: bool,
@@ -101,6 +102,7 @@ impl ServiceCallState {
             response: None,
             response_pane: MessagePaneState::new(),
             response_error: None,
+            response_warnings: Vec::new(),
             focus: FocusPane::Request,
             needs_redraw: true,
         }
@@ -115,21 +117,32 @@ impl ServiceCallState {
         )
     }
 
-    fn call_service(&mut self) {
+    fn call_service(&mut self) -> Event {
         self.needs_redraw = true;
         match self.connection.borrow().call_service(
             &self.service_name,
             &self.service_type,
             &self.request,
         ) {
-            Ok(response) => {
+            Ok((response, warnings)) => {
                 self.response = Some(response);
                 self.response_error = None;
+                self.response_warnings = warnings;
                 self.response_pane.selected_fields.clear();
+                if !self.response_warnings.is_empty() {
+                    Event::Error(format!(
+                        "Service call succeeded with warnings:\n{}",
+                        self.response_warnings.join("\n")
+                    ))
+                } else {
+                    Event::None
+                }
             }
             Err(e) => {
                 self.response = None;
                 self.response_error = Some(e);
+                self.response_warnings.clear();
+                Event::None
             }
         }
     }
@@ -138,10 +151,7 @@ impl ServiceCallState {
 
     fn handle_request_event(&mut self, key_event: crossterm::event::KeyEvent) -> Event {
         match key_event.code {
-            KeyCode::Char('c') if !self.is_editing => {
-                self.call_service();
-                Event::None
-            }
+            KeyCode::Char('c') if !self.is_editing => self.call_service(),
             KeyCode::Char('l') if !self.is_editing => {
                 self.focus = FocusPane::Response;
                 self.needs_redraw = true;
@@ -244,12 +254,13 @@ impl ServiceCallState {
             KeyCode::Enter => {
                 if self.is_editing {
                     self.is_editing = false;
-                    self.commit_edit().unwrap_or_else(|e| {
-                        eprintln!("Failed to commit edit: {e}");
-                    });
+                    let commit_result = self.commit_edit();
                     self.field_content.clear();
                     self.needs_redraw = true;
-                    Event::None
+                    match commit_result {
+                        Ok(()) => Event::None,
+                        Err(e) => Event::Error(format!("Failed to commit edit: {e}")),
+                    }
                 } else if get_field_category(&self.request, &self.request_pane.selected_fields)
                     == Some(FieldCategory::Base)
                 {
@@ -276,10 +287,7 @@ impl ServiceCallState {
 
     fn handle_response_event(&mut self, key_event: crossterm::event::KeyEvent) -> Event {
         match key_event.code {
-            KeyCode::Char('c') => {
-                self.call_service();
-                Event::None
-            }
+            KeyCode::Char('c') => self.call_service(),
             KeyCode::Char('h') | KeyCode::Left => {
                 self.focus = FocusPane::Request;
                 self.needs_redraw = true;
