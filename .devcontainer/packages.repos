@@ -1,5 +1,5 @@
 repositories:
   ros2_rust:
     type: git
-    url: https://github.com/luca-della-vedova/ros2_rust
-    version: dynamic_messages
+    url: https://github.com/TonyWelte/ros2_rust.git
+    version: support-splinter

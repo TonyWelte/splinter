@@ -4,41 +4,45 @@
 		"dockerfile": "Dockerfile"
 	},
 	"runArgs": [
-		// "--cap-add=SYS_PTRACE", // Allows the container to trace processes using ptrace system call
-		// "--security-opt=seccomp=unconfined", // Disables seccomp security profiles for the container
-		// "--ipc=host", // Shares the host's IPC namespace with the container
-		// "--network=host", // Shares the host's network namespace with the container
-		// "--pid=host", // Shares the host's PID namespace with the container
-		// "--privileged", // Gives the container full access to the host's devices and allows it to run with root privileges
+		"--ipc=host",
+		"--network=host",
+		"--device=/dev/dri"
 	],
 	"workspaceMount": "source=${localWorkspaceFolder},target=/root/ros_ws/src/${localWorkspaceFolderBasename},type=bind",
 	"workspaceFolder": "/root/ros_ws/src",
 	"containerEnv": {
-		/* Uncomment to allow the container to access the X server on the host e.g. to run Rviz and other GUI tools
-    	"DISPLAY": "${localEnv:DISPLAY}"
-		*/
+		// X11 / XWayland — rviz2 (Ogre/GLX) requires X11, not native Wayland
+		"DISPLAY": "${localEnv:DISPLAY}",
+		// Wayland display for Qt/GTK apps that do support it
+		"WAYLAND_DISPLAY": "${localEnv:WAYLAND_DISPLAY}",
+		"XDG_RUNTIME_DIR": "/tmp/runtime-root",
+		// Force rviz2 (Qt) to use X11/xcb — Ogre's GLX backend needs it
+		"QT_QPA_PLATFORM": "xcb",
+		"GDK_BACKEND": "x11",
+		// Software rendering fallback if GPU passthrough doesn't work
+		"LIBGL_ALWAYS_SOFTWARE": "0",
+		"MESA_GL_VERSION_OVERRIDE": "3.3"
 	},
 	"mounts": [
-		"source=${localEnv:HOME}${localEnv:USERPROFILE}/.ssh,target=/root/.ssh,readonly,type=bind"
-		/* Uncomment to allow the container to access the X server on the host e.g. to run Rviz and other GUI tools
+		"source=${localEnv:HOME}${localEnv:USERPROFILE}/.ssh,target=/root/.ssh,readonly,type=bind",
+		// Wayland socket
+		{
+			"source": "${localEnv:XDG_RUNTIME_DIR}/${localEnv:WAYLAND_DISPLAY}",
+			"target": "/tmp/runtime-root/${localEnv:WAYLAND_DISPLAY}",
+			"type": "bind"
+		},
+		// X11 / XWayland socket
 		{
 			"source": "/tmp/.X11-unix",
 			"target": "/tmp/.X11-unix",
 			"type": "bind"
 		},
-		{
-			"source": "${localEnv:XAUTHORITY:-$HOME/.Xauthority}",
-			"target": "/root/.Xauthority",
-			"type": "bind"
-		},
-		*/
-		/* Uncomment to persist bash history between sessions
-		{
-			"source": "${localEnv:HOME}${localEnv:USERPROFILE}/.bash_history",
-			"target": "/root/.bash_history",
-			"type": "bind"
-		}
-		*/
+		// // X11 auth cookie
+		// {
+		// 	"source": "${localEnv:XAUTHORITY:-${localEnv:HOME}/.Xauthority}",
+		// 	"target": "/root/.Xauthority",
+		// 	"type": "bind"
+		// }
 	],
 	"customizations": {
 		"vscode": {
