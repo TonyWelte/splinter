@@ -2884,6 +2884,10 @@ name = "slam_toolbox"
 version = "2.8.4"
 
 [[patch.unused]]
+name = "splinter"
+version = "0.1.0"
+
+[[patch.unused]]
 name = "statistics_msgs"
 version = "2.0.3"
 
