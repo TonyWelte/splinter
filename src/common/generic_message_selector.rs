@@ -359,16 +359,16 @@ mod tests {
         let msg = DynamicMessage::new(message_type).unwrap();
         let generic_message = GenericMessage::from(msg.view());
 
-        assert!(get_field_category(&generic_message, &vec![]).is_some()); // Root always exists
-        assert!(get_field_category(&generic_message, &vec![0]).is_some()); // header
-        assert!(get_field_category(&generic_message, &vec![2, 0, 1, 0]).is_some()); // pose.pose.orientation.x
-        assert!(get_field_category(&generic_message, &vec![2, 1, 35]).is_some()); // pose.covariance.35
+        assert!(get_field_category(&generic_message, &[]).is_some()); // Root always exists
+        assert!(get_field_category(&generic_message, &[0]).is_some()); // header
+        assert!(get_field_category(&generic_message, &[2, 0, 1, 0]).is_some()); // pose.pose.orientation.x
+        assert!(get_field_category(&generic_message, &[2, 1, 35]).is_some()); // pose.covariance.35
 
         // Out of bounds
-        assert!(get_field_category(&generic_message, &vec![10]).is_none());
-        assert!(get_field_category(&generic_message, &vec![2, 5]).is_none());
-        assert!(get_field_category(&generic_message, &vec![2, 0, 5]).is_none());
-        assert!(get_field_category(&generic_message, &vec![2, 0, 1, 5]).is_none());
+        assert!(get_field_category(&generic_message, &[10]).is_none());
+        assert!(get_field_category(&generic_message, &[2, 5]).is_none());
+        assert!(get_field_category(&generic_message, &[2, 0, 5]).is_none());
+        assert!(get_field_category(&generic_message, &[2, 0, 1, 5]).is_none());
     }
 
     #[test]

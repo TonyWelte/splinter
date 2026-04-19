@@ -2,7 +2,7 @@ use indexmap::IndexMap;
 use rclrs::{
     ArrayValue, BoundedSequenceValue, DynamicMessageView, SequenceValue, SimpleValue, Value,
 };
-use std::{f64::consts::E, ops::Index, time::SystemTime};
+use std::{ops::Index, time::SystemTime};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct InterfaceType {

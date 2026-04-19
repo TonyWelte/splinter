@@ -4,7 +4,7 @@ use ratatui::{
     prelude::{BlockExt, Buffer, Rect},
     style::{Color, Modifier, Style},
     symbols,
-    text::{Line, Span},
+    text::Span,
     widgets::{Block, StatefulWidget, Widget},
 };
 
@@ -399,7 +399,7 @@ fn compute_layout(
     // How many datasets fit in the available height?
     let visible_count = if use_spaced {
         // n datasets need 2n - 1 rows → n = (height + 1) / 2
-        (height + 1) / 2
+        height.div_ceil(2)
     } else {
         height
     };

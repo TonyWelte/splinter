@@ -37,7 +37,6 @@ enum ListWidgetMode {
     Search,
 }
 
-
 #[derive(Default)]
 pub struct ListWidgetState<ItemType>
 where

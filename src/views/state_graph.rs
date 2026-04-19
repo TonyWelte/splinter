@@ -89,7 +89,7 @@ impl StateGraphViewState {
                     if let Some(state_str) = get_state_string(&msg, &selected_fields_clone) {
                         let mut buf = buffer_clone.lock().unwrap();
                         // Only record when the state actually changes
-                        if buf.last().map_or(true, |(_, prev)| *prev != state_str) {
+                        if buf.last().is_none_or(|(_, prev)| *prev != state_str) {
                             buf.push((stamp, state_str));
                         }
                     }

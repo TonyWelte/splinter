@@ -98,7 +98,7 @@ mod tests {
             (2, "View2".to_string()),
             (3, "View3".to_string()),
         ];
-        let selected = 0 as usize;
+        let selected = 0_usize;
         let widget = SelectViewWidget::new(&views).with_selection(selected);
         let area = Rect {
             x: 0,
@@ -128,7 +128,7 @@ mod tests {
             (2, "View2".to_string()),
             (3, "View3".to_string()),
         ];
-        let selected = 1 as usize;
+        let selected = 1_usize;
         let widget = SelectViewWidget::new(&views).with_selection(selected);
         let area = Rect {
             x: 0,

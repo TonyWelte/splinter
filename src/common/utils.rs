@@ -1,4 +1,7 @@
-use ratatui::{style::{Modifier, Style}, text::Span};
+use ratatui::{
+    style::{Modifier, Style},
+    text::Span,
+};
 
 /// Builds a list of `Span`s from `text`, bolding each character whose byte index appears in
 /// `indices` (as produced by the nucleo fuzzy-match scorer).

@@ -1,6 +1,6 @@
+pub mod new_field_popup;
 pub mod new_node_popup;
 pub mod new_topic_popup;
-pub mod new_field_popup;
 pub mod text_popup;
 
 use ratatui::{buffer::Buffer, layout::Rect};

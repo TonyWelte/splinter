@@ -1,7 +1,14 @@
 use crossterm::event::{Event as CrosstermEvent, KeyEventKind};
-use ratatui::{buffer::Buffer, layout::Rect, widgets::{BorderType, Clear, Paragraph, Widget, Wrap}};
+use ratatui::{
+    buffer::Buffer,
+    layout::Rect,
+    widgets::{BorderType, Clear, Paragraph, Widget, Wrap},
+};
 
-use crate::{common::{event::Event, style::HEADER_STYLE}, popups::TuiPopup};
+use crate::{
+    common::{event::Event, style::HEADER_STYLE},
+    popups::TuiPopup,
+};
 
 pub struct TextPopup {
     title: String,

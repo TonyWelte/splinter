@@ -18,6 +18,12 @@ pub struct MessagePaneState {
     pub widget_state: MessageWidgetState,
 }
 
+impl Default for MessagePaneState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MessagePaneState {
     pub fn new() -> Self {
         Self {
