@@ -31,7 +31,6 @@ use crate::{common::style::SELECTED_STYLE, views::ConnectionInfo};
 #[derive(Default)]
 pub struct AppMetrics {
     pub draw_count: u32,
-    pub events: Vec<Event>,
 }
 
 type NewConnectionFactoryClosure = dyn Fn(ConnectionInfo) -> Rc<RefCell<dyn TuiView>> + Send + Sync;
@@ -208,11 +207,6 @@ impl App {
     }
 
     fn handle_event(&mut self, event: Event) {
-        // Log events only when the event overlay is active (for debugging / animated GIFs)
-        if let Some(m) = &mut self.metrics {
-            m.events.push(event.clone());
-        }
-
         let event = match &mut self.popup_view {
             None => self.widgets[self.active_widget_index]
                 .borrow_mut()
@@ -344,13 +338,8 @@ impl App {
 
 impl Widget for &mut App {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        let [header_area, content_area] =
-            Layout::vertical([Constraint::Length(1), Constraint::Fill(1)]).areas(area);
-
         let [tab_area, widget_area] =
-            Layout::vertical([Constraint::Length(1), Constraint::Fill(1)]).areas(content_area);
-
-        App::render_header(header_area, buf);
+            Layout::vertical([Constraint::Length(1), Constraint::Fill(1)]).areas(area);
 
         let widget_names = self.widgets.iter().map(|w| w.borrow().name());
         Tabs::new(widget_names)
@@ -370,68 +359,5 @@ impl Widget for &mut App {
         if let Some(popup) = &self.popup_view {
             popup.render(popup_area, buf);
         }
-
-        if self.metrics.is_some() {
-            self.render_event(area, buf);
-        }
-    }
-}
-
-/// Rendering logic for the app
-impl App {
-    fn render_header(area: Rect, buf: &mut Buffer) {
-        Paragraph::new("Splinter - ROS2 TUI")
-            .bold()
-            .centered()
-            .render(area, buf);
-    }
-
-    pub fn render_event(&self, area: Rect, buf: &mut Buffer) {
-        let Some(metrics) = &self.metrics else { return };
-        // Display all key events at the bottom in a bordered text box for the animated GIF
-        let event_log_area = Rect {
-            x: area.x + area.width / 3,
-            y: area.y + area.height - 5,
-            width: area.width / 3,
-            height: 3,
-        };
-        let event_to_character = |event: &Event| match event {
-            Event::Key(CrosstermEvent::Key(key_event)) => match key_event.code {
-                KeyCode::Char(c) => c.to_string(),
-                KeyCode::Enter => "⏎".to_string(),
-                KeyCode::Tab => "⇥".to_string(),
-                KeyCode::BackTab => "⇤".to_string(),
-                KeyCode::Esc => "⎋".to_string(),
-                KeyCode::Backspace => "⌫".to_string(),
-                KeyCode::Left => "←".to_string(),
-                KeyCode::Right => "→".to_string(),
-                KeyCode::Up => "↑".to_string(),
-                KeyCode::Down => "↓".to_string(),
-                _ => "Unknown".to_string(),
-            },
-            _ => "".to_string(),
-        };
-        let recent_events = metrics
-            .events
-            .iter()
-            .rev()
-            .filter(|e| matches!(e, Event::Key(_)))
-            .take(event_log_area.width as usize / 2 - 1)
-            .map(event_to_character)
-            .collect::<Vec<String>>();
-        let event_log_text = recent_events
-            .into_iter()
-            .rev()
-            .collect::<Vec<String>>()
-            .join(" ");
-        Clear.render(event_log_area, buf);
-        Paragraph::new(event_log_text)
-            .block(
-                ratatui::widgets::Block::default()
-                    .borders(ratatui::widgets::Borders::ALL)
-                    .title("Event Log"),
-            )
-            .alignment(Alignment::Right)
-            .render(event_log_area, buf);
     }
 }
