@@ -38,6 +38,7 @@ pub struct TopicPublisherState {
     is_editing: bool,
     field_content: String,
     needs_redraw: bool,
+    counter: usize,
 }
 
 impl TopicPublisherState {
@@ -65,6 +66,7 @@ impl TopicPublisherState {
             is_editing: false,
             field_content: String::new(),
             needs_redraw: true,
+            counter: 0,
         }
     }
 
@@ -124,11 +126,19 @@ impl TuiView for TopicPublisherState {
                                 self.apply_auto_stamp();
                             }
                             match self.publisher.as_ref()(&self.message) {
-                                Ok(warnings) if !warnings.is_empty() => Event::Error(format!(
-                                    "Published with warnings:\n{}",
-                                    warnings.join("\n")
-                                )),
-                                Ok(_) => Event::None,
+                                Ok(warnings) if !warnings.is_empty() => {
+                                    self.counter = self.counter.saturating_add(1);
+                                    self.needs_redraw = true;
+                                    Event::Error(format!(
+                                        "Published with warnings:\n{}",
+                                        warnings.join("\n")
+                                    ))
+                                }
+                                Ok(_) => {
+                                    self.counter = self.counter.saturating_add(1);
+                                    self.needs_redraw = true;
+                                    Event::None
+                                }
                                 Err(e) => Event::Error(format!("Failed to publish: {}", e)),
                             }
                         }
@@ -314,15 +324,16 @@ impl FromTopic for TopicPublisherState {
 impl TopicPublisherWidget {
     pub fn render(area: Rect, buf: &mut Buffer, state: &mut TopicPublisherState) {
         let block = Block::bordered()
-            .title(
-                Line::from(format!(
-                    "Topic Publisher - {} {}",
-                    state.topic, state.is_editing
-                ))
-                .centered(),
-            )
+            .title(Line::from(format!(" Topic Publisher - {} ", state.topic)).centered())
             .border_style(HEADER_STYLE)
-            .border_type(BorderType::Rounded);
+            .border_type(BorderType::Rounded)
+            .title_bottom(
+                Line::from(format!(" Publish counter: {} ", state.counter)).left_aligned(),
+            )
+            .title_bottom(match state.is_editing {
+                true => Line::from("INSERT").right_aligned(),
+                false => Line::from("NORMAL").right_aligned(),
+            });
 
         let mut message_widget = MessageWidget::new(&state.message).block(block);
         if !state.pane.selected_fields.is_empty() {
