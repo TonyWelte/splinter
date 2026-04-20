@@ -2,7 +2,31 @@
 
 **Splinter** is a **Terminal User Interface (TUI)** for **ROS2**. It provides a keyboard-driven way to interact with ROS2 topics and nodes from your terminal.
 
-![Animation](./doc/img/animation.gif)
+## Demo
+
+### Topic Graph and Plots
+
+Browse topics using fuzzy search, select a topic to inspect its message fields, and add fields to a live plot.
+
+<img src="./doc/img/splinter-graph.gif"></img>
+
+### State Messages
+
+Browse topics using fuzzy search, select a topic to inspect its message fields, and add fields to a state graph.
+
+<img src="./doc/img/splinter-states.gif"></img>
+
+### Topic Publishing
+
+Fill in a message field by field using arrow keys or `j`/`k`, edit values in place, and publish with `p`.
+
+<img src="./doc/img/splinter-publishing.gif"></img>
+
+### Calling Services
+
+Navigate to a node, pick one of its services, edit the request fields, and call the service.
+
+<img src="./doc/img/splinter-service.gif"></img>
 
 ## Features
 

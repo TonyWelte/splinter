@@ -4,7 +4,7 @@ FROM osrf/ros:jazzy-desktop-full
 RUN sudo apt update && sudo apt upgrade -y
 
 # Install essential packages
-RUN sudo apt install -y wget ninja-build clangd-19 ssh nano neovim less curl libclang-dev python3-vcstool python3-pip zsh sudo
+RUN sudo apt install -y wget ninja-build clangd-19 ssh nano neovim less curl libclang-dev python3-vcstool python3-pip zsh sudo golang ffmpeg ttyd tmux
 
 # GUI / Wayland support for rviz2 and other graphical tools
 RUN sudo apt install -y \
@@ -42,6 +42,14 @@ RUN sudo apt install -y \
     ros-${ROS_DISTRO}-nav2-minimal-tb3-sim \
     ros-${ROS_DISTRO}-nav2-loopback-sim \
     ros-${ROS_DISTRO}-turtlebot3-gazebo
+
+RUN cd /tmp && \
+    git clone --depth 1 --branch caption-overlay https://github.com/pkazmier/vhs.git && \
+    cd vhs && \
+    go build && \
+    mv vhs /usr/local/bin/ && \
+    cd .. && rm -rf vhs
+
 
 RUN echo "source /opt/ros/${ROS_DISTRO}/setup.zsh" >> ~/.zshrc
 RUN echo "source /root/ros_ws/setup.zsh" >> ~/.zshrc
