@@ -405,7 +405,7 @@ impl Connection for ConnectionROS2 {
     }
 
     /// Get the type of the connection.
-    fn list_topics(&self) -> Result<Vec<(String, InterfaceType)>, String> {
+    fn list_topics(&self) -> Result<Vec<NamedInterface>, String> {
         // Get topic names and types
         let topics = self
             .node
@@ -413,13 +413,16 @@ impl Connection for ConnectionROS2 {
             .map_err(|_| "Failed to get topic names and types".to_string())?;
 
         // Convert to InterfaceType
-        let topics: Vec<(String, InterfaceType)> = topics
+        let topics: Vec<NamedInterface> = topics
             .into_iter()
             .filter_map(|(name, types)| {
                 types
                     .first()
                     .and_then(|type_name| InterfaceType::new(type_name).ok())
-                    .map(|interface_type| (name, interface_type))
+                    .map(|interface_type| NamedInterface {
+                        name,
+                        type_name: interface_type,
+                    })
             })
             .collect();
 
@@ -446,8 +449,8 @@ impl Connection for ConnectionROS2 {
         self.list_topics()
             .ok()?
             .into_iter()
-            .find(|(name, _)| name == topic)
-            .map(|(_, interface_type)| interface_type)
+            .find(|named_interface| named_interface.name == topic)
+            .map(|named_interface| named_interface.type_name)
     }
 
     fn get_publisher_names_and_types_by_node(

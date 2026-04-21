@@ -341,18 +341,23 @@ impl NodeDetailState {
 
     pub fn update(&mut self) {
         let connection = self.connection.borrow();
-        let publishers = connection
+        let mut publishers = connection
             .get_publisher_names_and_types_by_node(&self.node)
             .unwrap_or_default();
-        let subscriptions = connection
+        let mut subscriptions = connection
             .get_subscription_names_and_types_by_node(&self.node)
             .unwrap_or_default();
-        let clients = connection
+        let mut clients = connection
             .get_client_names_and_types_by_node(&self.node)
             .unwrap_or_default();
-        let services = connection
+        let mut services = connection
             .get_service_names_and_types_by_node(&self.node)
             .unwrap_or_default();
+
+        publishers.sort_by(|a, b| a.name.cmp(&b.name));
+        subscriptions.sort_by(|a, b| a.name.cmp(&b.name));
+        clients.sort_by(|a, b| a.name.cmp(&b.name));
+        services.sort_by(|a, b| a.name.cmp(&b.name));
 
         self.publisher_list_state.update(publishers);
         self.subscriber_list_state.update(subscriptions);

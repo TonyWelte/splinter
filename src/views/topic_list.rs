@@ -2,7 +2,6 @@ use std::{cell::RefCell, rc::Rc};
 
 use ratatui::{
     prelude::{Buffer, Rect},
-    style::{Color, Style, Styled, Stylize},
     text::{Line, Span},
     widgets::{Block, BorderType, StatefulWidget},
 };
@@ -10,54 +9,17 @@ use ratatui::{
 use crossterm::event::{Event as CrosstermEvent, KeyCode, KeyEventKind};
 
 use crate::{
-    common::{
-        event::Event,
-        generic_message::InterfaceType,
-        style::{HEADER_STYLE, SELECTED_STYLE},
-        utils::{build_highlighted_spans, truncate_namespaces},
-    },
-    connections::{Connection, ConnectionType},
+    common::{event::Event, style::HEADER_STYLE},
+    connections::{Connection, ConnectionType, NamedInterface},
     views::{ConnectionInfo, FromConnection, TopicInfo, TuiView},
-    widgets::list_widget::{ListItemTrait, ListWidget, ListWidgetState},
+    widgets::list_widget::{ListWidget, ListWidgetState},
 };
 
 pub struct TopicList;
 
-#[derive(Clone, Debug)]
-struct Topic {
-    name: String,
-    type_name: InterfaceType,
-}
-
-impl ListItemTrait for Topic {
-    fn search_text(&self) -> String {
-        self.name.clone()
-    }
-
-    fn to_line(&'_ self, width: usize, selected: bool, indices: Vec<u32>) -> Line<'_> {
-        let (truncated_name, new_indices) = truncate_namespaces(&self.name, &indices, width);
-
-        let mut spans = build_highlighted_spans(truncated_name, new_indices);
-
-        spans.push(Span::raw(" "));
-        spans.push(Span::styled(
-            self.type_name.to_string(),
-            Style::default().fg(Color::DarkGray),
-        ));
-
-        let mut line = Line::from(spans);
-
-        if selected {
-            line = line.set_style(SELECTED_STYLE);
-        }
-
-        line
-    }
-}
-
 pub struct TopicListState {
     connection: Rc<RefCell<ConnectionType>>,
-    state: ListWidgetState<Topic>,
+    state: ListWidgetState<NamedInterface>,
 
     last_update: std::time::Instant,
     needs_redraw: bool,
@@ -65,13 +27,7 @@ pub struct TopicListState {
 
 impl TopicListState {
     pub fn new(connection: Rc<RefCell<ConnectionType>>) -> Self {
-        let topics = connection
-            .borrow()
-            .list_topics()
-            .unwrap()
-            .into_iter()
-            .map(|(name, type_name)| Topic { name, type_name })
-            .collect::<Vec<Topic>>();
+        let topics = connection.borrow().list_topics().unwrap();
 
         Self {
             connection,
@@ -88,14 +44,7 @@ impl TopicListState {
         }
         self.last_update = std::time::Instant::now();
 
-        let mut new_topics = self
-            .connection
-            .borrow()
-            .list_topics()
-            .unwrap_or_default()
-            .into_iter()
-            .map(|(name, type_name)| Topic { name, type_name })
-            .collect::<Vec<Topic>>();
+        let mut new_topics = self.connection.borrow().list_topics().unwrap_or_default();
         new_topics.sort_by(|a, b| a.name.cmp(&b.name));
         self.state.update(new_topics);
     }
