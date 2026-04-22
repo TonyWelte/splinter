@@ -19,7 +19,7 @@ sudo apt install -y ffmpeg ttyd
 From the repository root:
 
 ```bash
-vhs doc/vhs/splinter-graph.tape
+VHS_NO_SANDBOX=false vhs doc/vhs/splinter-graph.tape
 ```
 
 This writes a GIF to:

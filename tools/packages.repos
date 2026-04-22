@@ -1,5 +1,0 @@
-repositories:
-  ros2_rust:
-    type: git
-    url: https://github.com/Tonywelte/ros2_rust
-    version: support-splinter

@@ -38,74 +38,40 @@ Navigate to a node, pick one of its services, edit the request fields, and call 
 
 ## Installation Guide
 
+### Debian/Ubuntu Installation
+
+1. **Download the latest release**  
+    See https://github.com/TonyWelte/splinter/releases
+
+2. **Install the .deb archive**
+    ```sh
+    sudo apt-get install ./splinter_VERSION.deb
+    ```
+
+3. **Run splinter**
+    ```sh
+    splinter
+    ```
+
 ### Manual Installation
 
 1. **Set up ros2_rust**  
     Follow the [installation instructions](https://github.com/ros2-rust/ros2_rust/tree/main?tab=readme-ov-file#sounds-great-how-can-i-try-this-out) for `ros2_rust`.
 
 2. **Clone the Splinter repository**  
-    Run the following command to clone the Splinter repository:
     ```sh
     git clone https://github.com/TonyWelte/splinter.git
     ```
 
 3. **Build the project**  
-    Use `colcon` to build Splinter:
     ```sh
     colcon build --packages-up-to splinter
     ```
 
-### Quick Installation
-
-> [!WARNING]  
-> Review the script before running it. It may prompt for your password to install dependencies. On some systems, it requires running `pip` with the `--break-system-packages` flag.
-
-To quickly install Splinter, download and execute the installation script:
-
-```sh
-curl -O https://raw.githubusercontent.com/TonyWelte/splinter/refs/heads/main/tools/splinter_install.sh
-chmod +x splinter_install.sh
-./splinter_install.sh
-```
-
-#### What the Script Does:
-
-- Verifies that a ROS2 environment is sourced.
-- Installs Rust (if not already installed) and required system dependencies.
-- Creates a `splinter_ws` ROS2 workspace, sets up `ros2_rust` and Splinter, and builds the project.
-
-## CI/CD and Debian Packages
-
-This repository includes GitHub Actions workflows for:
-
-- Continuous integration builds and checks on ROS 2 Jazzy, Kilted, and Rolling.
-- Debian package generation as downloadable build artifacts.
-
-### Generate Debian artifacts
-
-1. Push a version tag:
-
+4. **Run splinter**
     ```sh
-    git tag v0.1.0
-    git push origin v0.1.0
+    ros2 run splinter splinter
     ```
-
-2. Open the **Debian Package** workflow run in GitHub Actions.
-3. Download the artifact named `deb-<ros_distribution>`.
-
-### Install from artifact
-
-After extracting the artifact, install the `.deb` package:
-
-```sh
-sudo apt install ./ros-<ros_distro>-splinter_*.deb
-```
-
-If your system reports missing dependencies, run:
-
-```sh
-sudo apt -f install
-```
 
 ## Roadmap
 
@@ -120,13 +86,13 @@ sudo apt -f install
 
 ### Long Term Plan
 
-| Feature                                   | Notes                                           |
-| ----------------------------------------- | ----------------------------------------------- |
-| MCAP Reader                               | Navigate and visualize MCAP files               |
-| New Connections: Foxglove bridge          | Remote visualization support                    |
-| New Connections: Rosbridge                | Web-based ROS2 interaction                      |
-| New Connections: Multi-connection support | Manage multiple ROS2 connections simultaneously |
-| Grid layout                               | Customizable widget layouts                     |
+| Feature                                   | Notes                                 |
+| ----------------------------------------- | ------------------------------------- |
+| MCAP Reader                               | Navigate and visualize MCAP files     |
+| New Connections: Foxglove bridge          | -                                     |
+| New Connections: Rosbridge                | -                                     |
+| New Connections: Multi-connection support | Multiple ROS_DOMAIN_ID simultaneously |
+| Grid layout                               | Customizable widget layouts           |
 
 ## Why Rust ?
 

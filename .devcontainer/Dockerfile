@@ -4,7 +4,7 @@ FROM osrf/ros:jazzy-desktop-full
 RUN sudo apt update && sudo apt upgrade -y
 
 # Install essential packages
-RUN sudo apt install -y wget ninja-build clangd-19 ssh nano neovim less curl libclang-dev python3-vcstool python3-pip zsh sudo golang ffmpeg ttyd tmux
+RUN sudo apt install -y wget ninja-build clangd-19 ssh nano neovim less curl libclang-dev python3-vcstool python3-pip zsh sudo golang ffmpeg ttyd tmux git-lfs
 
 # GUI / Wayland support for rviz2 and other graphical tools
 RUN sudo apt install -y \

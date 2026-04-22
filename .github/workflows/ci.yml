@@ -48,7 +48,7 @@ jobs:
 
       - name: Import ros2_rust support-splinter dependencies
         run: |
-          vcs import src < src/splinter/tools/packages.repos
+          vcs import src < src/splinter/.devcontainer/packages.repos
           vcs import src < src/ros2_rust/ros2_rust_${{ matrix.ros_distribution }}.repos
 
       - name: Install colcon Rust plugins
