@@ -135,20 +135,18 @@ fn get_state_string(message: &GenericMessage, field_index_path: &[usize]) -> Opt
     }
 }
 
-/// Generate evenly-spaced time labels for the X axis, showing relative seconds
-/// (e.g. "-30s", "-20s", "-10s", "0s"). Aims for roughly 5 labels.
-fn generate_time_labels(max_duration: f64) -> Vec<Span<'static>> {
-    let n_labels = 5usize;
+/// Generate evenly-spaced time labels for the X axis, showing absolute UNIX
+/// timestamps in seconds. The number of labels is derived from `axis_width` so
+/// that labels never overlap (each 10-digit timestamp needs ~13 columns).
+fn generate_time_labels(x_min: f64, x_max: f64, axis_width: u16) -> Vec<Span<'static>> {
+    // Each label is 13 chars wide; require at least 1 chars of gap between them.
+    const LABEL_COLS: u16 = 13;
+    let n_labels = ((axis_width / LABEL_COLS).saturating_sub(1) as usize).max(2);
     (0..n_labels)
         .map(|i| {
             let frac = i as f64 / (n_labels - 1) as f64;
-            let offset = -max_duration * (1.0 - frac);
-            let text = if offset.abs() < 0.01 {
-                "0s".to_string()
-            } else {
-                format!("{:.0}s", offset)
-            };
-            Span::raw(text)
+            let t = x_min + (x_max - x_min) * frac;
+            Span::raw(format!("{:.1}", t))
         })
         .collect()
 }
@@ -254,8 +252,10 @@ impl TuiView for StateGraphViewState {
             .border_style(HEADER_STYLE)
             .border_type(BorderType::Rounded);
 
-        // Build X-axis labels showing relative time
-        let x_axis_labels = generate_time_labels(self.max_duration);
+        // Build X-axis labels showing absolute UNIX timestamps.
+        // Axis width = total width minus the left label column and two border chars.
+        let axis_width = area.width.saturating_sub(self.label_width + 2);
+        let x_axis_labels = generate_time_labels(x_min, x_max, axis_width);
         let x_axis = Axis::new()
             .labels(x_axis_labels)
             .style(Style::default().fg(Color::DarkGray));
